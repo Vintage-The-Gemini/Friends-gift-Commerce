@@ -13,33 +13,24 @@ const {
 } = require("../controllers/product.controller");
 
 // Public routes
-router.get("/list", getProducts);
-router.get("/detail/:id", getProduct);
+router.get("/", getProducts); // Get all products
+router.get("/:id", getProduct); // Get single product
 
-// Protected seller routes
-router.get(
-  "/seller/products",
-  protect,
-  authorize("seller", "admin"),
-  getSellerProducts
-);
+// Protected routes (require authentication)
+router.use(protect);
 
-router.post(
-  "/",
-  protect,
-  authorize("seller", "admin"),
-  upload.array("images", 5),
-  createProduct
-);
+// Seller routes
+router.get("/seller/products", authorize("seller"), getSellerProducts);
+
+router.post("/", authorize("seller"), upload.array("images", 5), createProduct);
 
 router.put(
   "/:id",
-  protect,
-  authorize("seller", "admin"),
+  authorize("seller"),
   upload.array("images", 5),
   updateProduct
 );
 
-router.delete("/:id", protect, authorize("seller", "admin"), deleteProduct);
+router.delete("/:id", authorize("seller"), deleteProduct);
 
 module.exports = router;

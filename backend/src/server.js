@@ -32,6 +32,7 @@ const productRoutes = require("./routes/product.routes");
 const eventRoutes = require("./routes/event.routes");
 const orderRoutes = require("./routes/order.routes");
 const contributionRoutes = require("./routes/contribution.routes");
+const analyticsRoutes = require("./routes/analytics.routes");
 // Mount routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
@@ -41,6 +42,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/contributions", contributionRoutes);
+app.use("/api/seller/analytics", analyticsRoutes);
 
 // Basic route
 app.get("/", (req, res) => {

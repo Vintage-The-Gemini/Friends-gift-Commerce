@@ -1,84 +1,284 @@
-// src/pages/seller/SellerDashboard.jsx
-import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Users, DollarSign, TrendingUp } from 'lucide-react';
+// src/pages/dashboard/seller/SellerDashboard.jsx
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import {
+  ShoppingBag,
+  Users,
+  DollarSign,
+  TrendingUp,
+  Package,
+  ArrowUpRight,
+  Calendar,
+} from "lucide-react";
+import { analyticsService } from "../../../services/api/analytics";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 const SellerDashboard = () => {
-  const [stats, setStats] = useState({
+  const [dashboardData, setDashboardData] = useState({
     totalProducts: 0,
-    totalSales: 0,
     activeOrders: 0,
-    monthlyRevenue: 0
+    totalSales: 0,
+    totalRevenue: 0,
+    monthlyRevenue: 0,
+    recentOrders: [],
+    topProducts: [],
   });
+  const [salesData, setSalesData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedPeriod, setSelectedPeriod] = useState("weekly");
 
-  const StatCard = ({ title, value, icon: Icon, bgColor }) => (
-    <div className="bg-white p-6 rounded-lg shadow">
-      <div className="flex items-center">
-        <div className={`${bgColor} p-3 rounded-full`}>
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  useEffect(() => {
+    fetchSalesAnalytics(selectedPeriod);
+  }, [selectedPeriod]);
+
+  const fetchDashboardData = async () => {
+    try {
+      const response = await analyticsService.getDashboardOverview();
+      if (response.success) {
+        setDashboardData(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      setError("Failed to load dashboard data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSalesAnalytics = async (period) => {
+    try {
+      const response = await analyticsService.getSalesAnalytics(period);
+      if (response.success) {
+        setSalesData(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching sales analytics:", error);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(amount);
+  };
+
+  const StatCard = ({ title, value, icon: Icon, bgColor, percentage }) => (
+    <div className="bg-white p-6 rounded-lg shadow-md">
+      <div className="flex items-center justify-between mb-4">
+        <div className={`p-3 rounded-full ${bgColor}`}>
           <Icon className="w-6 h-6 text-white" />
         </div>
-        <div className="ml-4">
-          <h3 className="text-lg font-semibold text-gray-700">{title}</h3>
-          <p className="text-2xl font-bold">{value}</p>
-        </div>
+        {percentage !== undefined && (
+          <div
+            className={`flex items-center ${
+              percentage >= 0 ? "text-green-500" : "text-red-500"
+            }`}
+          >
+            <ArrowUpRight
+              className={`w-4 h-4 mr-1 ${percentage < 0 ? "rotate-90" : ""}`}
+            />
+            <span className="text-sm">{Math.abs(percentage)}%</span>
+          </div>
+        )}
       </div>
+      <h3 className="text-2xl font-bold mb-1">{value}</h3>
+      <p className="text-gray-500 text-sm">{title}</p>
     </div>
   );
 
-  useEffect(() => {
-    // Fetch dashboard stats
-    const fetchStats = async () => {
-      try {
-        const response = await fetch('/api/seller/analytics/overview', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        const data = await response.json();
-        if (data.success) {
-          setStats(data.data);
-        }
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-      }
+  const OrderStatusBadge = ({ status }) => {
+    const statusStyles = {
+      pending: "bg-yellow-100 text-yellow-800",
+      processing: "bg-blue-100 text-blue-800",
+      shipped: "bg-purple-100 text-purple-800",
+      delivered: "bg-green-100 text-green-800",
+      cancelled: "bg-red-100 text-red-800",
     };
 
-    fetchStats();
-  }, []);
+    return (
+      <span
+        className={`px-2 py-1 rounded-full text-xs font-medium ${statusStyles[status]}`}
+      >
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </span>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg p-4">
+          {error}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold mb-2">Dashboard</h1>
+        <p className="text-gray-600">
+          Welcome back! Here's what's happening with your store.
+        </p>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
           title="Total Products"
-          value={stats.totalProducts}
-          icon={ShoppingBag}
+          value={dashboardData.totalProducts}
+          icon={Package}
           bgColor="bg-blue-500"
         />
         <StatCard
           title="Active Orders"
-          value={stats.activeOrders}
-          icon={TrendingUp}
-          bgColor="bg-green-500"
+          value={dashboardData.activeOrders}
+          icon={ShoppingBag}
+          bgColor="bg-yellow-500"
+          percentage={12}
         />
         <StatCard
           title="Total Sales"
-          value={stats.totalSales}
+          value={dashboardData.totalSales}
           icon={Users}
-          bgColor="bg-purple-500"
+          bgColor="bg-green-500"
+          percentage={8}
         />
         <StatCard
           title="Monthly Revenue"
-          value={`$${stats.monthlyRevenue}`}
+          value={formatCurrency(dashboardData.monthlyRevenue)}
           icon={DollarSign}
-          bgColor="bg-yellow-500"
+          bgColor="bg-purple-500"
+          percentage={15}
         />
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Sales Chart */}
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-semibold">Sales Overview</h2>
+            <div className="flex space-x-2">
+              {["daily", "weekly", "monthly"].map((period) => (
+                <button
+                  key={period}
+                  onClick={() => setSelectedPeriod(period)}
+                  className={`px-3 py-1 rounded-lg text-sm ${
+                    selectedPeriod === period
+                      ? "bg-blue-100 text-blue-600"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  {period.charAt(0).toUpperCase() + period.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={salesData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="_id" />
+                <YAxis />
+                <Tooltip />
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#8884d8"
+                  name="Revenue"
+                  strokeWidth={2}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="sales"
+                  stroke="#82ca9d"
+                  name="Sales"
+                  strokeWidth={2}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Top Products */}
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">Top Products</h2>
+            <Link
+              to="/seller/products"
+              className="text-blue-600 hover:text-blue-800 text-sm"
+            >
+              View All
+            </Link>
+          </div>
+          <div className="space-y-4">
+            {dashboardData.topProducts.map((item) => (
+              <div key={item.product._id} className="flex items-center">
+                <img
+                  src={
+                    item.product.images?.[0]?.url ||
+                    "https://placehold.co/100x100"
+                  }
+                  alt={item.product.name}
+                  className="w-12 h-12 rounded-lg object-cover"
+                />
+                <div className="ml-4 flex-1">
+                  <h3 className="text-sm font-medium">{item.product.name}</h3>
+                  <p className="text-gray-500 text-sm">{item.totalSold} sold</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium">
+                    {formatCurrency(item.revenue)}
+                  </p>
+                  <p className="text-xs text-gray-500">Revenue</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Recent Orders */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold mb-4">Recent Orders</h2>
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="flex justify-between items-center p-6 border-b">
+          <h2 className="text-lg font-semibold">Recent Orders</h2>
+          <Link
+            to="/seller/orders"
+            className="text-blue-600 hover:text-blue-800 text-sm"
+          >
+            View All
+          </Link>
+        </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -90,7 +290,7 @@ const SellerDashboard = () => {
                   Customer
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Product
+                  Date
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Amount
@@ -98,14 +298,41 @@ const SellerDashboard = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  No orders yet
-                </td>
-              </tr>
+              {dashboardData.recentOrders.map((order) => (
+                <tr key={order._id}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    #{order._id.slice(-6)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">
+                      {order.buyer.name}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {formatDate(order.createdAt)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatCurrency(order.totalAmount)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <OrderStatusBadge status={order.status} />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                    <Link
+                      to={`/seller/orders/${order._id}`}
+                      className="text-blue-600 hover:text-blue-900"
+                    >
+                      View Details
+                    </Link>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

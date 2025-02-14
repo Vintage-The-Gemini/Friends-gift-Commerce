@@ -57,7 +57,7 @@ const Root = () => {
   );
 };
 
-const router = createBrowserRouter([
+const routes = [
   {
     element: <Root />,
     errorElement: <ErrorBoundary />,
@@ -249,7 +249,14 @@ const router = createBrowserRouter([
       },
     ],
   },
-]);
+];
+
+const router = createBrowserRouter(routes, {
+  future: {
+    v7_startTransition: true,
+    v7_relativeSplatPath: true,
+  },
+});
 
 function App() {
   return <RouterProvider router={router} />;

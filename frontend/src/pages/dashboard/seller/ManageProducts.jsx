@@ -1,8 +1,9 @@
-// src/pages/dashboard/seller/ManageProducts.jsx
+// pages/dashboard/seller/ManageProducts.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Edit, Trash2, Search } from "lucide-react";
-import api from "../../../services/api/axios.config";
+import { productService } from "../../../services/api/product";
+import { toast } from "react-toastify";
 
 const ManageProducts = () => {
   const navigate = useNavigate();
@@ -17,13 +18,13 @@ const ManageProducts = () => {
 
   const loadProducts = async () => {
     try {
-      const response = await api.get("/products/seller/products");
-      if (response.data.success) {
-        setProducts(response.data.data);
+      const response = await productService.getSellerProducts();
+      if (response.success) {
+        setProducts(response.data);
       }
     } catch (error) {
+      toast.error("Failed to load products");
       setError("Failed to load products");
-      console.error("Error loading products:", error);
     } finally {
       setLoading(false);
     }
@@ -32,13 +33,20 @@ const ManageProducts = () => {
   const handleDelete = async (productId) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
       try {
-        await api.delete(`/products/${productId}`);
-        await loadProducts(); // Refresh the list
+        const response = await productService.deleteProduct(productId);
+        if (response.success) {
+          toast.success("Product deleted successfully");
+          await loadProducts(); // Refresh the list
+        }
       } catch (error) {
+        toast.error("Failed to delete product");
         setError("Failed to delete product");
-        console.error("Error deleting product:", error);
       }
     }
+  };
+
+  const handleEdit = (productId) => {
+    navigate(`/seller/products/edit/${productId}`);
   };
 
   const filteredProducts = products.filter((product) =>
@@ -55,6 +63,7 @@ const ManageProducts = () => {
 
   return (
     <div className="p-6">
+      {/* Header section */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Manage Products</h1>
         <div className="flex items-center space-x-4">
@@ -78,95 +87,107 @@ const ManageProducts = () => {
         </div>
       </div>
 
+      {/* Error message */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg p-4 mb-6">
           {error}
         </div>
       )}
 
+      {/* Products table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Product
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Price
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Stock
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredProducts.map((product) => (
-              <tr key={product._id}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="h-10 w-10 flex-shrink-0">
-                      {product.images?.[0] ? (
-                        <img
-                          src={product.images[0].url}
-                          alt={product.name}
-                          className="h-10 w-10 rounded-lg object-cover"
-                        />
-                      ) : (
-                        <div className="h-10 w-10 rounded-lg bg-gray-200" />
-                      )}
-                    </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900">
-                        {product.name}
+        {filteredProducts.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500">No products found</p>
+            <button
+              onClick={() => navigate("/seller/products/add")}
+              className="mt-4 text-blue-600 hover:text-blue-800"
+            >
+              Add your first product
+            </button>
+          </div>
+        ) : (
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Product
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Price
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Stock
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredProducts.map((product) => (
+                <tr key={product._id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="h-10 w-10 flex-shrink-0">
+                        {product.images?.[0] ? (
+                          <img
+                            src={product.images[0].url}
+                            alt={product.name}
+                            className="h-10 w-10 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 rounded-lg bg-gray-200" />
+                        )}
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">
+                          {product.name}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm font-medium text-gray-900">
-                    ${product.price.toFixed(2)}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {product.stock}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span
-                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      product.stock > 0
-                        ? "bg-green-100 text-green-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    {product.stock > 0 ? "In Stock" : "Out of Stock"}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button
-                    onClick={() =>
-                      navigate(`/seller/products/edit/${product._id}`)
-                    }
-                    className="text-blue-600 hover:text-blue-900 mr-4"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(product._id)}
-                    className="text-red-600 hover:text-red-900"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-sm font-medium text-gray-900">
+                      ${product.price.toFixed(2)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {product.stock}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span
+                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        product.stock > 0
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {product.stock > 0 ? "In Stock" : "Out of Stock"}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <button
+                      onClick={() => handleEdit(product._id)}
+                      className="text-blue-600 hover:text-blue-900 mr-4"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(product._id)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
