@@ -1,100 +1,76 @@
-// src/controllers/product.controller.js
+// controllers/product.controller.js
 const Product = require("../models/Product");
-const Category = require("../models/Category");
 const { uploadToCloudinary } = require("../utils/cloudinary");
 
-// @desc    Create a new product
-// @route   POST /api/products
-// @access  Private/Seller
-const createProduct = async (req, res) => {
+// Update the createProduct function in product.controller.js
+
+exports.createProduct = async (req, res) => {
   try {
-    console.log("Request body:", req.body);
-    console.log("Files received:", req.files);
+    console.log("Creating product, request body:", req.body);
 
-    // Check if required fields exist
-    if (
-      !req.body.name ||
-      !req.body.description ||
-      !req.body.price ||
-      !req.body.categoryId
-    ) {
-      console.log("Missing required fields:", {
-        name: !!req.body.name,
-        description: !!req.body.description,
-        price: !!req.body.price,
-        categoryId: !!req.body.categoryId,
-      });
-      return res.status(400).json({
-        success: false,
-        message: "Please provide all required fields",
-      });
-    }
-
-    // Validate category
-    const category = await Category.findById(req.body.categoryId);
-    if (!category) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid category",
-      });
-    }
-
-    // Handle image uploads with detailed logging
-    const imageUrls = [];
+    // Upload images to Cloudinary
+    const imageUploads = [];
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         try {
-          console.log("Processing file:", file.originalname);
-          console.log("File details:", {
-            fieldname: file.fieldname,
-            mimetype: file.mimetype,
-            size: file.size,
-            path: file.path,
-          });
-
           const result = await uploadToCloudinary(file);
-          console.log("Cloudinary upload result:", result);
-          imageUrls.push(result.secure_url);
+          imageUploads.push({
+            url: result.secure_url,
+            public_id: result.public_id,
+            isPrimary: imageUploads.length === 0, // First image is primary
+          });
         } catch (uploadError) {
-          console.error("Error uploading to Cloudinary:", uploadError);
-          return res.status(500).json({
+          console.error("Image upload error:", uploadError);
+          return res.status(400).json({
             success: false,
             message: "Error uploading images",
-            error: uploadError.message,
           });
         }
       }
     }
 
-    if (imageUrls.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "At least one product image is required",
-      });
+    // Generate slug from name
+    const baseSlug = req.body.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+    // Check if slug exists and generate a unique one if needed
+    let slug = baseSlug;
+    let counter = 1;
+    let slugExists = true;
+
+    while (slugExists) {
+      const existingProduct = await Product.findOne({ slug });
+      if (!existingProduct) {
+        slugExists = false;
+      } else {
+        slug = `${baseSlug}-${counter}`;
+        counter++;
+      }
     }
 
-    // Create product
+    // Create product with validated data
     const product = await Product.create({
       name: req.body.name,
+      slug: slug,
       description: req.body.description,
       price: parseFloat(req.body.price),
       category: req.body.categoryId,
-      stock: parseInt(req.body.stock) || 0,
-      images: imageUrls,
       seller: req.user._id,
+      stock: parseInt(req.body.stock),
+      images: imageUploads,
       characteristics: req.body.characteristics
         ? JSON.parse(req.body.characteristics)
         : {},
-      tags: req.body.tags
-        ? req.body.tags.split(",").map((tag) => tag.trim())
-        : [],
+      isActive: true,
     });
 
     // Populate category and seller information
-    await product.populate("category", "name");
-    await product.populate("seller", "name businessName");
-
-    console.log("Product created successfully:", product);
+    await product.populate([
+      { path: "category", select: "name" },
+      { path: "seller", select: "name businessName" },
+    ]);
 
     res.status(201).json({
       success: true,
@@ -104,44 +80,36 @@ const createProduct = async (req, res) => {
     console.error("Product creation error:", error);
     res.status(400).json({
       success: false,
-      message: error.message,
+      message: error.message || "Failed to create product",
     });
   }
 };
-
-// @desc    Get all products with filters
-// @route   GET /api/products/list
-// @access  Public
-const getProducts = async (req, res) => {
+exports.getProducts = async (req, res) => {
   try {
-    const query = {};
+    const query = { isActive: true };
 
-    // Add filters
+    // Apply filters
     if (req.query.category) query.category = req.query.category;
     if (req.query.seller) query.seller = req.query.seller;
-    if (req.query.minPrice) query.price = { $gte: Number(req.query.minPrice) };
+    if (req.query.minPrice)
+      query.price = { $gte: parseFloat(req.query.minPrice) };
     if (req.query.maxPrice) {
-      query.price = { ...query.price, $lte: Number(req.query.maxPrice) };
+      query.price = { ...query.price, $lte: parseFloat(req.query.maxPrice) };
     }
     if (req.query.search) {
       query.$text = { $search: req.query.search };
     }
 
-    // Active products only for public
-    if (!req.user || req.user.role !== "admin") {
-      query.isActive = true;
-    }
-
     // Pagination
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
-    const startIndex = (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
     const products = await Product.find(query)
       .populate("category", "name")
       .populate("seller", "name businessName")
       .sort(req.query.sort || "-createdAt")
-      .skip(startIndex)
+      .skip(skip)
       .limit(limit);
 
     const total = await Product.countDocuments(query);
@@ -164,10 +132,33 @@ const getProducts = async (req, res) => {
   }
 };
 
-// @desc    Get single product
-// @route   GET /api/products/detail/:id
-// @access  Public
-const getProduct = async (req, res) => {
+exports.getSellerProducts = async (req, res) => {
+  try {
+    const query = { seller: req.user._id };
+
+    // Add status filter if provided
+    if (req.query.status) {
+      query.isActive = req.query.status === "active";
+    }
+
+    const products = await Product.find(query)
+      .populate("category", "name")
+      .sort("-createdAt");
+
+    res.json({
+      success: true,
+      count: products.length,
+      data: products,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+exports.getProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
       .populate("category", "name characteristics")
@@ -192,10 +183,9 @@ const getProduct = async (req, res) => {
   }
 };
 
-// @desc    Update product
-// @route   PUT /api/products/:id
-// @access  Private/Seller
-const updateProduct = async (req, res) => {
+// Add this to your product.controller.js
+
+exports.updateProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
 
@@ -217,46 +207,67 @@ const updateProduct = async (req, res) => {
       });
     }
 
-    // Handle new image uploads
+    // Handle image uploads
+    const imageUploads = [...product.images]; // Keep existing images
     if (req.files && req.files.length > 0) {
-      const newImageUrls = [];
       for (const file of req.files) {
-        const result = await uploadToCloudinary(file);
-        newImageUrls.push(result.secure_url);
+        try {
+          const result = await uploadToCloudinary(file);
+          imageUploads.push({
+            url: result.secure_url,
+            public_id: result.public_id,
+            isPrimary: imageUploads.length === 0,
+          });
+        } catch (uploadError) {
+          console.error("Image upload error:", uploadError);
+          return res.status(400).json({
+            success: false,
+            message: "Error uploading images",
+          });
+        }
       }
-      req.body.images = [...product.images, ...newImageUrls];
     }
 
-    // Parse characteristics if provided
-    if (req.body.characteristics) {
-      req.body.characteristics = JSON.parse(req.body.characteristics);
-    }
+    const updateData = {
+      name: req.body.name,
+      description: req.body.description,
+      price: parseFloat(req.body.price),
+      category: req.body.categoryId,
+      stock: parseInt(req.body.stock),
+      images: imageUploads,
+      characteristics: req.body.characteristics
+        ? JSON.parse(req.body.characteristics)
+        : product.characteristics,
+    };
 
     const updatedProduct = await Product.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       {
         new: true,
         runValidators: true,
       }
-    ).populate("category", "name");
+    ).populate([
+      { path: "category", select: "name" },
+      { path: "seller", select: "name businessName" },
+    ]);
 
     res.json({
       success: true,
       data: updatedProduct,
     });
   } catch (error) {
+    console.error("Product update error:", error);
     res.status(400).json({
       success: false,
-      message: error.message,
+      message: error.message || "Failed to update product",
     });
   }
 };
 
-// @desc    Delete product
-// @route   DELETE /api/products/:id
-// @access  Private/Seller
-const deleteProduct = async (req, res) => {
+// Add this to your product.controller.js
+
+exports.deleteProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
 
@@ -282,62 +293,22 @@ const deleteProduct = async (req, res) => {
     product.isActive = false;
     await product.save();
 
+    // Delete images from Cloudinary
+    for (const image of product.images) {
+      if (image.public_id) {
+        await deleteFromCloudinary(image.public_id);
+      }
+    }
+
     res.json({
       success: true,
       message: "Product deleted successfully",
     });
   } catch (error) {
+    console.error("Product deletion error:", error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message || "Failed to delete product",
     });
   }
-};
-
-const getSellerProducts = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-
-    const query = { seller: req.user._id };
-
-    // Add status filter if provided
-    if (req.query.status) {
-      query.isActive = req.query.status === "active";
-    }
-
-    const products = await Product.find(query)
-      .populate("category", "name")
-      .sort("-createdAt")
-      .skip(skip)
-      .limit(limit);
-
-    const total = await Product.countDocuments(query);
-
-    res.json({
-      success: true,
-      count: products.length,
-      pagination: {
-        page,
-        totalPages: Math.ceil(total / limit),
-        total,
-      },
-      data: products,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
-module.exports = {
-  createProduct,
-  getProducts,
-  getProduct,
-  updateProduct,
-  deleteProduct,
-  getSellerProducts, // Make sure this function exists in your controller
 };

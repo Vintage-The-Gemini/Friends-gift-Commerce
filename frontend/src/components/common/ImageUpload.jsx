@@ -16,33 +16,18 @@ const ImageUpload = ({ onUpload, label, currentImage, className }) => {
     setError("");
     setUploading(true);
 
-    // File validation
-    if (!file.type.startsWith("image/")) {
-      setError("Please upload an image file");
-      setUploading(false);
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      // 5MB limit
-      setError("Image must be less than 5MB");
-      setUploading(false);
-      return;
-    }
-
     try {
-      // Create preview
+      // Create preview immediately
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreviewUrl(reader.result);
       };
       reader.readAsDataURL(file);
 
-      // Upload to Cloudinary
-      const imageUrl = await uploadToCloudinary(file);
-      onUpload(imageUrl);
+      // Send the actual file to the parent component
+      onUpload(file); // Changed this line - send file instead of URL
     } catch (error) {
-      setError("Failed to upload image. Please try again.");
+      setError("Failed to handle image. Please try again.");
       console.error("Upload error:", error);
     } finally {
       setUploading(false);

@@ -22,7 +22,6 @@ const eventSchema = new mongoose.Schema(
         "babyShower",
         "houseWarming",
         "anniversary",
-        "other",
       ],
       required: true,
     },
@@ -74,22 +73,14 @@ const eventSchema = new mongoose.Schema(
       type: String,
       unique: true,
     },
+    order: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Order",
+    },
     contributions: [
       {
-        contributor: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-        },
-        amount: Number,
-        message: String,
-        anonymous: {
-          type: Boolean,
-          default: false,
-        },
-        createdAt: {
-          type: Date,
-          default: Date.now,
-        },
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Contribution",
       },
     ],
     endDate: {
@@ -107,8 +98,20 @@ const eventSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
+
+// Virtual field for contribution stats
+eventSchema.virtual("contributionStats").get(function () {
+  return {
+    totalContributions: this.contributions?.length || 0,
+    progress: this.currentAmount
+      ? (this.currentAmount / this.targetAmount) * 100
+      : 0,
+  };
+});
 
 // Generate shareable link before saving
 eventSchema.pre("save", function (next) {
@@ -120,15 +123,29 @@ eventSchema.pre("save", function (next) {
   next();
 });
 
-// Calculate current amount from contributions
-eventSchema.pre("save", function (next) {
-  if (this.contributions && this.contributions.length > 0) {
-    this.currentAmount = this.contributions.reduce(
-      (sum, contribution) => sum + contribution.amount,
-      0
-    );
+// Create order when event is created
+eventSchema.post("save", async function (doc) {
+  if (!doc.order && doc.status === "active") {
+    const Order = mongoose.model("Order");
+    const totalAmount = doc.products.reduce((sum, item) => {
+      return sum + item.product.price * item.quantity;
+    }, 0);
+
+    const order = await Order.create({
+      event: doc._id,
+      products: doc.products.map((item) => ({
+        product: item.product,
+        quantity: item.quantity,
+        price: item.product.price,
+      })),
+      totalAmount,
+      seller: doc.products[0].product.seller, // Assuming all products are from same seller
+      buyer: doc.creator,
+    });
+
+    doc.order = order._id;
+    await doc.save();
   }
-  next();
 });
 
 module.exports = mongoose.model("Event", eventSchema);

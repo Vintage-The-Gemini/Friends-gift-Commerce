@@ -31,35 +31,6 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
-      // For development/testing - remove in production
-      if (
-        credentials.phoneNumber === "+254700000000" &&
-        credentials.password === "password123"
-      ) {
-        const mockUser = {
-          id: "1",
-          name: "Test User",
-          phoneNumber: credentials.phoneNumber,
-          role: credentials.role || "buyer",
-        };
-        const mockToken = "mock-token-123";
-
-        localStorage.setItem("token", mockToken);
-        localStorage.setItem("user", JSON.stringify(mockUser));
-        setUser(mockUser);
-
-        // Navigate based on role
-        if (mockUser.role === "seller") {
-          navigate("/seller/dashboard");
-        } else if (mockUser.role === "admin") {
-          navigate("/admin/dashboard");
-        } else {
-          navigate("/");
-        }
-
-        return { user: mockUser, token: mockToken };
-      }
-
       const response = await axios.post("/api/auth/login", credentials);
       const { data } = response;
 
@@ -83,13 +54,26 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error("Login error:", error);
-      if (error.response?.data?.message) {
-        throw new Error(error.response.data.message);
+      throw new Error(error.response?.data?.message || "Login failed");
+    }
+  };
+
+  const register = async (userData) => {
+    try {
+      const response = await axios.post("/api/auth/register", userData);
+      const { data } = response;
+
+      if (data.token && data.user) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+        setUser(data.user);
+        return data;
       } else {
-        throw new Error(
-          "Login failed. Please check your credentials and try again."
-        );
+        throw new Error("Invalid response from server");
       }
+    } catch (error) {
+      console.error("Registration error:", error);
+      throw new Error(error.response?.data?.message || "Registration failed");
     }
   };
 
@@ -100,6 +84,14 @@ export const AuthProvider = ({ children }) => {
     navigate("/auth/signin");
   };
 
+  const value = {
+    user,
+    loading,
+    login,
+    logout,
+    register,
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -107,13 +99,6 @@ export const AuthProvider = ({ children }) => {
       </div>
     );
   }
-
-  const value = {
-    user,
-    loading,
-    login,
-    logout,
-  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
