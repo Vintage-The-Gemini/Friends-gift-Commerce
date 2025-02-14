@@ -1,10 +1,10 @@
-// services/api/product.js
+// src/services/api/product.js
 import api from "./axios.config";
 
-// Constants for endpoint paths
+// Constants for endpoint paths (without /api prefix since it's in baseURL)
 const ENDPOINTS = {
   BASE: "/products",
-  SELLER: "/products/seller/products",
+  SELLER: "/seller/products",
   DETAIL: (id) => `/products/${id}`,
 };
 
@@ -18,30 +18,31 @@ const ERROR_MESSAGES = {
 };
 
 export const productService = {
-  /**
-   * Create a new product
-   * @param {FormData} formData - Form data containing product information and images
-   * @returns {Promise} Response from API
-   */
-  createProduct: async (formData) => {
+  getAllProducts: async (filters = {}, options = {}) => {
     try {
-      const response = await api.post(ENDPOINTS.BASE, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      const { page = 1, limit = 12, sort = "-createdAt" } = options;
+      const queryParams = new URLSearchParams();
+
+      // Add pagination and sorting
+      queryParams.append("page", page);
+      queryParams.append("limit", limit);
+      queryParams.append("sort", sort);
+
+      // Add filters
+      if (filters.search) queryParams.append("search", filters.search);
+      if (filters.category) queryParams.append("category", filters.category);
+      if (filters.minPrice) queryParams.append("minPrice", filters.minPrice);
+      if (filters.maxPrice) queryParams.append("maxPrice", filters.maxPrice);
+      if (filters.sortBy) queryParams.append("sortBy", filters.sortBy);
+
+      const response = await api.get(`${ENDPOINTS.BASE}?${queryParams}`);
       return response.data;
     } catch (error) {
-      console.error("[Product Service] Create Error:", error);
-      throw new Error(error.message || ERROR_MESSAGES.CREATE);
+      console.error("[Product Service] Get All Products Error:", error);
+      throw error.response?.data || error;
     }
   },
 
-  /**
-   * Get seller's products with optional filters
-   * @param {Object} options - Optional parameters like page, limit, sort
-   * @returns {Promise} List of seller's products
-   */
   getSellerProducts: async (options = {}) => {
     try {
       const { page = 1, limit = 10, sort = "-createdAt" } = options;
@@ -51,113 +52,27 @@ export const productService = {
       return response.data;
     } catch (error) {
       console.error("[Product Service] Get Seller Products Error:", error);
-      throw new Error(error.message || ERROR_MESSAGES.FETCH);
+      throw error.response?.data || error;
     }
   },
 
-  /**
-   * Get single product by ID
-   * @param {string} id - Product ID
-   * @returns {Promise} Product details
-   */
   getProduct: async (id) => {
     try {
       const response = await api.get(ENDPOINTS.DETAIL(id));
       return response.data;
     } catch (error) {
       console.error("[Product Service] Get Single Product Error:", error);
-      throw new Error(error.message || ERROR_MESSAGES.FETCH_SINGLE);
+      throw error.response?.data || error;
     }
   },
 
-  /**
-   * Update product
-   * @param {string} id - Product ID
-   * @param {FormData} formData - Updated product data
-   * @returns {Promise} Updated product details
-   */
-  updateProduct: async (id, formData) => {
-    try {
-      const response = await api.put(ENDPOINTS.DETAIL(id), formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-      return response.data;
-    } catch (error) {
-      console.error("[Product Service] Update Error:", error);
-      throw new Error(error.message || ERROR_MESSAGES.UPDATE);
-    }
-  },
-
-  /**
-   * Delete product
-   * @param {string} id - Product ID
-   * @returns {Promise} Delete confirmation
-   */
   deleteProduct: async (id) => {
     try {
       const response = await api.delete(ENDPOINTS.DETAIL(id));
       return response.data;
     } catch (error) {
       console.error("[Product Service] Delete Error:", error);
-      throw new Error(error.message || ERROR_MESSAGES.DELETE);
-    }
-  },
-
-  /**
-   * Get all products with filters
-   * @param {Object} filters - Filter parameters
-   * @param {Object} options - Optional parameters like page, limit, sort
-   * @returns {Promise} List of products
-   */
-  getAllProducts: async (filters = {}, options = {}) => {
-    try {
-      const { page = 1, limit = 10, sort = "-createdAt" } = options;
-      const params = { ...filters, page, limit, sort };
-      const response = await api.get(ENDPOINTS.BASE, { params });
-      return response.data;
-    } catch (error) {
-      console.error("[Product Service] Get All Products Error:", error);
-      throw new Error(error.message || ERROR_MESSAGES.FETCH);
-    }
-  },
-
-  /**
-   * Search products
-   * @param {string} query - Search query
-   * @param {Object} options - Optional parameters like page, limit
-   * @returns {Promise} Search results
-   */
-  searchProducts: async (query, options = {}) => {
-    try {
-      const { page = 1, limit = 10 } = options;
-      const response = await api.get(ENDPOINTS.BASE, {
-        params: { search: query, page, limit },
-      });
-      return response.data;
-    } catch (error) {
-      console.error("[Product Service] Search Error:", error);
-      throw new Error(error.message || ERROR_MESSAGES.FETCH);
-    }
-  },
-
-  /**
-   * Get products by category
-   * @param {string} categoryId - Category ID
-   * @param {Object} options - Optional parameters like page, limit, sort
-   * @returns {Promise} Products in category
-   */
-  getProductsByCategory: async (categoryId, options = {}) => {
-    try {
-      const { page = 1, limit = 10, sort = "-createdAt" } = options;
-      const response = await api.get(ENDPOINTS.BASE, {
-        params: { category: categoryId, page, limit, sort },
-      });
-      return response.data;
-    } catch (error) {
-      console.error("[Product Service] Get By Category Error:", error);
-      throw new Error(error.message || ERROR_MESSAGES.FETCH);
+      throw error.response?.data || error;
     }
   },
 };

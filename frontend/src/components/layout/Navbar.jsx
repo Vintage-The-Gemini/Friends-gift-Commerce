@@ -1,13 +1,23 @@
 // src/components/layout/Navbar.jsx
-import { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
-import { Menu, Plus, Heart, Calendar, LogOut, Settings, Gift } from 'lucide-react';
+import { useState, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import {
+  Menu,
+  Plus,
+  Heart,
+  Calendar,
+  LogOut,
+  Settings,
+  Gift,
+} from "lucide-react";
+import Logo from "../../assets/Friends-gift-logo.svg";
 
 const Navbar = () => {
   const { user, logout } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showEventsMenu, setShowEventsMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const dropdownRef = useRef(null);
   const eventsDropdownRef = useRef(null);
 
@@ -16,31 +26,42 @@ const Navbar = () => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setShowProfileMenu(false);
       }
-      if (eventsDropdownRef.current && !eventsDropdownRef.current.contains(event.target)) {
+      if (
+        eventsDropdownRef.current &&
+        !eventsDropdownRef.current.contains(event.target)
+      ) {
         setShowEventsMenu(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const getInitial = (name) => {
-    return name ? name.charAt(0).toUpperCase() : '?';
+    return name ? name.charAt(0).toUpperCase() : "?";
   };
 
   return (
     <nav className="bg-white shadow">
       <div className="container mx-auto px-4">
         <div className="h-16 flex items-center justify-between">
-          {/* Left section */}
-          <div className="flex items-center space-x-4">
-            <Link to="/" className="text-[#5551FF] font-bold text-xl">
-              Friends Gift
+          {/* Left section with Logo */}
+          <div className="flex items-center">
+            <Link to="/" className="flex items-center">
+              <img src={Logo} alt="Friends Gift" className="h-8" />
             </Link>
           </div>
 
-          {/* Middle section */}
+          {/* Mobile menu button */}
+          <button
+            className="md:hidden p-2 rounded-md text-gray-600 hover:text-gray-900"
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+
+          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
             {user && (
               <div className="relative" ref={eventsDropdownRef}>
@@ -51,7 +72,7 @@ const Navbar = () => {
                   <Gift className="w-4 h-4 mr-1" />
                   My Events
                 </button>
-                
+
                 {showEventsMenu && (
                   <div className="absolute left-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-2 z-50 border">
                     <Link
@@ -79,28 +100,34 @@ const Navbar = () => {
                 )}
               </div>
             )}
-            
+
             <Link to="/events" className="text-gray-700 hover:text-[#5551FF]">
               All Events
             </Link>
             <Link to="/products" className="text-gray-700 hover:text-[#5551FF]">
               Products
             </Link>
-            {user?.role === 'seller' && (
-              <Link to="/seller/products" className="text-gray-700 hover:text-[#5551FF]">
-                My Products
+            {user?.role === "seller" && (
+              <Link
+                to="/seller/dashboard"
+                className="text-gray-700 hover:text-[#5551FF]"
+              >
+                Seller Dashboard
               </Link>
             )}
           </div>
 
           {/* Right section */}
-          <div className="flex items-center space-x-4">
+          <div className="hidden md:flex items-center space-x-4">
             {user && (
-              <Link to="/favorites" className="text-gray-700 hover:text-[#5551FF]">
+              <Link
+                to="/favorites"
+                className="text-gray-700 hover:text-[#5551FF]"
+              >
                 <Heart className="w-6 h-6" />
               </Link>
             )}
-            
+
             {user ? (
               <div className="relative" ref={dropdownRef}>
                 <button
@@ -113,8 +140,12 @@ const Navbar = () => {
                 {showProfileMenu && (
                   <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-2 z-50 border">
                     <div className="px-4 py-3 border-b">
-                      <p className="text-sm font-semibold text-gray-900">{user.name}</p>
-                      <p className="text-sm text-gray-500">{user.phoneNumber}</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {user.name}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {user.phoneNumber}
+                      </p>
                     </div>
 
                     <div className="py-1">
@@ -149,6 +180,62 @@ const Navbar = () => {
             )}
           </div>
         </div>
+
+        {/* Mobile menu */}
+        {showMobileMenu && (
+          <div className="md:hidden border-t border-gray-200 py-4">
+            <div className="flex flex-col space-y-4">
+              {user && (
+                <>
+                  <Link
+                    to="/events/create"
+                    className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    <Plus className="w-4 h-4 mr-3" />
+                    Create Event
+                  </Link>
+                  <Link
+                    to="/my-events"
+                    className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    <Calendar className="w-4 h-4 mr-3" />
+                    My Events
+                  </Link>
+                </>
+              )}
+
+              <Link
+                to="/events"
+                className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100"
+              >
+                All Events
+              </Link>
+              <Link
+                to="/products"
+                className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100"
+              >
+                Products
+              </Link>
+              {user?.role === "seller" && (
+                <Link
+                  to="/seller/dashboard"
+                  className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Seller Dashboard
+                </Link>
+              )}
+
+              {!user && (
+                <Link
+                  to="/auth/signin"
+                  className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Sign In
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </nav>
   );
