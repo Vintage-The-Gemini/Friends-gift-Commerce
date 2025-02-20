@@ -1,8 +1,8 @@
-// src/components/events/ProductSelection.jsx
 import React, { useState, useEffect } from "react";
-import { Search, Minus, Plus, X, Loader } from "lucide-react";
+import { Search, Filter, Plus, Minus, X } from "lucide-react";
 import { productService } from "../../services/api/product";
 import { categoryService } from "../../services/api/category";
+import { formatCurrency } from "../../utils/currency";
 import { toast } from "react-toastify";
 
 const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
@@ -25,6 +25,7 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
       }
     } catch (error) {
       console.error("Error fetching categories:", error);
+      toast.error("Failed to load categories");
     }
   };
 
@@ -76,14 +77,14 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
   };
 
   const updateQuantity = (productId, change) => {
-    const updated = selectedProducts.map((item) => {
+    const updatedProducts = selectedProducts.map((item) => {
       if (item.product._id === productId) {
         const newQuantity = Math.max(1, item.quantity + change);
         return { ...item, quantity: newQuantity };
       }
       return item;
     });
-    onProductSelect(updated);
+    onProductSelect(updatedProducts);
   };
 
   const removeProduct = (productId) => {
@@ -91,14 +92,6 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
       selectedProducts.filter((item) => item.product._id !== productId)
     );
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader className="w-8 h-8 animate-spin text-[#5551FF]" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -130,112 +123,102 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
 
       {/* Selected Products */}
       {selectedProducts.length > 0 && (
-        <div className="bg-gray-50 p-4 rounded-lg mb-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            Selected Products
-          </h3>
-          <div className="space-y-4">
-            {selectedProducts.map(({ product, quantity }) => (
-              <div
-                key={product._id}
-                className="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm"
-              >
-                <div className="flex items-center">
-                  <img
-                    src={
-                      product.images?.[0]?.url || "https://placehold.co/100x100"
-                    }
-                    alt={product.name}
-                    className="w-12 h-12 rounded-lg object-cover"
-                  />
-                  <div className="ml-4">
-                    <h4 className="font-medium text-gray-900">
-                      {product.name}
-                    </h4>
-                    <p className="text-gray-500 text-sm">
-                      ${product.price.toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => updateQuantity(product._id, -1)}
-                      className="p-1 rounded-full hover:bg-gray-100"
-                    >
-                      <Minus className="w-4 h-4" />
-                    </button>
-                    <span className="w-8 text-center">{quantity}</span>
-                    <button
-                      onClick={() => updateQuantity(product._id, 1)}
-                      className="p-1 rounded-full hover:bg-gray-100"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => removeProduct(product._id)}
-                    className="p-1 rounded-full hover:bg-red-100 text-red-500"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+        <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+          <h3 className="font-medium">Selected Products</h3>
+          {selectedProducts.map((item) => (
+            <div
+              key={item.product._id}
+              className="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm"
+            >
+              <div className="flex items-center">
+                <img
+                  src={
+                    item.product.images?.[0]?.url || "/placeholder-image.jpg"
+                  }
+                  alt={item.product.name}
+                  className="w-12 h-12 rounded-lg object-cover"
+                />
+                <div className="ml-4">
+                  <h4 className="font-medium">{item.product.name}</h4>
+                  <p className="text-gray-500 text-sm">
+                    {formatCurrency(item.product.price)}
+                  </p>
                 </div>
               </div>
-            ))}
-            <div className="text-right text-lg font-medium pt-4 border-t">
-              Total: $
-              {selectedProducts
-                .reduce(
-                  (sum, { product, quantity }) =>
-                    sum + product.price * quantity,
-                  0
-                )
-                .toFixed(2)}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => updateQuantity(item.product._id, -1)}
+                    className="p-1 rounded-full hover:bg-gray-100"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <span className="w-8 text-center">{item.quantity}</span>
+                  <button
+                    onClick={() => updateQuantity(item.product._id, 1)}
+                    className="p-1 rounded-full hover:bg-gray-100"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                <button
+                  onClick={() => removeProduct(item.product._id)}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </div>
+          ))}
         </div>
       )}
 
-      {/* Available Products Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {products.map((product) => (
-          <div
-            key={product._id}
-            className={`border rounded-lg overflow-hidden cursor-pointer transition-all ${
-              isProductSelected(product._id)
-                ? "border-[#5551FF] ring-2 ring-[#5551FF]"
-                : "hover:border-[#5551FF]"
-            }`}
-            onClick={() => handleProductClick(product)}
-          >
-            <img
-              src={product.images?.[0]?.url || "https://placehold.co/300x200"}
-              alt={product.name}
-              className="w-full h-48 object-cover"
-            />
-            <div className="p-4">
-              <h3 className="font-medium text-gray-900 mb-2">{product.name}</h3>
-              <p className="text-gray-500 text-sm mb-2 line-clamp-2">
-                {product.description}
-              </p>
-              <div className="flex justify-between items-center">
-                <span className="font-bold text-gray-900">
-                  ${product.price.toFixed(2)}
-                </span>
-                {isProductSelected(product._id) && (
-                  <span className="text-[#5551FF] text-sm">Selected</span>
-                )}
+      {/* Products Grid */}
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#5551FF]"></div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {products.map((product) => (
+            <div
+              key={product._id}
+              className={`border rounded-lg overflow-hidden cursor-pointer transition-all ${
+                isProductSelected(product._id)
+                  ? "border-[#5551FF] ring-2 ring-[#5551FF]"
+                  : "hover:border-[#5551FF]"
+              }`}
+              onClick={() => handleProductClick(product)}
+            >
+              <img
+                src={product.images?.[0]?.url || "/placeholder-image.jpg"}
+                alt={product.name}
+                className="w-full h-48 object-cover"
+              />
+              <div className="p-4">
+                <h3 className="font-medium text-gray-900 mb-2">
+                  {product.name}
+                </h3>
+                <p className="text-gray-500 text-sm mb-2 line-clamp-2">
+                  {product.description}
+                </p>
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-gray-900">
+                    {formatCurrency(product.price)}
+                  </span>
+                  {isProductSelected(product._id) && (
+                    <span className="text-[#5551FF] text-sm">Selected</span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {products.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-gray-500">
-            No products found matching your criteria
-          </p>
+      {products.length === 0 && !loading && (
+        <div className="text-center py-12 bg-gray-50 rounded-lg">
+          <p className="text-gray-500">No products found</p>
         </div>
       )}
     </div>

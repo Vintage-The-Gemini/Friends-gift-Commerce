@@ -1,6 +1,24 @@
 // models/Event.js
 const mongoose = require("mongoose");
 
+const productReferenceSchema = new mongoose.Schema({
+  product: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Product",
+    required: true,
+  },
+  quantity: {
+    type: Number,
+    required: true,
+    min: [1, "Quantity must be at least 1"],
+  },
+  status: {
+    type: String,
+    enum: ["pending", "contributed", "purchased"],
+    default: "pending",
+  },
+});
+
 const eventSchema = new mongoose.Schema(
   {
     title: {
@@ -33,36 +51,21 @@ const eventSchema = new mongoose.Schema(
       type: Date,
       required: [true, "Event date is required"],
     },
-    products: [
-      {
-        product: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Product",
-          required: true,
-        },
-        quantity: {
-          type: Number,
-          default: 1,
-        },
-        status: {
-          type: String,
-          enum: ["pending", "contributed", "purchased"],
-          default: "pending",
-        },
-      },
-    ],
+    products: [productReferenceSchema],
     targetAmount: {
       type: Number,
       required: true,
+      min: [0, "Target amount cannot be negative"],
     },
     currentAmount: {
       type: Number,
       default: 0,
+      min: [0, "Current amount cannot be negative"],
     },
     status: {
       type: String,
       enum: ["draft", "active", "completed", "cancelled"],
-      default: "draft",
+      default: "active",
     },
     visibility: {
       type: String,
@@ -72,10 +75,6 @@ const eventSchema = new mongoose.Schema(
     shareableLink: {
       type: String,
       unique: true,
-    },
-    order: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Order",
     },
     contributions: [
       {
@@ -88,13 +87,6 @@ const eventSchema = new mongoose.Schema(
       required: true,
     },
     image: String,
-    theme: {
-      colors: {
-        primary: String,
-        secondary: String,
-      },
-      template: String,
-    },
   },
   {
     timestamps: true,
@@ -121,31 +113,6 @@ eventSchema.pre("save", function (next) {
       .substring(2, 7)}`;
   }
   next();
-});
-
-// Create order when event is created
-eventSchema.post("save", async function (doc) {
-  if (!doc.order && doc.status === "active") {
-    const Order = mongoose.model("Order");
-    const totalAmount = doc.products.reduce((sum, item) => {
-      return sum + item.product.price * item.quantity;
-    }, 0);
-
-    const order = await Order.create({
-      event: doc._id,
-      products: doc.products.map((item) => ({
-        product: item.product,
-        quantity: item.quantity,
-        price: item.product.price,
-      })),
-      totalAmount,
-      seller: doc.products[0].product.seller, // Assuming all products are from same seller
-      buyer: doc.creator,
-    });
-
-    doc.order = order._id;
-    await doc.save();
-  }
 });
 
 module.exports = mongoose.model("Event", eventSchema);

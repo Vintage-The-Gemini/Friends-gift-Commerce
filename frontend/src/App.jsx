@@ -17,7 +17,10 @@ import SignUp from "./pages/auth/SignUp";
 import EventsPage from "./pages/public/EventPage";
 import ProductsPage from "./pages/public/ProductsPage";
 import ProductDetails from "./components/products/ProductDetails";
+
+// Event Pages
 import CreateEvent from "./pages/events/CreateEvent";
+import EditEvent from "./pages/events/EditEvent";
 import EventDetails from "./pages/events/EventDetails";
 
 // Admin Pages
@@ -47,7 +50,6 @@ import ManageEvents from "./pages/dashboard/buyer/ManageEvents";
 // Error Boundary
 import ErrorBoundary from "./components/common/ErrorBoundary";
 
-// Root component to wrap the entire app with AuthProvider
 const Root = () => {
   return (
     <AuthProvider>
@@ -65,18 +67,18 @@ const router = createBrowserRouter(
         {
           element: <RootLayout />,
           children: [
-            {
-              path: "/",
-              element: <HomePage />,
-            },
-            {
-              path: "/events",
-              element: <EventsPage />,
-            },
-            {
-              path: "/events/:id",
-              element: <EventDetails />,
-            },
+            // Public Routes
+            { path: "/", element: <HomePage /> },
+            { path: "/auth/signin", element: <SignIn /> },
+            { path: "/auth/signup", element: <SignUp /> },
+
+            // Product Routes
+            { path: "/products", element: <ProductsPage /> },
+            { path: "/products/:id", element: <ProductDetails /> },
+
+            // Event Routes
+            { path: "/events", element: <EventsPage /> },
+            { path: "/events/:id", element: <EventDetails /> },
             {
               path: "/events/create",
               element: (
@@ -86,20 +88,12 @@ const router = createBrowserRouter(
               ),
             },
             {
-              path: "/products",
-              element: <ProductsPage />,
-            },
-            {
-              path: "/products/:id",
-              element: <ProductDetails />,
-            },
-            {
-              path: "/auth/signin",
-              element: <SignIn />,
-            },
-            {
-              path: "/auth/signup",
-              element: <SignUp />,
+              path: "/events/edit/:id",
+              element: (
+                <ProtectedRoute allowedRoles={["buyer"]}>
+                  <EditEvent />
+                </ProtectedRoute>
+              ),
             },
           ],
         },
@@ -113,13 +107,11 @@ const router = createBrowserRouter(
             </ProtectedRoute>
           ),
           children: [
+            { path: "dashboard", element: <BuyerDashboard /> },
+            { path: "events", element: <ManageEvents /> },
             {
-              path: "dashboard",
-              element: <BuyerDashboard />,
-            },
-            {
-              path: "events",
-              element: <ManageEvents />,
+              path: "events/edit/:id",
+              element: <EditEvent />,
             },
           ],
         },
@@ -133,10 +125,7 @@ const router = createBrowserRouter(
             </ProtectedRoute>
           ),
           children: [
-            {
-              path: "setup",
-              element: <BusinessSetup />,
-            },
+            { path: "setup", element: <BusinessSetup /> },
             {
               path: "dashboard",
               element: (
@@ -200,10 +189,7 @@ const router = createBrowserRouter(
         {
           path: "/admin",
           children: [
-            {
-              path: "login",
-              element: <AdminLogin />,
-            },
+            { path: "login", element: <AdminLogin /> },
             {
               element: (
                 <ProtectedRoute allowedRoles={["admin"]}>
@@ -211,34 +197,13 @@ const router = createBrowserRouter(
                 </ProtectedRoute>
               ),
               children: [
-                {
-                  path: "dashboard",
-                  element: <AdminDashboard />,
-                },
-                {
-                  path: "users",
-                  element: <AdminUsers />,
-                },
-                {
-                  path: "sellers",
-                  element: <AdminSellers />,
-                },
-                {
-                  path: "events",
-                  element: <AdminEvents />,
-                },
-                {
-                  path: "products",
-                  element: <AdminProducts />,
-                },
-                {
-                  path: "categories",
-                  element: <AdminCategories />,
-                },
-                {
-                  path: "settings",
-                  element: <AdminSettings />,
-                },
+                { path: "dashboard", element: <AdminDashboard /> },
+                { path: "users", element: <AdminUsers /> },
+                { path: "sellers", element: <AdminSellers /> },
+                { path: "events", element: <AdminEvents /> },
+                { path: "products", element: <AdminProducts /> },
+                { path: "categories", element: <AdminCategories /> },
+                { path: "settings", element: <AdminSettings /> },
               ],
             },
           ],

@@ -1,57 +1,50 @@
-// src/components/home/CategoryGrid.jsx
-import { Link } from 'react-router-dom';
+import React from "react";
+import { ChevronRight } from "lucide-react";
 
-const categories = [
-  {
-    name: 'Electronics',
-    image: '/api/placeholder/64/64',
-    slug: 'electronics'
-  },
-  {
-    name: 'Fashion',
-    image: '/api/placeholder/64/64',
-    slug: 'fashion'
-  },
-  {
-    name: 'Home & Kitchen',
-    image: '/api/placeholder/64/64',
-    slug: 'home-kitchen'
-  },
-  {
-    name: 'Beauty',
-    image: '/api/placeholder/64/64',
-    slug: 'beauty'
-  },
-  {
-    name: 'Sports',
-    image: '/api/placeholder/64/64',
-    slug: 'sports'
-  },
-  {
-    name: 'Premium Fruits',
-    image: '/api/placeholder/64/64',
-    slug: 'premium-fruits'
-  }
-];
-
-const CategoryGrid = () => {
+const CategoryGrid = ({ categories, selectedCategory, onSelectCategory }) => {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {categories.map((category) => (
-        <Link 
-          key={category.slug}
-          to={`/shop/${category.slug}`}
-          className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 transition duration-300"
+        <button
+          key={category._id}
+          onClick={() => onSelectCategory(category._id)}
+          className={`relative overflow-hidden rounded-xl aspect-square group cursor-pointer ${
+            selectedCategory === category._id
+              ? "ring-2 ring-[#FF4500]"
+              : "hover:ring-2 hover:ring-[#5551FF]"
+          }`}
         >
-          <img 
-            src={category.image} 
-            alt={category.name}
-            className="w-16 h-16 object-contain mb-2"
-          />
-          <span className="text-sm font-medium text-gray-700">
-            {category.name}
-          </span>
-        </Link>
+          {/* Background Image */}
+          <div className="absolute inset-0">
+            <img
+              src={category.image || "/api/placeholder/400/400"}
+              alt={category.name}
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent group-hover:from-[#5551FF]/60 transition-colors"></div>
+          </div>
+
+          {/* Content */}
+          <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+            <h3 className="text-lg font-semibold mb-1">{category.name}</h3>
+            <p className="text-sm text-white/80 line-clamp-2 mb-2">
+              {category.description}
+            </p>
+
+            {/* Browse Link */}
+            <div className="flex items-center text-[#FF4500] text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+              Browse Category
+              <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </div>
+
+          {/* Selected Indicator */}
+          {selectedCategory === category._id && (
+            <div className="absolute top-2 right-2 bg-[#FF4500] text-white text-xs px-2 py-1 rounded-full">
+              Selected
+            </div>
+          )}
+        </button>
       ))}
     </div>
   );

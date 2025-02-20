@@ -1,20 +1,13 @@
 // src/services/api/product.js
 import api from "./axios.config";
 
-// Constants for endpoint paths (without /api prefix since it's in baseURL)
 const ENDPOINTS = {
   BASE: "/products",
   SELLER: "/seller/products",
   DETAIL: (id) => `/products/${id}`,
-};
-
-// Constants for error messages
-const ERROR_MESSAGES = {
-  CREATE: "Failed to create product",
-  FETCH: "Failed to fetch products",
-  UPDATE: "Failed to update product",
-  DELETE: "Failed to delete product",
-  FETCH_SINGLE: "Failed to fetch product details",
+  CATEGORY: (id) => `/products/category/${id}`,
+  SEARCH: "/products/search",
+  FEATURED: "/products/featured",
 };
 
 export const productService = {
@@ -33,7 +26,7 @@ export const productService = {
       if (filters.category) queryParams.append("category", filters.category);
       if (filters.minPrice) queryParams.append("minPrice", filters.minPrice);
       if (filters.maxPrice) queryParams.append("maxPrice", filters.maxPrice);
-      if (filters.sortBy) queryParams.append("sortBy", filters.sortBy);
+      if (filters.seller) queryParams.append("seller", filters.seller);
 
       const response = await api.get(`${ENDPOINTS.BASE}?${queryParams}`);
       return response.data;
@@ -43,35 +36,57 @@ export const productService = {
     }
   },
 
-  getSellerProducts: async (options = {}) => {
-    try {
-      const { page = 1, limit = 10, sort = "-createdAt" } = options;
-      const response = await api.get(ENDPOINTS.SELLER, {
-        params: { page, limit, sort },
-      });
-      return response.data;
-    } catch (error) {
-      console.error("[Product Service] Get Seller Products Error:", error);
-      throw error.response?.data || error;
-    }
-  },
-
-  getProduct: async (id) => {
+  getProductById: async (id) => {
     try {
       const response = await api.get(ENDPOINTS.DETAIL(id));
       return response.data;
     } catch (error) {
-      console.error("[Product Service] Get Single Product Error:", error);
+      console.error("[Product Service] Get Product Error:", error);
       throw error.response?.data || error;
     }
   },
 
-  deleteProduct: async (id) => {
+  getProductsByCategory: async (categoryId, options = {}) => {
     try {
-      const response = await api.delete(ENDPOINTS.DETAIL(id));
+      const { page = 1, limit = 12 } = options;
+      const response = await api.get(ENDPOINTS.CATEGORY(categoryId), {
+        params: { page, limit },
+      });
       return response.data;
     } catch (error) {
-      console.error("[Product Service] Delete Error:", error);
+      console.error("[Product Service] Get By Category Error:", error);
+      throw error.response?.data || error;
+    }
+  },
+
+  getFeaturedProducts: async () => {
+    try {
+      const response = await api.get(ENDPOINTS.FEATURED);
+      return response.data;
+    } catch (error) {
+      console.error("[Product Service] Get Featured Products Error:", error);
+      throw error.response?.data || error;
+    }
+  },
+
+  searchProducts: async (searchTerm, options = {}) => {
+    try {
+      const response = await api.get(ENDPOINTS.SEARCH, {
+        params: { q: searchTerm, ...options },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("[Product Service] Search Products Error:", error);
+      throw error.response?.data || error;
+    }
+  },
+
+  toggleWishlist: async (productId) => {
+    try {
+      const response = await api.post(`/wishlist/toggle/${productId}`);
+      return response.data;
+    } catch (error) {
+      console.error("[Product Service] Toggle Wishlist Error:", error);
       throw error.response?.data || error;
     }
   },
