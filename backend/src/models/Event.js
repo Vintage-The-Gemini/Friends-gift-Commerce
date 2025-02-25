@@ -1,4 +1,4 @@
-// models/Event.js
+// src/models/Event.js
 const mongoose = require("mongoose");
 
 const productReferenceSchema = new mongoose.Schema({
@@ -80,6 +80,12 @@ const eventSchema = new mongoose.Schema(
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Contribution",
+      },
+    ],
+    orders: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Order",
       },
     ],
     endDate: {

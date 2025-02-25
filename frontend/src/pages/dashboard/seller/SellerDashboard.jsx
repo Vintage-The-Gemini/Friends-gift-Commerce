@@ -46,13 +46,18 @@ const SellerDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
+      console.log("Fetching dashboard data...");
       const response = await analyticsService.getDashboardOverview();
       if (response.success) {
+        console.log("Dashboard data received:", response.data);
         setDashboardData(response.data);
+      } else {
+        console.error("Failed to get dashboard data:", response);
+        throw new Error(response.message || "Failed to load dashboard data");
       }
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
-      setError("Failed to load dashboard data");
+      setError("Failed to load dashboard data: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -242,28 +247,37 @@ const SellerDashboard = () => {
             </Link>
           </div>
           <div className="space-y-4">
-            {dashboardData.topProducts.map((item) => (
-              <div key={item.product._id} className="flex items-center">
-                <img
-                  src={
-                    item.product.images?.[0]?.url ||
-                    "https://placehold.co/100x100"
-                  }
-                  alt={item.product.name}
-                  className="w-12 h-12 rounded-lg object-cover"
-                />
-                <div className="ml-4 flex-1">
-                  <h3 className="text-sm font-medium">{item.product.name}</h3>
-                  <p className="text-gray-500 text-sm">{item.totalSold} sold</p>
+            {dashboardData.topProducts &&
+            dashboardData.topProducts.length > 0 ? (
+              dashboardData.topProducts.map((item) => (
+                <div key={item.product._id} className="flex items-center">
+                  <img
+                    src={
+                      item.product.images?.[0]?.url ||
+                      "https://placehold.co/100x100"
+                    }
+                    alt={item.product.name}
+                    className="w-12 h-12 rounded-lg object-cover"
+                  />
+                  <div className="ml-4 flex-1">
+                    <h3 className="text-sm font-medium">{item.product.name}</h3>
+                    <p className="text-gray-500 text-sm">
+                      {item.totalSold} sold
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium">
+                      {formatCurrency(item.revenue)}
+                    </p>
+                    <p className="text-xs text-gray-500">Revenue</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium">
-                    {formatCurrency(item.revenue)}
-                  </p>
-                  <p className="text-xs text-gray-500">Revenue</p>
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-gray-500 text-center py-4">
+                No product data available yet
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -304,35 +318,57 @@ const SellerDashboard = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {dashboardData.recentOrders.map((order) => (
-                <tr key={order._id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    #{order._id.slice(-6)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
-                      {order.buyer.name}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(order.createdAt)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrency(order.totalAmount)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <OrderStatusBadge status={order.status} />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                    <Link
-                      to={`/seller/orders/${order._id}`}
-                      className="text-blue-600 hover:text-blue-900"
-                    >
-                      View Details
-                    </Link>
+              {dashboardData.recentOrders &&
+              dashboardData.recentOrders.length > 0 ? (
+                dashboardData.recentOrders.map((order) => (
+                  <tr key={order._id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      #{order._id.slice(-6)}
+                      {order.event && (
+                        <span className="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">
+                          Event Order
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {order.buyer?.name || "Unknown Buyer"}
+                      </div>
+                      {order.event && (
+                        <div className="text-xs text-blue-600">
+                          From: {order.event.title}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(order.createdAt)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatCurrency(order.totalAmount)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <OrderStatusBadge status={order.status} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                      <Link
+                        to={`/seller/orders/${order._id}`}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        View Details
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan="6"
+                    className="px-6 py-4 text-center text-gray-500"
+                  >
+                    No recent orders available
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

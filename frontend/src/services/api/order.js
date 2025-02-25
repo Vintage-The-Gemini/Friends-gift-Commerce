@@ -1,3 +1,4 @@
+// src/services/api/order.js
 import api from "./axios.config";
 
 export const orderService = {
@@ -37,6 +38,16 @@ export const orderService = {
       return response.data;
     } catch (error) {
       console.error("[Order Service] Get Stats Error:", error);
+      throw error.response?.data || error;
+    }
+  },
+
+  cancelOrder: async (orderId) => {
+    try {
+      const response = await api.delete(`/orders/${orderId}`);
+      return response.data;
+    } catch (error) {
+      console.error("[Order Service] Cancel Order Error:", error);
       throw error.response?.data || error;
     }
   },

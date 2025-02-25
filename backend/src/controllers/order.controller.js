@@ -1,91 +1,9 @@
-// controllers/order.controller.js
+// src/controllers/order.controller.js
 const Order = require("../models/Order");
 const Event = require("../models/Event");
 const Product = require("../models/Product");
+const mongoose = require("mongoose");
 
-// @desc    Create order
-// @route   POST /api/orders
-// @access  Private
-exports.createOrder = async (req, res) => {
-  try {
-    const { eventId, products, shippingAddress } = req.body;
-
-    // Validate event exists
-    const event = await Event.findById(eventId).populate("products.product");
-
-    if (!event) {
-      return res.status(404).json({
-        success: false,
-        message: "Event not found",
-      });
-    }
-
-    // Calculate total amount
-    let totalAmount = 0;
-    const orderProducts = [];
-
-    for (const item of products) {
-      const product = await Product.findById(item.productId);
-      if (!product) {
-        return res.status(404).json({
-          success: false,
-          message: `Product ${item.productId} not found`,
-        });
-      }
-
-      // Validate stock
-      if (product.stock < item.quantity) {
-        return res.status(400).json({
-          success: false,
-          message: `Insufficient stock for product ${product.name}`,
-        });
-      }
-
-      totalAmount += product.price * item.quantity;
-      orderProducts.push({
-        product: item.productId,
-        quantity: item.quantity,
-        price: product.price,
-      });
-    }
-
-    // Create order
-    const order = await Order.create({
-      event: eventId,
-      products: orderProducts,
-      totalAmount,
-      shippingAddress,
-      seller: products[0].sellerId, // Assuming all products are from same seller
-      buyer: req.user._id,
-    });
-
-    // Update event with order reference
-    event.order = order._id;
-    await event.save();
-
-    // Populate order details
-    await order.populate([
-      { path: "products.product", select: "name price images" },
-      { path: "seller", select: "name businessName" },
-      { path: "buyer", select: "name" },
-    ]);
-
-    res.status(201).json({
-      success: true,
-      data: order,
-    });
-  } catch (error) {
-    console.error("Order creation error:", error);
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
-// @desc    Get all orders (filtered by role)
-// @route   GET /api/orders
-// @access  Private
 exports.getOrders = async (req, res) => {
   try {
     let query = {};
@@ -93,6 +11,7 @@ exports.getOrders = async (req, res) => {
     // Filter based on user role
     if (req.user.role === "seller") {
       query.seller = req.user._id;
+      console.log("Fetching orders for seller:", req.user._id);
     } else if (req.user.role === "buyer") {
       query.buyer = req.user._id;
     }
@@ -102,10 +21,23 @@ exports.getOrders = async (req, res) => {
       query.status = req.query.status;
     }
 
+    // Add date filters
+    if (req.query.startDate) {
+      query.createdAt = { $gte: new Date(req.query.startDate) };
+    }
+    if (req.query.endDate) {
+      query.createdAt = {
+        ...query.createdAt,
+        $lte: new Date(req.query.endDate),
+      };
+    }
+
     // Pagination
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
     const startIndex = (page - 1) * limit;
+
+    console.log("Order query:", JSON.stringify(query));
 
     const orders = await Order.find(query)
       .populate("products.product", "name price images")
@@ -115,6 +47,8 @@ exports.getOrders = async (req, res) => {
       .sort("-createdAt")
       .skip(startIndex)
       .limit(limit);
+
+    console.log(`Found ${orders.length} orders for this query`);
 
     const total = await Order.countDocuments(query);
 
@@ -129,6 +63,7 @@ exports.getOrders = async (req, res) => {
       data: orders,
     });
   } catch (error) {
+    console.error("Error fetching orders:", error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -136,9 +71,6 @@ exports.getOrders = async (req, res) => {
   }
 };
 
-// @desc    Get single order
-// @route   GET /api/orders/:id
-// @access  Private
 exports.getOrder = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
@@ -178,9 +110,91 @@ exports.getOrder = async (req, res) => {
   }
 };
 
-// @desc    Update order status
-// @route   PUT /api/orders/:id
-// @access  Private
+exports.updateOrderStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      status,
+      description,
+      trackingNumber,
+      carrierName,
+      estimatedDeliveryDate,
+      shippingDetails,
+    } = req.body;
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    // Verify seller authorization
+    if (order.seller.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to update this order",
+      });
+    }
+
+    // Update order status and progress
+    order.status = status;
+    order.orderProgress = status;
+
+    // Add to timeline
+    order.timeline.push({
+      status,
+      description: description || `Order status updated to ${status}`,
+      timestamp: new Date(),
+    });
+
+    // Update shipping details
+    if (shippingDetails) {
+      order.shippingDetails = {
+        ...order.shippingDetails,
+        ...shippingDetails,
+      };
+    }
+
+    // Update tracking information
+    if (trackingNumber) order.trackingNumber = trackingNumber;
+    if (carrierName) order.carrierName = carrierName;
+    if (estimatedDeliveryDate)
+      order.estimatedDeliveryDate = estimatedDeliveryDate;
+
+    // If delivered, set actual delivery date
+    if (status === "delivered") {
+      order.actualDeliveryDate = new Date();
+    }
+
+    // Update all products status
+    order.products.forEach((product) => {
+      product.status = status;
+    });
+
+    await order.save();
+
+    // Populate order details
+    await order.populate([
+      { path: "products.product", select: "name price images" },
+      { path: "seller", select: "name businessName" },
+      { path: "buyer", select: "name" },
+      { path: "event", select: "title eventType" },
+    ]);
+
+    res.json({
+      success: true,
+      data: order,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 exports.updateOrder = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
@@ -240,9 +254,6 @@ exports.updateOrder = async (req, res) => {
   }
 };
 
-// @desc    Cancel order
-// @route   DELETE /api/orders/:id
-// @access  Private
 exports.cancelOrder = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);

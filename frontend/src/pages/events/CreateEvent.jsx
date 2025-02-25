@@ -87,29 +87,21 @@ const CreateEvent = () => {
     });
   };
 
+  // src/pages/events/CreateEvent.jsx
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
-      // Validate required fields
-      if (!formData.title?.trim()) throw new Error("Event title is required");
-      if (!formData.eventType) throw new Error("Event type is required");
-      if (!formData.description?.trim())
-        throw new Error("Description is required");
-      if (!formData.eventDate) throw new Error("Event date is required");
-      if (!formData.endDate) throw new Error("End date is required");
-
-      // Validate dates and products
-      validateDates();
-      validateProducts();
-
-      // Calculate target amount
-      const targetAmount = calculateTargetAmount();
-      if (targetAmount <= 0) {
-        throw new Error("Invalid product prices or quantities");
-      }
+      // Calculate target amount from selected products
+      const calculatedTargetAmount = formData.selectedProducts.reduce(
+        (total, item) => {
+          return total + item.product.price * item.quantity;
+        },
+        0
+      );
 
       // Format products data
       const formattedProducts = formData.selectedProducts.map((item) => ({
@@ -125,11 +117,14 @@ const CreateEvent = () => {
         eventDate: formData.eventDate,
         endDate: formData.endDate,
         visibility: formData.visibility,
-        targetAmount: targetAmount,
+        targetAmount: calculatedTargetAmount, // Use calculated amount
         products: JSON.stringify(formattedProducts),
       };
 
+      // Debug logs
       console.log("Creating event with data:", eventData);
+      console.log("Formatted products:", formattedProducts);
+      console.log("Calculated target amount:", calculatedTargetAmount);
 
       const response = await eventService.createEvent(eventData);
 

@@ -1,11 +1,12 @@
+// src/routes/order.routes.js
+
 const express = require("express");
 const router = express.Router();
 const { protect, authorize } = require("../middleware/auth");
 const {
-  createOrder,
   getOrders,
   getOrder,
-  updateOrder,
+  updateOrderStatus,
   cancelOrder,
 } = require("../controllers/order.controller");
 
@@ -13,12 +14,9 @@ const {
 router.use(protect);
 
 // Routes
-router.route("/").post(createOrder).get(getOrders);
-
-router
-  .route("/:id")
-  .get(getOrder)
-  .put(authorize("seller", "admin"), updateOrder)
-  .delete(cancelOrder);
+router.get("/", getOrders);
+router.get("/:id", getOrder);
+router.patch("/:id/status", authorize(["seller"]), updateOrderStatus);
+router.delete("/:id", cancelOrder);
 
 module.exports = router;

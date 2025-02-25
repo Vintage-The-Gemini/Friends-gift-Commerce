@@ -2,6 +2,10 @@
 const Event = require("../models/Event");
 const Product = require("../models/Product");
 const { uploadToCloudinary } = require("../utils/cloudinary");
+const Order = require("../models/Order");
+
+// In src/controllers/event.controller.js
+// Update the createEvent function
 
 exports.createEvent = async (req, res) => {
   try {
@@ -26,24 +30,10 @@ exports.createEvent = async (req, res) => {
       });
     }
 
-    // Validate date format and logic
+    // Validate dates
     const eventDateObj = new Date(eventDate);
     const endDateObj = new Date(endDate);
     const now = new Date();
-
-    if (isNaN(eventDateObj.getTime())) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid event date format",
-      });
-    }
-
-    if (isNaN(endDateObj.getTime())) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid end date format",
-      });
-    }
 
     if (eventDateObj < now) {
       return res.status(400).json({
@@ -59,15 +49,34 @@ exports.createEvent = async (req, res) => {
       });
     }
 
+    // Handle image upload if provided
+    let imageUrl;
+    if (req.file) {
+      try {
+        const result = await uploadToCloudinary(req.file);
+        imageUrl = result.secure_url;
+      } catch (uploadError) {
+        console.error("Image upload error:", uploadError);
+        return res.status(400).json({
+          success: false,
+          message: "Failed to upload event image",
+        });
+      }
+    }
+
     // Validate and process products
     let validatedProducts = [];
     if (products) {
       try {
         const productsList = JSON.parse(products);
-        console.log("Parsed products list:", productsList);
+        const sellerOrders = new Map(); // Group products by seller
 
         for (const item of productsList) {
-          const product = await Product.findById(item.product);
+          const product = await Product.findById(item.product).populate(
+            "seller",
+            "name businessName"
+          );
+
           if (!product) {
             return res.status(400).json({
               success: false,
@@ -92,11 +101,109 @@ exports.createEvent = async (req, res) => {
           }
 
           validatedProducts.push({
-            product: product._id,
+            product: product,
             quantity: quantity,
             status: "pending",
           });
+
+          // Group by seller
+          const sellerId = product.seller._id.toString();
+          if (!sellerOrders.has(sellerId)) {
+            sellerOrders.set(sellerId, []);
+          }
+          sellerOrders.get(sellerId).push({ product, quantity });
         }
+
+        // Create event
+        const event = await Event.create({
+          title: title.trim(),
+          creator: req.user._id,
+          eventType,
+          description: description.trim(),
+          eventDate,
+          products: validatedProducts.map((item) => ({
+            product: item.product._id,
+            quantity: item.quantity,
+            status: "pending",
+          })),
+          targetAmount: parseFloat(targetAmount),
+          currentAmount: 0,
+          visibility: visibility || "public",
+          status: "active",
+          endDate,
+          image: imageUrl,
+        });
+
+        // Create orders for each seller
+        const orderPromises = Array.from(sellerOrders.entries()).map(
+          async ([sellerId, products]) => {
+            const orderTotal = products.reduce(
+              (sum, item) => sum + item.product.price * item.quantity,
+              0
+            );
+
+            // In createEvent function, in the orderPromises map:
+            const order = await Order.create({
+              event: event._id,
+              products: products.map((item) => ({
+                product: item.product._id,
+                quantity: item.quantity,
+                price: item.product.price,
+                status: "pending",
+              })),
+              totalAmount: orderTotal,
+              seller: sellerId,
+              buyer: req.user._id,
+              status: "pending",
+              eventType,
+              timeline: [
+                {
+                  status: "pending",
+                  description: "Order created",
+                  timestamp: new Date(),
+                },
+              ],
+              // Add default shipping details
+              shippingDetails: {
+                address: "To be updated",
+                city: "To be updated",
+                phone: req.user.phoneNumber || "To be updated",
+                notes: "Shipping details will be updated before processing",
+              },
+            });
+
+            event.orders.push(order._id);
+            return order;
+          }
+        );
+
+        const orders = await Promise.all(orderPromises);
+        await event.save();
+
+        // Populate event details
+        await event.populate([
+          { path: "creator", select: "name" },
+          {
+            path: "products.product",
+            select: "name price images description",
+          },
+          {
+            path: "orders",
+            select: "status totalAmount",
+            populate: {
+              path: "seller",
+              select: "name businessName",
+            },
+          },
+        ]);
+
+        res.status(201).json({
+          success: true,
+          data: {
+            event,
+            orders,
+          },
+        });
       } catch (error) {
         console.error("Products parsing error:", error);
         return res.status(400).json({
@@ -106,62 +213,6 @@ exports.createEvent = async (req, res) => {
         });
       }
     }
-
-    // Handle image upload if provided
-    let imageUrl;
-    if (req.file) {
-      try {
-        const result = await uploadToCloudinary(req.file);
-        imageUrl = result.secure_url;
-      } catch (uploadError) {
-        console.error("Image upload error:", uploadError);
-        return res.status(400).json({
-          success: false,
-          message: "Failed to upload event image",
-        });
-      }
-    }
-
-    // Validate target amount
-    const parsedTargetAmount = parseFloat(targetAmount);
-    if (isNaN(parsedTargetAmount) || parsedTargetAmount <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid target amount",
-      });
-    }
-
-    // Create event
-    const event = await Event.create({
-      title: title.trim(),
-      creator: req.user._id,
-      eventType,
-      description: description.trim(),
-      eventDate,
-      products: validatedProducts,
-      targetAmount: parsedTargetAmount,
-      currentAmount: 0,
-      visibility: visibility || "public",
-      status: "active",
-      endDate,
-      image: imageUrl,
-    });
-
-    // Populate necessary fields
-    await event.populate([
-      { path: "creator", select: "name" },
-      {
-        path: "products.product",
-        select: "name price images description",
-      },
-    ]);
-
-    console.log("Event created successfully:", event);
-
-    res.status(201).json({
-      success: true,
-      data: event,
-    });
   } catch (error) {
     console.error("Event creation error:", error);
     res.status(400).json({
@@ -170,9 +221,6 @@ exports.createEvent = async (req, res) => {
     });
   }
 };
-// @desc    Get all events
-// @route   GET /api/events
-// @access  Public
 exports.getEvents = async (req, res) => {
   try {
     const query = { status: "active" };
