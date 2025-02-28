@@ -3,7 +3,7 @@ import api from "./axios.config";
 
 // API endpoints
 const ENDPOINTS = {
-  SELLER_PRODUCTS: "/products/seller/products",
+  BASE: "/products",
   PRODUCT: (id) => `/products/${id}`,
   UPLOAD_IMAGE: "/upload",
 };
@@ -17,7 +17,9 @@ export const sellerProductService = {
   getSellerProducts: async (params = {}) => {
     try {
       console.log("Fetching seller products with params:", params);
-      const response = await api.get(ENDPOINTS.SELLER_PRODUCTS, { params });
+      const response = await api.get(`${ENDPOINTS.BASE}/seller/products`, {
+        params,
+      });
       console.log("Seller products response:", response.data);
       return response.data;
     } catch (error) {
@@ -35,8 +37,8 @@ export const sellerProductService = {
    */
   createProduct: async (productData) => {
     try {
-      // Ensure we're using the right content type for FormData
-      const response = await api.post(ENDPOINTS.SELLER_PRODUCTS, productData, {
+      // Changed endpoint to match backend route structure
+      const response = await api.post(ENDPOINTS.BASE, productData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -88,6 +90,7 @@ export const sellerProductService = {
    * @param {string} id - Product ID
    * @returns {Promise} Product data
    */
+
   getProductById: async (id) => {
     try {
       const response = await api.get(ENDPOINTS.PRODUCT(id));

@@ -22,6 +22,7 @@ router.use(protect);
 // Seller routes
 router.get("/seller/products", authorize("seller"), getSellerProducts);
 
+// This route handles product creation - make sure it matches the one in your frontend service
 router.post("/", authorize("seller"), upload.array("images", 5), createProduct);
 
 router.put(

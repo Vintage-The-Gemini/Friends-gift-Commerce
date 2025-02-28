@@ -468,11 +468,10 @@ exports.deleteEvent = async (req, res) => {
   }
 };
 
-// @desc    Get user's events
-// @route   GET /api/events/my-events
-// @access  Private
 exports.getUserEvents = async (req, res) => {
   try {
+    console.log("Getting events for user:", req.user._id);
+
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
     const startIndex = (page - 1) * limit;
@@ -484,6 +483,8 @@ exports.getUserEvents = async (req, res) => {
     if (req.query.status) {
       query.status = req.query.status;
     }
+
+    console.log("Query:", query);
 
     // Get events
     const events = await Event.find(query)
@@ -498,7 +499,10 @@ exports.getUserEvents = async (req, res) => {
       })
       .sort("-createdAt")
       .skip(startIndex)
-      .limit(limit);
+      .limit(limit)
+      .lean(); // Use lean for better performance
+
+    console.log(`Found ${events.length} events`);
 
     // Get total count
     const total = await Event.countDocuments(query);
@@ -518,6 +522,7 @@ exports.getUserEvents = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch user events",
+      error: error.message,
     });
   }
 };
