@@ -44,18 +44,19 @@ const protect = async (req, res, next) => {
   }
 };
 
-// Middleware to check user role
-// backend/src/middleware/auth.js
 const authorize = (...roles) => {
   return (req, res, next) => {
+    // Flatten the roles array if needed
+    const flatRoles = roles.flat();
+
     console.log(
       "Authorize middleware - User role:",
       req.user.role,
       "Required roles:",
-      roles
+      flatRoles
     );
 
-    if (!roles.includes(req.user.role)) {
+    if (!flatRoles.includes(req.user.role)) {
       console.log("Authorization failed - role does not match");
       return res.status(403).json({
         success: false,

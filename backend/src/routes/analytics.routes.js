@@ -11,7 +11,7 @@ const {
 
 // Apply auth middleware to all routes
 router.use(protect);
-router.use(authorize(["seller"]));
+router.use(authorize("seller"));
 
 // Analytics routes
 router.get("/overview", getSellerOverview);
