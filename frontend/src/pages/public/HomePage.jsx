@@ -1,8 +1,8 @@
+// src/pages/public/HomePage.jsx
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // Change this line
-
+import { useNavigate } from "react-router-dom";
 import { Gift, ChevronRight, Heart, PartyPopper } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import Card from "../../components/ui/card"; // Fixed import
 import { productService } from "../../services/api/product";
 import { useAuth } from "../../hooks/useAuth";
 
@@ -169,11 +169,11 @@ const HomePage = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {trendingProducts.map((product) => (
-                <Card
+                <div
                   key={product._id}
-                  className="group hover:shadow-lg transition-shadow bg-white"
+                  className="group hover:shadow-lg transition-shadow bg-white rounded-lg overflow-hidden"
                 >
-                  <div className="relative aspect-square overflow-hidden rounded-t-lg">
+                  <div className="relative aspect-square overflow-hidden">
                     <img
                       src={
                         product.images?.[0]?.url || "/api/placeholder/400/400"
@@ -185,7 +185,7 @@ const HomePage = () => {
                       <Heart className="h-5 w-5" />
                     </button>
                   </div>
-                  <CardContent className="p-4">
+                  <div className="p-4">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-semibold text-lg text-gray-900">
                         {product.name}
@@ -215,8 +215,8 @@ const HomePage = () => {
                         Add to Event
                       </button>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               ))}
             </div>
           )}

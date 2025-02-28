@@ -7,7 +7,6 @@ import { categoryService } from "../../../services/api/category";
 import { toast } from "react-toastify";
 import Input from "../../../components/common/Input";
 import Button from "../../../components/common/Button";
-import Card from "../../../components/common/Card";
 
 const AddProduct = () => {
   const navigate = useNavigate();

@@ -1,75 +1,128 @@
+// src/components/products/ProductCard.jsx
 import React from "react";
-import { Card, CardContent, CardFooter } from "./Card";
-import Button from "./Button";
+import { Link } from "react-router-dom";
+import { Heart, ShoppingBag, Eye } from "lucide-react";
+import { formatCurrency } from "../../utils/currency";
 
 const ProductCard = ({
-  product = {
-    id: "",
-    name: "",
-    price: 0,
-    image: "",
-    description: "",
-    category: "",
-  },
+  product,
+  onAddToEvent,
   onAddToWishlist,
-  onAddToCart,
+  compact = false,
+  className = "",
 }) => {
-  return (
-    <Card className="h-full flex flex-col">
-      <div className="relative pt-[75%] overflow-hidden">
-        <img
-          src={product.image || "/api/placeholder/300/225"}
-          alt={product.name}
-          className="absolute top-0 left-0 w-full h-full object-cover transition-transform hover:scale-105"
-        />
-        {product.discountPercentage && (
-          <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-            {product.discountPercentage}% OFF
-          </div>
-        )}
-      </div>
+  if (!product) return null;
 
-      <CardContent className="flex-grow">
-        <div className="text-sm text-gray-500 mb-1">{product.category}</div>
-        <h3 className="font-medium text-gray-900 mb-1 line-clamp-2">
-          {product.name}
-        </h3>
-        <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-          {product.description}
-        </p>
-        <div className="font-bold text-lg">
-          {product.originalPrice ? (
-            <div className="flex items-center gap-2">
-              <span>KSh {product.price.toLocaleString()}</span>
-              <span className="text-sm text-gray-500 line-through">
-                KSh {product.originalPrice.toLocaleString()}
-              </span>
-            </div>
-          ) : (
-            <span>KSh {product.price.toLocaleString()}</span>
-          )}
+  const { _id, name, price, description, images, stock } = product;
+
+  const handleAddToEvent = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onAddToEvent) onAddToEvent(product);
+  };
+
+  const handleAddToWishlist = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onAddToWishlist) onAddToWishlist(_id);
+  };
+
+  // Determine if product is in stock
+  const isInStock = stock > 0;
+
+  // Determine primary image URL
+  const imageUrl =
+    images && images.length > 0 ? images[0].url : "/api/placeholder/400/400"; // Fallback image
+
+  if (compact) {
+    return (
+      <Link
+        to={`/products/${_id}`}
+        className={`group flex items-center p-3 border rounded-lg hover:border-[#5551FF] transition-colors ${className}`}
+      >
+        <div className="w-16 h-16 flex-shrink-0 rounded-md overflow-hidden">
+          <img
+            src={imageUrl}
+            alt={name}
+            className="w-full h-full object-cover"
+          />
         </div>
-      </CardContent>
+        <div className="ml-3 flex-1">
+          <h3 className="font-medium text-gray-900">{name}</h3>
+          <p className="text-[#5551FF] font-semibold">
+            {formatCurrency(price)}
+          </p>
+        </div>
+      </Link>
+    );
+  }
 
-      <CardFooter className="pt-2 pb-4 px-4 flex flex-col gap-2">
-        <Button
-          variant="primary"
-          size="sm"
-          fullWidth
-          onClick={() => onAddToCart && onAddToCart(product)}
-        >
-          Add to Cart
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          fullWidth
-          onClick={() => onAddToWishlist && onAddToWishlist(product)}
-        >
-          Add to Wishlist
-        </Button>
-      </CardFooter>
-    </Card>
+  return (
+    <div
+      className={`group bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 ${className}`}
+    >
+      <Link to={`/products/${_id}`} className="block relative">
+        <div className="aspect-square">
+          <img
+            src={imageUrl}
+            alt={name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        </div>
+
+        {/* Status Badge */}
+        {!isInStock && (
+          <span className="absolute top-2 left-2 bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
+            Out of Stock
+          </span>
+        )}
+
+        {/* Quick Actions */}
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={handleAddToWishlist}
+            className="p-2 bg-white rounded-full shadow-md hover:bg-[#5551FF] hover:text-white transition-colors"
+          >
+            <Heart className="w-4 h-4" />
+          </button>
+        </div>
+      </Link>
+
+      <div className="p-4">
+        <Link to={`/products/${_id}`}>
+          <h3 className="font-medium text-lg mb-1 text-gray-900">{name}</h3>
+          <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+            {description}
+          </p>
+        </Link>
+
+        <div className="flex justify-between items-center">
+          <span className="text-lg font-bold">{formatCurrency(price)}</span>
+
+          <div className="flex space-x-2">
+            <Link
+              to={`/products/${_id}`}
+              className="p-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+            >
+              <Eye className="w-5 h-5" />
+            </Link>
+
+            <button
+              onClick={handleAddToEvent}
+              disabled={!isInStock}
+              className={`px-3 py-2 rounded-lg flex items-center ${
+                isInStock
+                  ? "bg-[#5551FF] text-white hover:bg-[#4440FF]"
+                  : "bg-gray-200 text-gray-500 cursor-not-allowed"
+              }`}
+            >
+              <ShoppingBag className="w-4 h-4 mr-1" />
+              <span className="text-sm">Add</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

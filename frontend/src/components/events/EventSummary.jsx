@@ -1,6 +1,8 @@
+// src/components/events/EventSummary.jsx
 import React from "react";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "./Card";
-import Button from "./Button";
+// Fix imports to use components from the proper location
+import Card from "../common/Card";
+import Button from "../common/Button";
 
 const EventSummary = ({
   event = {
@@ -45,14 +47,14 @@ const EventSummary = ({
         />
       </div>
 
-      <CardHeader>
-        <CardTitle>{event.title}</CardTitle>
+      <div className="p-4 border-b border-gray-200">
+        <h3 className="text-lg font-medium">{event.title}</h3>
         <div className="text-sm text-gray-500 mt-1">
           {formattedDate} • {event.location}
         </div>
-      </CardHeader>
+      </div>
 
-      <CardContent className="flex-grow">
+      <div className="p-4 flex-grow">
         <p className="text-sm text-gray-600 mb-4 line-clamp-3">
           {event.description}
         </p>
@@ -108,9 +110,9 @@ const EventSummary = ({
             </div>
           </div>
         )}
-      </CardContent>
+      </div>
 
-      <CardFooter className="flex gap-2">
+      <div className="p-4 border-t border-gray-200 flex gap-2">
         <Button
           variant="outline"
           onClick={() => onViewDetails && onViewDetails(event)}
@@ -125,7 +127,7 @@ const EventSummary = ({
         >
           Contribute
         </Button>
-      </CardFooter>
+      </div>
     </Card>
   );
 };

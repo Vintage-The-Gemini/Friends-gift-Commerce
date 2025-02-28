@@ -11,7 +11,9 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+// Fix the Card import to use relative path instead of @/ path
+import Card from "../../components/ui/card";
+import { CardContent } from "../../components/ui/card";
 import { productService } from "../../services/api/product";
 import { categoryService } from "../../services/api/category";
 import { useAuth } from "../../hooks/useAuth";
