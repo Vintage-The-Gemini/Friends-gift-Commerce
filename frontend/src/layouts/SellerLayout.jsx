@@ -1,5 +1,4 @@
 // frontend/src/layouts/SellerLayout.jsx
-// frontend/src/layouts/SellerLayout.jsx
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
@@ -20,8 +19,6 @@ import {
   Search,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
-
-// Rest of the component remains the same
 
 const SellerLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -113,6 +110,12 @@ const SellerLayout = () => {
       name: "Analytics",
       href: "/seller/analytics",
       icon: BarChart2,
+    },
+    // Add profile link
+    {
+      name: "Business Profile",
+      href: "/seller/profile",
+      icon: Store,
     },
     {
       name: "Settings",

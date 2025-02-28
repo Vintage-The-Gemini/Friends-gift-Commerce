@@ -40,9 +40,10 @@ import ManageProducts from "./pages/dashboard/seller/ManageProducts";
 import AddProduct from "./pages/dashboard/seller/AddProduct";
 import EditProduct from "./pages/dashboard/seller/EditProduct";
 import SellerOrders from "./pages/dashboard/seller/SellerOrders";
-import SellerEvents from "./pages/dashboard/seller/SellerEvents"; // Import the new component
+import SellerEvents from "./pages/dashboard/seller/SellerEvents";
 import SellerAnalytics from "./pages/dashboard/seller/SellerAnalytics";
 import SellerSettings from "./pages/dashboard/seller/SellerSettings";
+import BusinessProfilePage from "./pages/dashboard/seller/BusinessProfilePage"; // Add the new page
 
 // Buyer Pages
 import BuyerDashboard from "./pages/dashboard/buyer/BuyerDashboard";
@@ -188,6 +189,15 @@ const router = createBrowserRouter(
               element: (
                 <RequireBusinessProfile>
                   <SellerSettings />
+                </RequireBusinessProfile>
+              ),
+            },
+            // Add the new route for Business Profile
+            {
+              path: "profile",
+              element: (
+                <RequireBusinessProfile>
+                  <BusinessProfilePage />
                 </RequireBusinessProfile>
               ),
             },

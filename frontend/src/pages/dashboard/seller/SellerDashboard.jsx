@@ -13,7 +13,9 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { analyticsService } from "../../../services/api/analytics";
+import { getBusinessProfile } from "../../../services/api/business";
 import { formatCurrency } from "../../../utils/currency";
+import BusinessProfileView from "../../../components/seller/BusinessProfileView";
 import {
   LineChart,
   Line,
@@ -39,9 +41,17 @@ const SellerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedPeriod, setSelectedPeriod] = useState("weekly");
+  // Add state for business profile
+  const [businessProfile, setBusinessProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([fetchDashboardData(), fetchSalesAnalytics(selectedPeriod)])
+    // Fetch both dashboard data and business profile
+    Promise.all([
+      fetchDashboardData(),
+      fetchSalesAnalytics(selectedPeriod),
+      fetchBusinessProfile(),
+    ])
       .catch((err) => {
         setError("Failed to load dashboard data. Please try again.");
         console.error("Dashboard error:", err);
@@ -56,6 +66,21 @@ const SellerDashboard = () => {
       console.error("Failed to load sales analytics:", err);
     });
   }, [selectedPeriod]);
+
+  const fetchBusinessProfile = async () => {
+    try {
+      setProfileLoading(true);
+      const response = await getBusinessProfile();
+      if (response.success) {
+        setBusinessProfile(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching business profile:", error);
+      // We don't set the main error state here to avoid blocking the dashboard
+    } finally {
+      setProfileLoading(false);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -161,6 +186,22 @@ const SellerDashboard = () => {
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+
+      {/* Business Profile Summary */}
+      {!profileLoading && businessProfile && (
+        <div className="mb-6">
+          <BusinessProfileView
+            profile={businessProfile}
+            stats={{
+              totalProducts: dashboardData.totalProducts,
+              totalOrders: dashboardData.totalSales,
+              totalRevenue: dashboardData.totalRevenue,
+              rating: "4.5", // Placeholder value
+            }}
+            onEdit={() => navigate("/seller/settings")}
+          />
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
