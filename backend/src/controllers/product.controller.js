@@ -267,6 +267,7 @@ exports.updateProduct = async (req, res) => {
 
 // Add this to your product.controller.js
 
+// backend/src/controllers/product.controller.js
 exports.deleteProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -289,16 +290,16 @@ exports.deleteProduct = async (req, res) => {
       });
     }
 
-    // Soft delete by marking as inactive
+    // Soft delete by marking as inactive instead of trying to delete Cloudinary images
     product.isActive = false;
     await product.save();
 
-    // Delete images from Cloudinary
-    for (const image of product.images) {
-      if (image.public_id) {
-        await deleteFromCloudinary(image.public_id);
-      }
-    }
+    // Comment out the Cloudinary image deletion for now
+    // for (const image of product.images) {
+    //   if (image.public_id) {
+    //     await deleteFromCloudinary(image.public_id);
+    //   }
+    // }
 
     res.json({
       success: true,

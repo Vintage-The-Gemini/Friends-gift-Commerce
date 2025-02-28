@@ -54,16 +54,18 @@ export const sellerProductService = {
     }
   },
 
-  // Delete product
-  deleteProduct: async (id) => {
-    try {
-      const response = await api.delete(ENDPOINTS.PRODUCT(id));
-      return response.data;
-    } catch (error) {
-      console.error("[Seller Product Service] Delete Product Error:", error);
-      throw error.response?.data || new Error("Failed to delete product");
-    }
-  },
+  s// Delete product
+deleteProduct: async (id) => {
+  try {
+    console.log(`Deleting product with ID: ${id}`); // Debug log
+    const response = await api.delete(ENDPOINTS.PRODUCT(id));
+    console.log("Delete response:", response.data); // Debug log
+    return response.data;
+  } catch (error) {
+    console.error("[Seller Product Service] Delete Product Error:", error);
+    throw error.response?.data || new Error("Failed to delete product");
+  }
+},
 
   // Get product by ID
   getProductById: async (id) => {

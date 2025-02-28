@@ -68,6 +68,9 @@ const ManageProducts = () => {
     // Second click performs the delete
     try {
       setDeleteLoading(true);
+
+      console.log("Attempting to delete product:", productId); // Debug log
+
       const response = await sellerProductService.deleteProduct(productId);
 
       if (response.success) {
