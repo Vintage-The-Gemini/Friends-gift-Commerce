@@ -1,15 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Upload,
   Calendar,
   DollarSign,
-  Users,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
 import ImageUpload from "../common/ImageUpload";
-import ProductSelection from "../products/ProductSelection";
+import ProductSelection from "./ProductSelection";
+import { eventService } from "../../services/api/event";
+import { formatCurrency } from "../../utils/currency";
 import { toast } from "react-toastify";
 
 const CreateEventForm = () => {
@@ -22,13 +23,13 @@ const CreateEventForm = () => {
     eventType: "",
     description: "",
     eventDate: "",
-    targetAmount: "",
     endDate: "",
-    image: "",
     visibility: "public",
-    products: [],
+    selectedProducts: [],
+    image: "",
   });
 
+  // Event types for the dropdown
   const eventTypes = [
     { value: "birthday", label: "Birthday" },
     { value: "wedding", label: "Wedding" },
@@ -38,6 +39,7 @@ const CreateEventForm = () => {
     { value: "anniversary", label: "Anniversary" },
   ];
 
+  // Validation logic for different steps
   const isStepOneValid = () => {
     return (
       formData.title?.trim() &&
@@ -47,57 +49,59 @@ const CreateEventForm = () => {
   };
 
   const isStepTwoValid = () => {
-    return formData.eventDate && formData.endDate && formData.targetAmount;
+    return (
+      formData.eventDate &&
+      formData.endDate &&
+      formData.selectedProducts?.length > 0
+    );
   };
 
-  const isStepThreeValid = () => {
-    return formData.products.length > 0;
+  // Calculate target amount based on selected products
+  const calculateTargetAmount = () => {
+    return formData.selectedProducts.reduce((total, item) => {
+      const price = parseFloat(item.product.price) || 0;
+      const quantity = parseInt(item.quantity) || 1;
+      return total + price * quantity;
+    }, 0);
   };
 
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
-      // Validate required fields
-      if (!formData.title?.trim()) throw new Error("Event title is required");
-      if (!formData.eventType) throw new Error("Event type is required");
-      if (!formData.description?.trim())
-        throw new Error("Description is required");
-      if (!formData.eventDate) throw new Error("Event date is required");
-      if (!formData.endDate) throw new Error("End date is required");
-      if (!formData.products?.length)
-        throw new Error("Please select at least one product");
+      // Calculate target amount
+      const targetAmount = calculateTargetAmount();
+
+      // Format products data
+      const formattedProducts = formData.selectedProducts.map((item) => ({
+        product: item.product._id,
+        quantity: parseInt(item.quantity) || 1,
+      }));
 
       // Create event data object
       const eventData = {
-        ...formData,
-        products: JSON.stringify(
-          formData.products.map((item) => ({
-            product: item.product._id,
-            quantity: item.quantity,
-          }))
-        ),
+        title: formData.title.trim(),
+        eventType: formData.eventType,
+        description: formData.description.trim(),
+        eventDate: formData.eventDate,
+        endDate: formData.endDate,
+        visibility: formData.visibility,
+        targetAmount,
+        products: JSON.stringify(formattedProducts),
+        image: formData.image,
       };
 
-      const response = await fetch("/api/events", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(eventData),
-      });
+      const response = await eventService.createEvent(eventData);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to create event");
+      if (response.success) {
+        toast.success("Event created successfully!");
+        navigate(`/events/${response.data._id}`);
+      } else {
+        throw new Error(response.message || "Failed to create event");
       }
-
-      toast.success("Event created successfully!");
-      navigate(`/events/${data.data._id}`);
     } catch (error) {
       console.error("Error creating event:", error);
       setError(error.message || "Failed to create event");
@@ -107,6 +111,7 @@ const CreateEventForm = () => {
     }
   };
 
+  // Handle image upload
   const handleImageUpload = (url) => {
     setFormData((prev) => ({
       ...prev,
@@ -114,6 +119,15 @@ const CreateEventForm = () => {
     }));
   };
 
+  // Handle product selection
+  const handleProductSelect = (products) => {
+    setFormData((prev) => ({
+      ...prev,
+      selectedProducts: products,
+    }));
+  };
+
+  // Render step content
   const renderStepContent = () => {
     switch (step) {
       case 1:
@@ -152,6 +166,7 @@ const CreateEventForm = () => {
                 }
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#5551FF]"
                 required
+                placeholder="Enter a meaningful title for your event"
               />
             </div>
 
@@ -167,6 +182,7 @@ const CreateEventForm = () => {
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#5551FF]"
                 rows="4"
                 required
+                placeholder="Describe your event and why you're creating it"
               />
             </div>
           </div>
@@ -214,26 +230,11 @@ const CreateEventForm = () => {
                   }
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#5551FF]"
                   required
-                  min={new Date().toISOString().split("T")[0]}
+                  min={
+                    formData.eventDate || new Date().toISOString().split("T")[0]
+                  }
                 />
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Target Amount (KES) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                value={formData.targetAmount}
-                onChange={(e) =>
-                  setFormData({ ...formData, targetAmount: e.target.value })
-                }
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#5551FF]"
-                min="0"
-                step="0.01"
-                required
-              />
             </div>
 
             <div>
@@ -247,28 +248,49 @@ const CreateEventForm = () => {
                 }
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#5551FF]"
               >
-                <option value="public">Public</option>
-                <option value="private">Private</option>
-                <option value="unlisted">Unlisted</option>
+                <option value="public">Public (Anyone can view)</option>
+                <option value="private">
+                  Private (Only you and invited people)
+                </option>
+                <option value="unlisted">
+                  Unlisted (Only accessible via link)
+                </option>
               </select>
             </div>
-          </div>
-        );
 
-      case 3:
-        return (
-          <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Select Products <span className="text-red-500">*</span>
               </label>
               <ProductSelection
-                selectedProducts={formData.products}
-                onProductSelect={(products) =>
-                  setFormData({ ...formData, products: products })
-                }
+                selectedProducts={formData.selectedProducts}
+                onProductSelect={handleProductSelect}
               />
             </div>
+
+            {formData.selectedProducts.length > 0 && (
+              <div className="mt-4 bg-gray-50 p-4 rounded-lg">
+                <h3 className="text-sm font-medium text-gray-700 mb-2">
+                  Selected Products Summary
+                </h3>
+                <ul className="space-y-2">
+                  {formData.selectedProducts.map((item, index) => (
+                    <li key={index} className="flex justify-between text-sm">
+                      <span>
+                        {item.product.name} × {item.quantity}
+                      </span>
+                      <span className="font-medium">
+                        {formatCurrency(item.product.price * item.quantity)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="border-t mt-2 pt-2 flex justify-between font-medium">
+                  <span>Total Target Amount:</span>
+                  <span>{formatCurrency(calculateTargetAmount())}</span>
+                </div>
+              </div>
+            )}
           </div>
         );
 
@@ -289,43 +311,41 @@ const CreateEventForm = () => {
         {/* Progress Steps */}
         <div className="mb-8">
           <div className="flex justify-between">
-            {["Event Details", "Additional Info", "Select Products"].map(
-              (label, index) => (
-                <div key={label} className="flex items-center">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center
-                    ${
-                      step > index + 1
-                        ? "bg-green-500"
-                        : step === index + 1
-                        ? "bg-[#5551FF]"
-                        : "bg-gray-200"
-                    } text-white`}
-                  >
-                    {index + 1}
-                  </div>
-                  <span
-                    className={`ml-2 text-sm ${
-                      step === index + 1
-                        ? "text-[#5551FF] font-medium"
-                        : "text-gray-500"
-                    }`}
-                  >
-                    {label}
-                  </span>
-                  {index < 2 && (
-                    <div className="w-full h-1 mx-4 bg-gray-200">
-                      <div
-                        className={`h-full bg-[#5551FF] transition-all duration-300`}
-                        style={{
-                          width: step > index + 1 ? "100%" : "0%",
-                        }}
-                      />
-                    </div>
-                  )}
+            {["Event Details", "Additional Info"].map((label, index) => (
+              <div key={label} className="flex items-center">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center
+                  ${
+                    step > index + 1
+                      ? "bg-green-500"
+                      : step === index + 1
+                      ? "bg-[#5551FF]"
+                      : "bg-gray-200"
+                  } text-white`}
+                >
+                  {index + 1}
                 </div>
-              )
-            )}
+                <span
+                  className={`ml-2 text-sm ${
+                    step === index + 1
+                      ? "text-[#5551FF] font-medium"
+                      : "text-gray-500"
+                  }`}
+                >
+                  {label}
+                </span>
+                {index < 1 && (
+                  <div className="w-full h-1 mx-4 bg-gray-200">
+                    <div
+                      className={`h-full bg-[#5551FF] transition-all duration-300`}
+                      style={{
+                        width: step > index + 1 ? "100%" : "0%",
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
 
@@ -343,11 +363,11 @@ const CreateEventForm = () => {
             </button>
           )}
 
-          {step < 3 ? (
+          {step < 2 ? (
             <button
               type="button"
               onClick={() => setStep(step + 1)}
-              disabled={step === 1 ? !isStepOneValid() : !isStepTwoValid()}
+              disabled={!isStepOneValid()}
               className="ml-auto flex items-center bg-[#5551FF] text-white px-6 py-2 rounded-lg hover:bg-[#4440FF] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
@@ -356,10 +376,10 @@ const CreateEventForm = () => {
           ) : (
             <button
               type="submit"
-              disabled={loading || !isStepThreeValid()}
+              disabled={loading || !isStepTwoValid()}
               className="ml-auto bg-[#5551FF] text-white px-6 py-2 rounded-lg hover:bg-[#4440FF] disabled:opacity-50"
             >
-              {loading ? "Creating..." : "Create Event"}
+              {loading ? "Creating Event..." : "Create Event"}
             </button>
           )}
         </div>

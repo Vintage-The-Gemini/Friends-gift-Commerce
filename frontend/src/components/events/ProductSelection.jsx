@@ -11,16 +11,19 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
     fetchCategories();
     fetchProducts();
   }, []);
 
+  // Fetch categories on mount
   const fetchCategories = async () => {
     try {
       const response = await categoryService.getAllCategories();
-      if (response?.data) {
+      if (response.success) {
         setCategories(response.data);
       }
     } catch (error) {
@@ -29,15 +32,47 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
     }
   };
 
-  const fetchProducts = async () => {
+  // Fetch products with debounced search and filter
+  useEffect(() => {
+    const debounceId = setTimeout(() => {
+      fetchProducts(true);
+    }, 500);
+
+    return () => clearTimeout(debounceId);
+  }, [searchTerm, selectedCategory]);
+
+  // Fetch products, with optional reset for new search/filter
+  const fetchProducts = async (reset = false) => {
     try {
+      if (reset) {
+        setPage(1);
+        setProducts([]);
+      }
+
+      setLoading(true);
+
+      const currentPage = reset ? 1 : page;
+
       const params = {
+        page: currentPage,
+        limit: 12,
         ...(selectedCategory && { category: selectedCategory }),
         ...(searchTerm && { search: searchTerm }),
       };
+
       const response = await productService.getAllProducts(params);
-      if (response?.data) {
-        setProducts(response.data);
+
+      if (response.success) {
+        if (reset) {
+          setProducts(response.data);
+        } else {
+          setProducts((prev) => [...prev, ...response.data]);
+        }
+
+        // Check if there are more pages
+        setHasMore(currentPage < (response.pagination?.totalPages || 1));
+      } else {
+        throw new Error(response.message || "Failed to load products");
       }
     } catch (error) {
       console.error("Error fetching products:", error);
@@ -47,18 +82,12 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
     }
   };
 
-  useEffect(() => {
-    const debounceId = setTimeout(() => {
-      fetchProducts();
-    }, 500);
-
-    return () => clearTimeout(debounceId);
-  }, [searchTerm, selectedCategory]);
-
+  // Check if a product is already selected
   const isProductSelected = (productId) => {
     return selectedProducts.some((item) => item.product._id === productId);
   };
 
+  // Get the quantity for a selected product
   const getSelectedQuantity = (productId) => {
     const item = selectedProducts.find(
       (item) => item.product._id === productId
@@ -66,6 +95,7 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
     return item ? item.quantity : 0;
   };
 
+  // Handle adding/removing a product from selection
   const handleProductClick = (product) => {
     if (isProductSelected(product._id)) {
       onProductSelect(
@@ -76,6 +106,7 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
     }
   };
 
+  // Update the quantity for a selected product
   const updateQuantity = (productId, change) => {
     const updatedProducts = selectedProducts.map((item) => {
       if (item.product._id === productId) {
@@ -87,10 +118,17 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
     onProductSelect(updatedProducts);
   };
 
+  // Remove a product from selection
   const removeProduct = (productId) => {
     onProductSelect(
       selectedProducts.filter((item) => item.product._id !== productId)
     );
+  };
+
+  // Handle load more products
+  const handleLoadMore = () => {
+    setPage((prev) => prev + 1);
+    fetchProducts(false);
   };
 
   return (
@@ -150,6 +188,7 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
                   <button
                     onClick={() => updateQuantity(item.product._id, -1)}
                     className="p-1 rounded-full hover:bg-gray-100"
+                    aria-label="Decrease quantity"
                   >
                     <Minus className="w-4 h-4" />
                   </button>
@@ -157,6 +196,7 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
                   <button
                     onClick={() => updateQuantity(item.product._id, 1)}
                     className="p-1 rounded-full hover:bg-gray-100"
+                    aria-label="Increase quantity"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -164,6 +204,7 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
                 <button
                   onClick={() => removeProduct(item.product._id)}
                   className="text-red-500 hover:text-red-700"
+                  aria-label="Remove product"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -174,7 +215,7 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
       )}
 
       {/* Products Grid */}
-      {loading ? (
+      {loading && products.length === 0 ? (
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#5551FF]"></div>
         </div>
@@ -190,11 +231,25 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
               }`}
               onClick={() => handleProductClick(product)}
             >
-              <img
-                src={product.images?.[0]?.url || "/placeholder-image.jpg"}
-                alt={product.name}
-                className="w-full h-48 object-cover"
-              />
+              <div className="aspect-square relative">
+                <img
+                  src={product.images?.[0]?.url || "/placeholder-image.jpg"}
+                  alt={product.name}
+                  className="w-full h-full object-cover"
+                />
+                {product.stock <= 0 && (
+                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                    <span className="text-white font-medium px-3 py-1 bg-red-500 rounded-md">
+                      Out of Stock
+                    </span>
+                  </div>
+                )}
+                {isProductSelected(product._id) && (
+                  <div className="absolute top-2 right-2 bg-[#5551FF] text-white w-6 h-6 rounded-full flex items-center justify-center">
+                    <span>{getSelectedQuantity(product._id)}</span>
+                  </div>
+                )}
+              </div>
               <div className="p-4">
                 <h3 className="font-medium text-gray-900 mb-2">
                   {product.name}
@@ -206,8 +261,14 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
                   <span className="font-bold text-gray-900">
                     {formatCurrency(product.price)}
                   </span>
-                  {isProductSelected(product._id) && (
-                    <span className="text-[#5551FF] text-sm">Selected</span>
+                  {isProductSelected(product._id) ? (
+                    <span className="text-[#5551FF] text-sm font-medium">
+                      Selected
+                    </span>
+                  ) : (
+                    <span className="text-sm text-gray-500">
+                      {product.stock} in stock
+                    </span>
                   )}
                 </div>
               </div>
@@ -216,9 +277,24 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
         </div>
       )}
 
+      {/* Load More Button */}
+      {products.length > 0 && hasMore && (
+        <div className="text-center mt-4">
+          <button
+            onClick={handleLoadMore}
+            disabled={loading}
+            className="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#5551FF]"
+          >
+            {loading ? "Loading..." : "Load More Products"}
+          </button>
+        </div>
+      )}
+
       {products.length === 0 && !loading && (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <p className="text-gray-500">No products found</p>
+          <p className="text-gray-500">
+            No products found. Try adjusting your search.
+          </p>
         </div>
       )}
     </div>

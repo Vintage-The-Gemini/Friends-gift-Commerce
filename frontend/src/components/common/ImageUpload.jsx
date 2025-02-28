@@ -1,10 +1,9 @@
-// src/components/common/ImageUpload.jsx
 import React, { useState, useRef } from "react";
 import { Upload, X, Image, Camera, Loader } from "lucide-react";
-import { uploadToCloudinary } from "../../services/api/cloudinary";
+import { toast } from "react-toastify";
 
 /**
- * Image upload component that handles file selection, preview, and upload to Cloudinary
+ * Image upload component that handles file selection, preview, and upload to server
  *
  * @param {Function} onUpload - Callback function that receives the uploaded image URL
  * @param {string} label - Label for the upload field
@@ -51,17 +50,37 @@ const ImageUpload = ({
     };
     reader.readAsDataURL(file);
 
-    // Start upload
+    // Upload image to server
     setUploading(true);
 
     try {
-      const imageUrl = await uploadToCloudinary(file);
-      onUpload(imageUrl);
+      // Create form data for the file upload
+      const formData = new FormData();
+      formData.append("image", file);
+
+      // Upload to server
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to upload image");
+      }
+
+      // Call the callback with the image URL
+      onUpload(data.imageUrl);
       setError("");
     } catch (error) {
       console.error("Upload error:", error);
       setError("Failed to upload image. Please try again.");
       // Keep the preview but notify about upload failure
+      toast.error("Failed to upload image. Please try again.");
     } finally {
       setUploading(false);
     }
