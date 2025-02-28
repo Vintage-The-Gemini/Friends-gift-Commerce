@@ -55,6 +55,18 @@ export const getBusinessProfile = async () => {
       };
     }
 
+    // If 400 with "already exists", the profile exists but can't be created again
+    if (
+      error.response?.status === 400 &&
+      error.response?.data?.message?.includes("already exists")
+    ) {
+      return {
+        success: true,
+        data: { exists: true },
+        message: "Business profile already exists",
+      };
+    }
+
     throw error.response?.data || new Error("Failed to fetch business profile");
   }
 };
@@ -66,8 +78,15 @@ export const getBusinessProfile = async () => {
 export const hasBusinessProfile = async () => {
   try {
     const response = await getBusinessProfile();
-    return response.success && !!response.data;
+    return (
+      response.success &&
+      (!!response.data || response.message?.includes("already exists"))
+    );
   } catch (error) {
+    // If error contains "already exists" message, profile exists
+    if (error.message && error.message.includes("already exists")) {
+      return true;
+    }
     return false;
   }
 };

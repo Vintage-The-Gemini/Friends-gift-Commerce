@@ -1,16 +1,20 @@
 // src/pages/dashboard/seller/BusinessSetup.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "../../../hooks/useAuth";
 import ImageUpload from "../../../components/common/ImageUpload";
-import { createBusinessProfile } from "../../../services/api/business";
+import {
+  createBusinessProfile,
+  getBusinessProfile,
+} from "../../../services/api/business";
 
 const BusinessSetup = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [checkingProfile, setCheckingProfile] = useState(true);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
@@ -35,35 +39,43 @@ const BusinessSetup = () => {
     },
   });
 
-  const days = [
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-    "saturday",
-    "sunday",
-  ];
+  // Check if business profile already exists and redirect if it does
+  useEffect(() => {
+    const checkExistingProfile = async () => {
+      try {
+        setCheckingProfile(true);
+        const response = await getBusinessProfile();
+        console.log("Profile check response:", response);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+        // If profile exists or we get a message that it exists
+        if (
+          response.success ||
+          (response.message && response.message.includes("already exists"))
+        ) {
+          console.log("Business profile exists, redirecting to dashboard");
+          navigate("/seller/dashboard");
+        }
+      } catch (error) {
+        console.error("Profile check error:", error);
+        // If error indicates profile exists, redirect
+        if (error.message && error.message.includes("already exists")) {
+          console.log(
+            "Business profile exists (from error), redirecting to dashboard"
+          );
+          navigate("/seller/dashboard");
+        } else {
+          // Other error, show in the UI
+          setError(
+            "Failed to check if business profile exists. " + error.message
+          );
+        }
+      } finally {
+        setCheckingProfile(false);
+      }
+    };
 
-    try {
-      const response = await createBusinessProfile(formData);
-      console.log("Business profile created:", response);
-      setSuccess(true);
-      setTimeout(() => {
-        navigate("/seller/dashboard");
-      }, 2000);
-    } catch (err) {
-      setError(err.message || "Failed to create business profile");
-      console.error("Error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    checkExistingProfile();
+  }, [navigate]);
 
   const handleLogoUpload = (url) => {
     setFormData((prev) => ({
@@ -92,6 +104,46 @@ const BusinessSetup = () => {
     }));
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await createBusinessProfile(formData);
+      console.log("Business profile created:", response);
+      setSuccess(true);
+      setTimeout(() => {
+        navigate("/seller/dashboard");
+      }, 2000);
+    } catch (err) {
+      // If error indicates profile already exists, redirect to dashboard
+      if (err.message && err.message.includes("already exists")) {
+        setSuccess(true);
+        setTimeout(() => {
+          navigate("/seller/dashboard");
+        }, 1000);
+      } else {
+        setError(err.message || "Failed to create business profile");
+        console.error("Error:", err);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Render loading state when checking profile
+  if (checkingProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#5551FF] mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking business profile status...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -108,6 +160,16 @@ const BusinessSetup = () => {
     );
   }
 
+  const days = [
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
@@ -118,30 +180,34 @@ const BusinessSetup = () => {
               (label, index) => (
                 <div key={label} className="flex items-center">
                   <div
-                    className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                    className={`w-8 h-8 rounded-full flex items-center justify-center
+                    ${
                       step > index + 1
                         ? "bg-green-500"
                         : step === index + 1
-                        ? "bg-blue-600"
-                        : "bg-gray-300"
-                    } text-white font-semibold`}
+                        ? "bg-[#5551FF]"
+                        : "bg-gray-200"
+                    } text-white`}
                   >
-                    {step > index + 1 ? (
-                      <Check className="w-5 h-5" />
-                    ) : (
-                      index + 1
-                    )}
+                    {index + 1}
                   </div>
                   <span
-                    className={`ml-2 text-sm ${
+                    className={`ml-2 ${
                       step === index + 1
-                        ? "text-blue-600 font-medium"
+                        ? "text-[#5551FF] font-medium"
                         : "text-gray-500"
                     }`}
                   >
                     {label}
                   </span>
-                  {index < 2 && <div className="w-24 h-0.5 mx-4 bg-gray-300" />}
+                  {index < 2 && (
+                    <div className="w-24 h-1 mx-4 bg-gray-200">
+                      <div
+                        className="h-full bg-[#5551FF]"
+                        style={{ width: step > 1 ? "100%" : "0%" }}
+                      />
+                    </div>
+                  )}
                 </div>
               )
             )}

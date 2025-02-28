@@ -8,138 +8,52 @@ const mongoose = require("mongoose");
  * @route   GET /api/seller/analytics/overview
  * @access  Private/Seller
  */
+// backend/src/controllers/analytics.controller.js
 exports.getSellerOverview = async (req, res) => {
   try {
+    // Add debugging to see if this function is being called
+    console.log("getSellerOverview called for user:", req.user.id);
+
     const sellerId = req.user._id;
-    console.log("Fetching analytics for seller:", sellerId);
 
-    // Convert string ID to MongoDB ObjectId if necessary
-    const sellerObjectId = mongoose.Types.ObjectId.isValid(sellerId)
-      ? new mongoose.Types.ObjectId(sellerId)
-      : sellerId;
-
-    // Get total products
-    const totalProducts = await Product.countDocuments({
-      seller: sellerObjectId,
-    });
-    console.log("Total products:", totalProducts);
-
-    // Get active orders
-    const activeOrders = await Order.countDocuments({
-      seller: sellerObjectId,
-      status: { $in: ["pending", "processing"] },
-    });
-    console.log("Active orders:", activeOrders);
-
-    // Calculate total sales and revenue
-    const salesData = await Order.aggregate([
-      {
-        $match: {
-          seller: sellerObjectId,
-          status: "completed",
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          totalSales: { $sum: 1 },
-          totalRevenue: { $sum: "$totalAmount" },
-        },
-      },
-    ]);
-    console.log("Sales data:", salesData);
-
-    // Calculate monthly revenue
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-
-    const monthlyData = await Order.aggregate([
-      {
-        $match: {
-          seller: sellerObjectId,
-          status: "completed",
-          createdAt: { $gte: startOfMonth },
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          monthlyRevenue: { $sum: "$totalAmount" },
-        },
-      },
-    ]);
-    console.log("Monthly data:", monthlyData);
-
-    // Get recent orders
-    const recentOrders = await Order.find({ seller: sellerObjectId })
-      .sort("-createdAt")
-      .limit(5)
-      .populate("buyer", "name")
-      .populate("products.product", "name price")
-      .populate("event", "title eventType");
-
-    console.log(`Found ${recentOrders.length} recent orders`);
-
-    // Get top selling products
-    const topProducts = await Order.aggregate([
-      {
-        $match: {
-          seller: sellerObjectId,
-          status: "completed",
-        },
-      },
-      {
-        $unwind: "$products",
-      },
-      {
-        $group: {
-          _id: "$products.product",
-          totalSold: { $sum: "$products.quantity" },
-          revenue: {
-            $sum: { $multiply: ["$products.price", "$products.quantity"] },
-          },
-        },
-      },
-      {
-        $sort: { revenue: -1 },
-      },
-      {
-        $limit: 5,
-      },
-    ]);
-    console.log(`Found ${topProducts.length} top products`);
-
-    // Populate top products with product details
-    const populatedTopProducts = await Product.populate(topProducts, {
-      path: "_id",
-      select: "name images",
-    });
-
-    // Format the data for response
-    const responseData = {
-      totalProducts,
-      activeOrders,
-      totalSales: salesData[0]?.totalSales || 0,
-      totalRevenue: salesData[0]?.totalRevenue || 0,
-      monthlyRevenue: monthlyData[0]?.monthlyRevenue || 0,
-      recentOrders,
-      topProducts: populatedTopProducts.map((item) => ({
-        product: item._id,
-        totalSold: item.totalSold,
-        revenue: item.revenue,
-      })),
-    };
-
+    // Return some sample data for testing
     res.json({
       success: true,
-      data: responseData,
+      data: {
+        totalProducts: 0,
+        activeOrders: 0,
+        totalSales: 0,
+        totalRevenue: 0,
+        monthlyRevenue: 0,
+        recentOrders: [],
+        topProducts: [],
+      },
     });
   } catch (error) {
     console.error("Analytics error:", error);
     res.status(500).json({
       success: false,
       message: "Error fetching analytics data",
+      error: error.message,
+    });
+  }
+};
+
+exports.getSalesAnalytics = async (req, res) => {
+  try {
+    // Add debugging
+    console.log("getSalesAnalytics called for user:", req.user.id);
+
+    // Return sample data for testing
+    res.json({
+      success: true,
+      data: [],
+    });
+  } catch (error) {
+    console.error("Sales analytics error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching sales analytics",
       error: error.message,
     });
   }

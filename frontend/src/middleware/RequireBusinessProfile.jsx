@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { hasBusinessProfile } from "../services/api/business";
+import { getBusinessProfile } from "../services/api/business";
 
 /**
  * A middleware component that checks if a seller has a business profile
@@ -18,16 +18,32 @@ const RequireBusinessProfile = ({ children }) => {
       try {
         // Only check for business profile if the user is a seller
         if (user?.role === "seller") {
-          const profileExists = await hasBusinessProfile();
-          setHasProfile(profileExists);
+          const response = await getBusinessProfile();
+          console.log("Business profile check response:", response);
+
+          // Consider profile exists if either success is true or we get a specific error
+          if (
+            response.success ||
+            (response.message && response.message.includes("already exists"))
+          ) {
+            setHasProfile(true);
+          } else {
+            setHasProfile(false);
+          }
         } else {
           // If not a seller, we don't need a business profile
           setHasProfile(true);
         }
       } catch (error) {
         console.error("Error checking business profile:", error);
-        // On error, assume no profile to be safe
-        setHasProfile(false);
+
+        // If we get an error about profile already existing, consider it exists
+        if (error.message && error.message.includes("already exists")) {
+          setHasProfile(true);
+        } else {
+          // On other errors, assume no profile to be safe
+          setHasProfile(false);
+        }
       } finally {
         setLoading(false);
       }

@@ -36,9 +36,7 @@ const createBusinessProfile = async (req, res) => {
   }
 };
 
-// @desc    Get business profile
-// @route   GET /api/seller/business-profile
-// @access  Private/Seller
+// Modify the getBusinessProfile function
 const getBusinessProfile = async (req, res) => {
   try {
     const profile = await BusinessProfile.findOne({ seller: req.user.id });

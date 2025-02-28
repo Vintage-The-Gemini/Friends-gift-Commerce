@@ -1,10 +1,10 @@
 // src/middleware/checkBusinessProfile.js
-const BusinessProfile = require('../models/BusinessProfile');
+const BusinessProfile = require("../models/BusinessProfile");
 
 const checkBusinessProfile = async (req, res, next) => {
   try {
     // Skip check if not a seller
-    if (req.user.role !== 'seller') {
+    if (req.user.role !== "seller") {
       return next();
     }
 
@@ -12,11 +12,15 @@ const checkBusinessProfile = async (req, res, next) => {
     const profile = await BusinessProfile.findOne({ seller: req.user.id });
 
     // If no profile and not on setup page, redirect
-    if (!profile && !req.path.includes('/setup')) {
+    if (
+      !profile &&
+      !req.path.includes("/setup") &&
+      !req.path.includes("/business-profile")
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'Please complete your business profile setup',
-        requiresSetup: true
+        message: "Please complete your business profile setup",
+        requiresSetup: true,
       });
     }
 
