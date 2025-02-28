@@ -9,8 +9,12 @@ import {
   Package,
   ArrowUpRight,
   Calendar,
+  PlusCircle,
+  Eye,
 } from "lucide-react";
 import { analyticsService } from "../../../services/api/analytics";
+import { orderService } from "../../../services/api/order";
+import { eventService } from "../../../services/api/event";
 import {
   LineChart,
   Line,
@@ -20,6 +24,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { formatCurrency } from "../../../utils/currency";
+import { toast } from "react-toastify";
 
 const SellerDashboard = () => {
   const [dashboardData, setDashboardData] = useState({
@@ -31,13 +37,16 @@ const SellerDashboard = () => {
     recentOrders: [],
     topProducts: [],
   });
+  const [sellerEvents, setSellerEvents] = useState([]);
   const [salesData, setSalesData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [eventsLoading, setEventsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedPeriod, setSelectedPeriod] = useState("weekly");
 
   useEffect(() => {
     fetchDashboardData();
+    fetchSellerEvents();
   }, []);
 
   useEffect(() => {
@@ -58,8 +67,24 @@ const SellerDashboard = () => {
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
       setError("Failed to load dashboard data: " + error.message);
+      toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSellerEvents = async () => {
+    try {
+      setEventsLoading(true);
+      const response = await eventService.getUserEvents();
+      if (response.success) {
+        setSellerEvents(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching seller events:", error);
+      toast.error("Failed to load your events");
+    } finally {
+      setEventsLoading(false);
     }
   };
 
@@ -82,11 +107,9 @@ const SellerDashboard = () => {
     });
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
+  const calculateProgress = (currentAmount, targetAmount) => {
+    if (!targetAmount) return 0;
+    return Math.min((currentAmount / targetAmount) * 100, 100);
   };
 
   const StatCard = ({ title, value, icon: Icon, bgColor, percentage }) => (
@@ -119,12 +142,15 @@ const SellerDashboard = () => {
       processing: "bg-blue-100 text-blue-800",
       shipped: "bg-purple-100 text-purple-800",
       delivered: "bg-green-100 text-green-800",
+      completed: "bg-green-100 text-green-800",
       cancelled: "bg-red-100 text-red-800",
     };
 
     return (
       <span
-        className={`px-2 py-1 rounded-full text-xs font-medium ${statusStyles[status]}`}
+        className={`px-2 py-1 rounded-full text-xs font-medium ${
+          statusStyles[status] || statusStyles.pending
+        }`}
       >
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
@@ -133,7 +159,7 @@ const SellerDashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="p-6 flex items-center justify-center min-h-[300px]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
@@ -215,7 +241,7 @@ const SellerDashboard = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="_id" />
                 <YAxis />
-                <Tooltip />
+                <Tooltip formatter={(value) => formatCurrency(value)} />
                 <Line
                   type="monotone"
                   dataKey="revenue"
@@ -254,7 +280,7 @@ const SellerDashboard = () => {
                   <img
                     src={
                       item.product.images?.[0]?.url ||
-                      "https://placehold.co/100x100"
+                      "/api/placeholder/100/100"
                     }
                     alt={item.product.name}
                     className="w-12 h-12 rounded-lg object-cover"
@@ -280,6 +306,115 @@ const SellerDashboard = () => {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Seller's Events */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-lg font-semibold">My Events</h2>
+          <Link
+            to="/events/create"
+            className="flex items-center text-blue-600 hover:text-blue-800 text-sm"
+          >
+            <PlusCircle className="w-4 h-4 mr-1" />
+            Create Event
+          </Link>
+        </div>
+
+        {eventsLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : sellerEvents.length === 0 ? (
+          <div className="text-center py-8 bg-gray-50 rounded-lg">
+            <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <h3 className="text-gray-800 font-semibold mb-2">No Events Yet</h3>
+            <p className="text-gray-600 mb-4">
+              Create your first event to start collecting contributions
+            </p>
+            <Link
+              to="/events/create"
+              className="inline-flex items-center text-blue-600 hover:text-blue-800"
+            >
+              <PlusCircle className="w-4 h-4 mr-2" />
+              Create New Event
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {sellerEvents.slice(0, 3).map((event) => (
+              <div
+                key={event._id}
+                className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+              >
+                <div className="relative">
+                  {event.image ? (
+                    <img
+                      src={event.image}
+                      alt={event.title}
+                      className="w-full h-32 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-32 bg-gray-100 flex items-center justify-center">
+                      <Calendar className="w-8 h-8 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
+                    <h3 className="text-white font-medium text-sm">
+                      {event.title}
+                    </h3>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <div className="mb-2">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full"
+                        style={{
+                          width: `${calculateProgress(
+                            event.currentAmount,
+                            event.targetAmount
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>
+                        {formatCurrency(event.currentAmount)} of{" "}
+                        {formatCurrency(event.targetAmount)}
+                      </span>
+                      <span>
+                        {calculateProgress(
+                          event.currentAmount,
+                          event.targetAmount
+                        ).toFixed(0)}
+                        %
+                      </span>
+                    </div>
+                  </div>
+                  <Link
+                    to={`/events/${event._id}`}
+                    className="flex items-center justify-center w-full px-3 py-1.5 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 text-sm font-medium"
+                  >
+                    <Eye className="w-4 h-4 mr-1" />
+                    View Event
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {sellerEvents.length > 3 && (
+          <div className="text-center mt-4">
+            <Link
+              to="/buyer/events"
+              className="text-blue-600 hover:text-blue-800 text-sm"
+            >
+              View All Events ({sellerEvents.length})
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Recent Orders */}

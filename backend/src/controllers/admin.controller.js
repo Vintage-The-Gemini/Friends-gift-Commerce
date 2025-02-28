@@ -211,7 +211,7 @@ exports.deleteUser = async (req, res) => {
 
         res.json({
             success: true,
-            message: 'User deactivated successfully'
+            message: 'User deactivated successfully'p
         });
     } catch (error) {
         res.status(500).json({

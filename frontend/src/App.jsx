@@ -40,6 +40,7 @@ import ManageProducts from "./pages/dashboard/seller/ManageProducts";
 import AddProduct from "./pages/dashboard/seller/AddProduct";
 import EditProduct from "./pages/dashboard/seller/EditProduct";
 import SellerOrders from "./pages/dashboard/seller/SellerOrders";
+import SellerEvents from "./pages/dashboard/seller/SellerEvents"; // Import the new component
 import SellerAnalytics from "./pages/dashboard/seller/SellerAnalytics";
 import SellerSettings from "./pages/dashboard/seller/SellerSettings";
 
@@ -82,7 +83,7 @@ const router = createBrowserRouter(
             {
               path: "/events/create",
               element: (
-                <ProtectedRoute allowedRoles={["buyer"]}>
+                <ProtectedRoute allowedRoles={["buyer", "seller"]}>
                   <CreateEvent />
                 </ProtectedRoute>
               ),
@@ -90,7 +91,7 @@ const router = createBrowserRouter(
             {
               path: "/events/edit/:id",
               element: (
-                <ProtectedRoute allowedRoles={["buyer"]}>
+                <ProtectedRoute allowedRoles={["buyer", "seller"]}>
                   <EditEvent />
                 </ProtectedRoute>
               ),
@@ -163,6 +164,14 @@ const router = createBrowserRouter(
               element: (
                 <RequireBusinessProfile>
                   <SellerOrders />
+                </RequireBusinessProfile>
+              ),
+            },
+            {
+              path: "events",
+              element: (
+                <RequireBusinessProfile>
+                  <SellerEvents />
                 </RequireBusinessProfile>
               ),
             },

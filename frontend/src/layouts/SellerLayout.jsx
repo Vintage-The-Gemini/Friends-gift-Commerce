@@ -12,6 +12,7 @@ import {
   ShoppingBag,
   Home,
   Gift,
+  Calendar,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 
@@ -61,6 +62,11 @@ const SellerLayout = () => {
       name: "Orders",
       href: "/seller/orders",
       icon: ShoppingBag,
+    },
+    {
+      name: "Events",
+      href: "/seller/events",
+      icon: Calendar,
     },
     {
       name: "Analytics",
