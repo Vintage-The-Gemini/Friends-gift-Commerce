@@ -1,4 +1,5 @@
 // frontend/src/layouts/SellerLayout.jsx
+// frontend/src/layouts/SellerLayout.jsx
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
@@ -13,15 +14,17 @@ import {
   Home,
   Gift,
   Bell,
-  Search,
   User,
   ChevronDown,
   Calendar,
+  Search,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 
+// Rest of the component remains the same
+
 const SellerLayout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const location = useLocation();
@@ -145,18 +148,18 @@ const SellerLayout = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Overlay for mobile sidebar */}
+      {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden"
+          className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 md:hidden"
           onClick={() => setSidebarOpen(false)}
         ></div>
       )}
 
       {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:h-screen ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
         {/* Sidebar Header */}
@@ -170,7 +173,7 @@ const SellerLayout = () => {
             </span>
           </Link>
           <button
-            className="p-1 rounded-md text-gray-400 lg:hidden hover:bg-gray-50"
+            className="p-1 rounded-md text-gray-400 md:hidden hover:bg-gray-50"
             onClick={() => setSidebarOpen(false)}
           >
             <X className="w-6 h-6" />
@@ -241,13 +244,13 @@ const SellerLayout = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top Navbar */}
-        <header className="bg-white border-b h-16 flex items-center justify-between px-4 lg:px-6">
-          {/* Left side - mobile menu and search */}
+        <header className="bg-white border-b h-16 flex items-center justify-between px-4 md:px-6">
+          {/* Left side - mobile menu button and search */}
           <div className="flex items-center">
             <button
-              className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 lg:hidden"
+              className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 md:hidden"
               onClick={() => setSidebarOpen(true)}
             >
               <Menu className="w-6 h-6" />
