@@ -1,36 +1,60 @@
-// src/components/ui/card.jsx
-import * as React from "react"
+import React from "react";
 
-const Card = React.forwardRef(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={`rounded-lg border bg-card text-card-foreground shadow-sm ${className}`}
-    {...props}
-  />
-))
-Card.displayName = "Card"
+// Card component with variants
+const Card = ({
+  className,
+  children,
+  variant = "default", // default, outline, or elevated
+}) => {
+  const baseStyles = "rounded-lg overflow-hidden";
 
-const CardHeader = React.forwardRef(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={`flex flex-col space-y-1.5 p-6 ${className}`}
-    {...props}
-  />
-))
-CardHeader.displayName = "CardHeader"
+  const variantStyles = {
+    default: "bg-white border border-gray-200",
+    outline: "bg-transparent border border-gray-300",
+    elevated: "bg-white shadow-md border-none",
+  };
 
-const CardTitle = React.forwardRef(({ className, ...props }, ref) => (
-  <h3
-    ref={ref}
-    className={`text-2xl font-semibold leading-none tracking-tight ${className}`}
-    {...props}
-  />
-))
-CardTitle.displayName = "CardTitle"
+  return (
+    <div
+      className={`${baseStyles} ${variantStyles[variant]} ${className || ""}`}
+    >
+      {children}
+    </div>
+  );
+};
 
-const CardContent = React.forwardRef(({ className, ...props }, ref) => (
-  <div ref={ref} className={`p-6 pt-0 ${className}`} {...props} />
-))
-CardContent.displayName = "CardContent"
+// Card header subcomponent
+const CardHeader = ({ className, children }) => {
+  return (
+    <div className={`p-4 border-b border-gray-200 ${className || ""}`}>
+      {children}
+    </div>
+  );
+};
 
-export { Card, CardHeader, CardTitle, CardContent }
+// Card title subcomponent
+const CardTitle = ({ className, children }) => {
+  return (
+    <h3 className={`text-lg font-medium ${className || ""}`}>{children}</h3>
+  );
+};
+
+// Card content subcomponent
+const CardContent = ({ className, children }) => {
+  return <div className={`p-4 ${className || ""}`}>{children}</div>;
+};
+
+// Card footer subcomponent
+const CardFooter = ({ className, children }) => {
+  return (
+    <div className={`p-4 border-t border-gray-200 ${className || ""}`}>
+      {children}
+    </div>
+  );
+};
+
+// Named exports for all components
+export { Card, CardHeader, CardTitle, CardContent, CardFooter };
+
+// Default export for the Card component
+export default Card;

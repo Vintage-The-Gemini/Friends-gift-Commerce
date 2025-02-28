@@ -55,6 +55,7 @@ const SellerDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
+      setLoading(true);
       console.log("Fetching dashboard data...");
       const response = await analyticsService.getDashboardOverview();
       if (response.success) {
@@ -66,8 +67,9 @@ const SellerDashboard = () => {
       }
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
-      setError("Failed to load dashboard data: " + error.message);
-      toast.error("Failed to load dashboard data");
+      setError("Failed to load dashboard data: " + (error.message || ""));
+      // Toast error but continue with default empty values
+      toast.error("Failed to load dashboard data. Using default values.");
     } finally {
       setLoading(false);
     }
@@ -76,13 +78,15 @@ const SellerDashboard = () => {
   const fetchSellerEvents = async () => {
     try {
       setEventsLoading(true);
+      // This might not always return events for a seller, which is okay
       const response = await eventService.getUserEvents();
       if (response.success) {
         setSellerEvents(response.data);
       }
     } catch (error) {
       console.error("Error fetching seller events:", error);
-      toast.error("Failed to load your events");
+      // Don't set an error state for this secondary data
+      toast.info("Unable to load your events");
     } finally {
       setEventsLoading(false);
     }
@@ -90,12 +94,15 @@ const SellerDashboard = () => {
 
   const fetchSalesAnalytics = async (period) => {
     try {
+      // Analytics might not be ready initially for new sellers
       const response = await analyticsService.getSalesAnalytics(period);
       if (response.success) {
         setSalesData(response.data);
       }
     } catch (error) {
       console.error("Error fetching sales analytics:", error);
+      // Set fallback empty data instead of error
+      setSalesData([]);
     }
   };
 
@@ -157,6 +164,7 @@ const SellerDashboard = () => {
     );
   };
 
+  // Render loading state
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[300px]">
@@ -165,25 +173,22 @@ const SellerDashboard = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg p-4">
-          {error}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="p-6">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-2">Dashboard</h1>
+        <h1 className="text-2xl font-bold mb-2">Seller Dashboard</h1>
         <p className="text-gray-600">
           Welcome back! Here's what's happening with your store.
         </p>
       </div>
 
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg p-4 mb-6">
+          {error}
+        </div>
+      )}
+
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
           title="Total Products"
@@ -196,24 +201,25 @@ const SellerDashboard = () => {
           value={dashboardData.activeOrders}
           icon={ShoppingBag}
           bgColor="bg-yellow-500"
-          percentage={12}
+          percentage={12} // Demo percentage
         />
         <StatCard
           title="Total Sales"
           value={dashboardData.totalSales}
           icon={Users}
           bgColor="bg-green-500"
-          percentage={8}
+          percentage={8} // Demo percentage
         />
         <StatCard
           title="Monthly Revenue"
           value={formatCurrency(dashboardData.monthlyRevenue)}
           icon={DollarSign}
           bgColor="bg-purple-500"
-          percentage={15}
+          percentage={15} // Demo percentage
         />
       </div>
 
+      {/* Charts and Data Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Sales Chart */}
         <div className="bg-white p-6 rounded-lg shadow-md">
@@ -235,29 +241,40 @@ const SellerDashboard = () => {
               ))}
             </div>
           </div>
+
+          {/* Chart container with fallback for no data */}
           <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={salesData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="_id" />
-                <YAxis />
-                <Tooltip formatter={(value) => formatCurrency(value)} />
-                <Line
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="#8884d8"
-                  name="Revenue"
-                  strokeWidth={2}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="sales"
-                  stroke="#82ca9d"
-                  name="Sales"
-                  strokeWidth={2}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {salesData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={salesData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="_id" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => formatCurrency(value)} />
+                  <Line
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#8884d8"
+                    name="Revenue"
+                    strokeWidth={2}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="sales"
+                    stroke="#82ca9d"
+                    name="Sales"
+                    strokeWidth={2}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center">
+                  <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500">No sales data available yet</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -272,10 +289,10 @@ const SellerDashboard = () => {
               View All
             </Link>
           </div>
-          <div className="space-y-4">
-            {dashboardData.topProducts &&
-            dashboardData.topProducts.length > 0 ? (
-              dashboardData.topProducts.map((item) => (
+
+          {dashboardData.topProducts && dashboardData.topProducts.length > 0 ? (
+            <div className="space-y-4">
+              {dashboardData.topProducts.map((item) => (
                 <div key={item.product._id} className="flex items-center">
                   <img
                     src={
@@ -298,18 +315,116 @@ const SellerDashboard = () => {
                     <p className="text-xs text-gray-500">Revenue</p>
                   </div>
                 </div>
-              ))
-            ) : (
-              <p className="text-gray-500 text-center py-4">
+              ))}
+            </div>
+          ) : (
+            <div className="py-12 text-center">
+              <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 mb-4">
                 No product data available yet
               </p>
-            )}
-          </div>
+              <Link
+                to="/seller/products/add"
+                className="text-blue-600 hover:text-blue-800 flex items-center justify-center"
+              >
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Add Products
+              </Link>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Recent Orders */}
+      <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
+        <div className="flex justify-between items-center p-6 border-b">
+          <h2 className="text-lg font-semibold">Recent Orders</h2>
+          <Link
+            to="/seller/orders"
+            className="text-blue-600 hover:text-blue-800 text-sm"
+          >
+            View All
+          </Link>
+        </div>
+
+        {dashboardData.recentOrders && dashboardData.recentOrders.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Order ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Customer
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Amount
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {dashboardData.recentOrders.map((order) => (
+                  <tr key={order._id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      #{order._id.slice(-6)}
+                      {order.event && (
+                        <span className="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">
+                          Event Order
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {order.buyer?.name || "Unknown Buyer"}
+                      </div>
+                      {order.event && (
+                        <div className="text-xs text-blue-600">
+                          From: {order.event.title}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(order.createdAt)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatCurrency(order.totalAmount)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <OrderStatusBadge status={order.status} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                      <Link
+                        to={`/seller/orders/${order._id}`}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        View Details
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-6 text-center py-12">
+            <ShoppingBag className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500">No orders yet</p>
+          </div>
+        )}
+      </div>
+
       {/* Seller's Events */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+      <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-lg font-semibold">My Events</h2>
           <Link
@@ -341,7 +456,7 @@ const SellerDashboard = () => {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {sellerEvents.slice(0, 3).map((event) => (
               <div
                 key={event._id}
@@ -408,105 +523,13 @@ const SellerDashboard = () => {
         {sellerEvents.length > 3 && (
           <div className="text-center mt-4">
             <Link
-              to="/buyer/events"
+              to="/seller/events"
               className="text-blue-600 hover:text-blue-800 text-sm"
             >
               View All Events ({sellerEvents.length})
             </Link>
           </div>
         )}
-      </div>
-
-      {/* Recent Orders */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-lg font-semibold">Recent Orders</h2>
-          <Link
-            to="/seller/orders"
-            className="text-blue-600 hover:text-blue-800 text-sm"
-          >
-            View All
-          </Link>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Order ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Customer
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Amount
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {dashboardData.recentOrders &&
-              dashboardData.recentOrders.length > 0 ? (
-                dashboardData.recentOrders.map((order) => (
-                  <tr key={order._id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      #{order._id.slice(-6)}
-                      {order.event && (
-                        <span className="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">
-                          Event Order
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {order.buyer?.name || "Unknown Buyer"}
-                      </div>
-                      {order.event && (
-                        <div className="text-xs text-blue-600">
-                          From: {order.event.title}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(order.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatCurrency(order.totalAmount)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <OrderStatusBadge status={order.status} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                      <Link
-                        to={`/seller/orders/${order._id}`}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        View Details
-                      </Link>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan="6"
-                    className="px-6 py-4 text-center text-gray-500"
-                  >
-                    No recent orders available
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
       </div>
     </div>
   );
