@@ -1,4 +1,4 @@
-// src/routes/seller.routes.js
+// backend/src/routes/seller.routes.js
 const express = require("express");
 const router = express.Router();
 const { protect, authorize } = require("../middleware/auth");
@@ -9,17 +9,17 @@ const {
 } = require("../controllers/business.controller");
 
 // Business Profile Routes
-router.post(
-  "/business-profile",
-  protect,
-  authorize("seller"),
-  createBusinessProfile
-);
 router.get(
   "/business-profile",
   protect,
   authorize("seller"),
   getBusinessProfile
+);
+router.post(
+  "/business-profile",
+  protect,
+  authorize("seller"),
+  createBusinessProfile
 );
 router.put(
   "/business-profile",

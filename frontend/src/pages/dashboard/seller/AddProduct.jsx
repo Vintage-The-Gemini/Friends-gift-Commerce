@@ -1,17 +1,13 @@
-// frontend/src/pages/dashboard/seller/AddProduct.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, X, Save, ArrowLeft, Upload } from "lucide-react";
-import { sellerProductService } from "../../../services/api/sellerProduct";
+import { Plus, X, Upload } from "lucide-react";
 import { categoryService } from "../../../services/api/category";
+import { sellerProductService } from "../../../services/api/sellerProduct";
 import { toast } from "react-toastify";
-import Input from "../../../components/common/Input";
-import Button from "../../../components/common/Button";
 
 const AddProduct = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [categoryLoading, setCategoryLoading] = useState(true);
   const [categories, setCategories] = useState([]);
   const [characteristics, setCharacteristics] = useState([]);
   const [error, setError] = useState("");
@@ -32,19 +28,13 @@ const AddProduct = () => {
 
   const fetchCategories = async () => {
     try {
-      setCategoryLoading(true);
       const response = await categoryService.getAllCategories();
       if (response.success) {
         setCategories(response.data);
-      } else {
-        throw new Error(response.message || "Failed to fetch categories");
       }
     } catch (error) {
       console.error("Error fetching categories:", error);
-      toast.error("Failed to load categories");
-      setError("Failed to load categories. Please try again later.");
-    } finally {
-      setCategoryLoading(false);
+      setError("Failed to load categories");
     }
   };
 
@@ -57,26 +47,9 @@ const AddProduct = () => {
       );
       if (response.success) {
         setCharacteristics(response.data);
-
-        // Initialize characteristics form data with default values
-        const defaultCharacteristics = {};
-        response.data.forEach((char) => {
-          defaultCharacteristics[char.name] =
-            char.type === "boolean" ? false : "";
-        });
-
-        setFormData((prev) => ({
-          ...prev,
-          characteristics: defaultCharacteristics,
-        }));
-      } else {
-        throw new Error(
-          response.message || "Failed to fetch category characteristics"
-        );
       }
     } catch (error) {
       console.error("Error fetching characteristics:", error);
-      toast.error("Failed to load category characteristics");
     }
   };
 
@@ -131,79 +104,14 @@ const AddProduct = () => {
   };
 
   const removeImage = (index) => {
-    // Revoke object URL to prevent memory leaks
-    URL.revokeObjectURL(imagePreviewUrls[index]);
-
     setImageFiles((prev) => prev.filter((_, i) => i !== index));
     setImagePreviewUrls((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const validateForm = () => {
-    // Basic validation
-    if (!formData.name.trim()) {
-      setError("Product name is required");
-      return false;
-    }
-
-    if (!formData.description.trim()) {
-      setError("Product description is required");
-      return false;
-    }
-
-    if (
-      !formData.price ||
-      isNaN(formData.price) ||
-      parseFloat(formData.price) <= 0
-    ) {
-      setError("Please enter a valid price");
-      return false;
-    }
-
-    if (
-      !formData.stock ||
-      isNaN(formData.stock) ||
-      parseInt(formData.stock) < 0
-    ) {
-      setError("Please enter a valid stock quantity");
-      return false;
-    }
-
-    if (!formData.categoryId) {
-      setError("Please select a category");
-      return false;
-    }
-
-    // Validate required characteristics
-    const missingRequiredChars = characteristics
-      .filter((char) => char.required)
-      .filter((char) => {
-        const value = formData.characteristics[char.name];
-        return value === undefined || value === null || value === "";
-      });
-
-    if (missingRequiredChars.length > 0) {
-      setError(
-        `Please fill in the required characteristic: ${missingRequiredChars[0].name}`
-      );
-      return false;
-    }
-
-    // Validate image upload
-    if (imageFiles.length === 0) {
-      setError("Please upload at least one product image");
-      return false;
-    }
-
-    return true;
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-
-    if (!validateForm()) return;
-
     setLoading(true);
+    setError("");
 
     try {
       // Create FormData object for multipart/form-data
@@ -242,8 +150,8 @@ const AddProduct = () => {
       }
     } catch (error) {
       console.error("Error creating product:", error);
-      setError(error.message || "Failed to create product. Please try again.");
-      toast.error("Failed to create product");
+      setError(error.message || "Failed to create product");
+      toast.error(error.message || "Failed to create product");
     } finally {
       setLoading(false);
     }
@@ -255,24 +163,26 @@ const AddProduct = () => {
     switch (characteristic.type) {
       case "text":
         return (
-          <Input
+          <input
             type="text"
             value={value}
             onChange={(e) =>
               handleCharacteristicChange(characteristic.name, e.target.value)
             }
+            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
             required={characteristic.required}
           />
         );
 
       case "number":
         return (
-          <Input
+          <input
             type="number"
             value={value}
             onChange={(e) =>
               handleCharacteristicChange(characteristic.name, e.target.value)
             }
+            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
             required={characteristic.required}
             min={characteristic.validation?.min}
             max={characteristic.validation?.max}
@@ -298,38 +208,6 @@ const AddProduct = () => {
           </select>
         );
 
-      case "boolean":
-        return (
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              checked={value || false}
-              onChange={(e) =>
-                handleCharacteristicChange(
-                  characteristic.name,
-                  e.target.checked
-                )
-              }
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <label className="ml-2 text-sm text-gray-700">
-              {characteristic.name}
-            </label>
-          </div>
-        );
-
-      case "color":
-        return (
-          <input
-            type="color"
-            value={value || "#000000"}
-            onChange={(e) =>
-              handleCharacteristicChange(characteristic.name, e.target.value)
-            }
-            className="w-full h-10 p-1 rounded-lg"
-          />
-        );
-
       default:
         return null;
     }
@@ -338,16 +216,7 @@ const AddProduct = () => {
   return (
     <div className="p-6">
       <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Add New Product</h1>
-          <Button
-            onClick={() => navigate("/seller/products")}
-            variant="ghost"
-            icon={<ArrowLeft className="w-4 h-4" />}
-          >
-            Back to Products
-          </Button>
-        </div>
+        <h1 className="text-2xl font-bold mb-6">Add New Product</h1>
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg p-4 mb-6">
@@ -356,20 +225,22 @@ const AddProduct = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information Section */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="mb-4 border-b pb-2">
-              <h2 className="text-lg font-semibold">Basic Information</h2>
-            </div>
-
+          <div className="bg-white rounded-lg shadow p-6">
+            {/* Basic Information */}
             <div className="space-y-4">
-              <Input
-                label="Product Name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Product Name
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -386,16 +257,21 @@ const AddProduct = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Input
-                  label="Price (KES)"
-                  name="price"
-                  type="number"
-                  value={formData.price}
-                  onChange={handleInputChange}
-                  min="0"
-                  step="0.01"
-                  required
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Price ($)
+                  </label>
+                  <input
+                    type="number"
+                    name="price"
+                    value={formData.price}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    min="0"
+                    step="0.01"
+                    required
+                  />
+                </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -407,13 +283,8 @@ const AddProduct = () => {
                     onChange={handleCategoryChange}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                     required
-                    disabled={categoryLoading}
                   >
-                    <option value="">
-                      {categoryLoading
-                        ? "Loading categories..."
-                        : "Select Category"}
-                    </option>
+                    <option value="">Select Category</option>
                     {categories.map((category) => (
                       <option key={category._id} value={category._id}>
                         {category.name}
@@ -422,113 +293,99 @@ const AddProduct = () => {
                   </select>
                 </div>
 
-                <Input
-                  label="Stock Quantity"
-                  name="stock"
-                  type="number"
-                  value={formData.stock}
-                  onChange={handleInputChange}
-                  min="0"
-                  required
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Stock Quantity
+                  </label>
+                  <input
+                    type="number"
+                    name="stock"
+                    value={formData.stock}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    min="0"
+                    required
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Category Characteristics */}
-          {characteristics.length > 0 && (
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="mb-4 border-b pb-2">
-                <h2 className="text-lg font-semibold">
+            {/* Category Characteristics */}
+            {characteristics.length > 0 && (
+              <div className="border-t pt-4 mt-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
                   Category Characteristics
-                </h2>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {characteristics.map((characteristic) => (
+                    <div key={characteristic.name}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {characteristic.name}
+                        {characteristic.required && (
+                          <span className="text-red-500 ml-1">*</span>
+                        )}
+                      </label>
+                      {renderCharacteristicInput(characteristic)}
+                    </div>
+                  ))}
+                </div>
               </div>
+            )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {characteristics.map((characteristic) => (
-                  <div key={characteristic.name}>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {characteristic.name}
-                      {characteristic.required && (
-                        <span className="text-red-500 ml-1">*</span>
-                      )}
-                    </label>
-                    {renderCharacteristicInput(characteristic)}
-                    {characteristic.unit && (
-                      <span className="text-sm text-gray-500 mt-1 block">
-                        {characteristic.unit}
-                      </span>
-                    )}
+            {/* Image Upload */}
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Product Images
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {imagePreviewUrls.map((url, index) => (
+                  <div key={index} className="relative">
+                    <img
+                      src={url}
+                      alt={`Product ${index + 1}`}
+                      className="w-full h-32 object-cover rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute top-1 right-1 bg-red-100 rounded-full p-1 hover:bg-red-200"
+                    >
+                      <X className="w-4 h-4 text-red-600" />
+                    </button>
                   </div>
                 ))}
+                {imagePreviewUrls.length < 4 && (
+                  <label className="border-2 border-dashed border-gray-300 rounded-lg p-4 h-32 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50">
+                    <Upload className="w-6 h-6 text-gray-400 mb-2" />
+                    <span className="text-sm text-gray-500">Add Image</span>
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={handleImageChange}
+                      accept="image/*"
+                      multiple
+                    />
+                  </label>
+                )}
               </div>
-            </div>
-          )}
-
-          {/* Image Upload */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="mb-4 border-b pb-2">
-              <h2 className="text-lg font-semibold">Product Images</h2>
-            </div>
-
-            <div className="mb-4">
-              <p className="text-sm text-gray-600">
-                Upload up to 5 images. The first image will be used as the main
-                product image.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              {imagePreviewUrls.map((url, index) => (
-                <div key={index} className="relative">
-                  <img
-                    src={url}
-                    alt={`Preview ${index + 1}`}
-                    className="w-full h-32 object-cover rounded-lg"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(index)}
-                    className="absolute top-1 right-1 bg-red-100 rounded-full p-1 hover:bg-red-200"
-                  >
-                    <X className="w-4 h-4 text-red-600" />
-                  </button>
-                </div>
-              ))}
-
-              {imagePreviewUrls.length < 5 && (
-                <label className="w-full h-32 flex flex-col items-center justify-center border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50">
-                  <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                  <span className="text-sm text-gray-500">Add Image</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="hidden"
-                    multiple
-                  />
-                </label>
-              )}
             </div>
           </div>
 
           <div className="flex justify-end space-x-4">
-            <Button
+            <button
               type="button"
-              variant="secondary"
               onClick={() => navigate("/seller/products")}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800"
             >
               Cancel
-            </Button>
-
-            <Button
+            </button>
+            <button
               type="submit"
-              variant="primary"
               disabled={loading}
-              icon={loading ? null : <Save className="w-4 h-4 mr-2" />}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? "Creating..." : "Create Product"}
-            </Button>
+            </button>
           </div>
         </form>
       </div>
