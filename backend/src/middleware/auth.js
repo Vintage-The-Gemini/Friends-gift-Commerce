@@ -47,7 +47,7 @@ const protect = async (req, res, next) => {
 const authorize = (...roles) => {
   return (req, res, next) => {
     // Flatten the roles array if needed
-    const flatRoles = roles.flat();
+    const flatRoles = Array.isArray(roles[0]) ? roles[0] : roles;
 
     console.log(
       "Authorize middleware - User role:",

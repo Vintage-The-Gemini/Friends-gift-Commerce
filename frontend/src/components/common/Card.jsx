@@ -1,61 +1,43 @@
-// src/components/ui/card.jsx
+// frontend/src/components/common/Card.jsx
 import React from "react";
 
-// Card component with variants
-const Card = ({
-  className,
-  children,
-  variant = "default", // default, outline, or elevated
-}) => {
-  const baseStyles = "rounded-lg overflow-hidden";
-
-  const variantStyles = {
-    default: "bg-white border border-gray-200",
-    outline: "bg-transparent border border-gray-300",
-    elevated: "bg-white shadow-md border-none",
-  };
-
+const Card = ({ children, className = "", ...props }) => {
   return (
     <div
-      className={`${baseStyles} ${variantStyles[variant]} ${className || ""}`}
+      className={`bg-white rounded-lg shadow-md overflow-hidden ${className}`}
+      {...props}
     >
       {children}
     </div>
   );
 };
 
-// Card header subcomponent
-const CardHeader = ({ className, children }) => {
-  return (
-    <div className={`p-4 border-b border-gray-200 ${className || ""}`}>
-      {children}
-    </div>
-  );
-};
+const CardHeader = ({ children, className = "" }) => (
+  <div className={`px-6 py-4 border-b border-gray-200 ${className}`}>
+    {children}
+  </div>
+);
 
-// Card title subcomponent
-const CardTitle = ({ className, children }) => {
-  return (
-    <h3 className={`text-lg font-medium ${className || ""}`}>{children}</h3>
-  );
-};
+const CardTitle = ({ children, className = "" }) => (
+  <h3 className={`text-lg font-semibold text-gray-900 ${className}`}>
+    {children}
+  </h3>
+);
 
-// Card content subcomponent
-const CardContent = ({ className, children }) => {
-  return <div className={`p-4 ${className || ""}`}>{children}</div>;
-};
+const CardContent = ({ children, className = "" }) => (
+  <div className={`px-6 py-4 ${className}`}>{children}</div>
+);
 
-// Card footer subcomponent
-const CardFooter = ({ className, children }) => {
-  return (
-    <div className={`p-4 border-t border-gray-200 ${className || ""}`}>
-      {children}
-    </div>
-  );
-};
+const CardFooter = ({ children, className = "" }) => (
+  <div className={`px-6 py-4 bg-gray-50 border-t border-gray-200 ${className}`}>
+    {children}
+  </div>
+);
 
-// Named exports for all components
-export { Card, CardHeader, CardTitle, CardContent, CardFooter };
+// Attach subcomponents to Card
+Card.Header = CardHeader;
+Card.Title = CardTitle;
+Card.Content = CardContent;
+Card.Footer = CardFooter;
 
-// Default export for the Card component
 export default Card;

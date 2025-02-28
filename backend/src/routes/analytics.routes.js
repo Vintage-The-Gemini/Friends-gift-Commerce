@@ -1,4 +1,4 @@
-// In backend/src/routes/analytics.routes.js
+// backend/src/routes/analytics.routes.js
 const express = require("express");
 const router = express.Router();
 const { protect, authorize } = require("../middleware/auth");
@@ -11,7 +11,7 @@ const {
 
 // Apply auth middleware to all routes
 router.use(protect);
-router.use(authorize("seller"));
+router.use(authorize("seller")); // Note: don't wrap in array brackets
 
 // Analytics routes
 router.get("/overview", getSellerOverview);

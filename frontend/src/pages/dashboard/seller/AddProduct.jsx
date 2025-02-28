@@ -1,4 +1,4 @@
-// src/pages/dashboard/seller/AddProduct.jsx
+// frontend/src/pages/dashboard/seller/AddProduct.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, X, Save, ArrowLeft, Upload } from "lucide-react";
@@ -7,7 +7,6 @@ import { categoryService } from "../../../services/api/category";
 import { toast } from "react-toastify";
 import Input from "../../../components/common/Input";
 import Button from "../../../components/common/Button";
-import Card from "../../../components/common/Card";
 
 const AddProduct = () => {
   const navigate = useNavigate();
@@ -357,164 +356,161 @@ const AddProduct = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <Card className="p-6">
-            <Card.Header>
-              <Card.Title>Basic Information</Card.Title>
-            </Card.Header>
+          {/* Basic Information Section */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="mb-4 border-b pb-2">
+              <h2 className="text-lg font-semibold">Basic Information</h2>
+            </div>
 
-            <Card.Content>
-              <div className="space-y-4">
-                <Input
-                  label="Product Name"
-                  name="name"
-                  value={formData.name}
+            <div className="space-y-4">
+              <Input
+                label="Product Name"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                required
+              />
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  name="description"
+                  value={formData.description}
                   onChange={handleInputChange}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  rows="4"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Input
+                  label="Price (KES)"
+                  name="price"
+                  type="number"
+                  value={formData.price}
+                  onChange={handleInputChange}
+                  min="0"
+                  step="0.01"
                   required
                 />
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
+                    Category
                   </label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
+                  <select
+                    name="categoryId"
+                    value={formData.categoryId}
+                    onChange={handleCategoryChange}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    rows="4"
                     required
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Input
-                    label="Price (KES)"
-                    name="price"
-                    type="number"
-                    value={formData.price}
-                    onChange={handleInputChange}
-                    min="0"
-                    step="0.01"
-                    required
-                  />
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Category
-                    </label>
-                    <select
-                      name="categoryId"
-                      value={formData.categoryId}
-                      onChange={handleCategoryChange}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                      required
-                      disabled={categoryLoading}
-                    >
-                      <option value="">
-                        {categoryLoading
-                          ? "Loading categories..."
-                          : "Select Category"}
+                    disabled={categoryLoading}
+                  >
+                    <option value="">
+                      {categoryLoading
+                        ? "Loading categories..."
+                        : "Select Category"}
+                    </option>
+                    {categories.map((category) => (
+                      <option key={category._id} value={category._id}>
+                        {category.name}
                       </option>
-                      {categories.map((category) => (
-                        <option key={category._id} value={category._id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <Input
-                    label="Stock Quantity"
-                    name="stock"
-                    type="number"
-                    value={formData.stock}
-                    onChange={handleInputChange}
-                    min="0"
-                    required
-                  />
+                    ))}
+                  </select>
                 </div>
+
+                <Input
+                  label="Stock Quantity"
+                  name="stock"
+                  type="number"
+                  value={formData.stock}
+                  onChange={handleInputChange}
+                  min="0"
+                  required
+                />
               </div>
-            </Card.Content>
-          </Card>
+            </div>
+          </div>
 
           {/* Category Characteristics */}
           {characteristics.length > 0 && (
-            <Card className="p-6">
-              <Card.Header>
-                <Card.Title>Category Characteristics</Card.Title>
-              </Card.Header>
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="mb-4 border-b pb-2">
+                <h2 className="text-lg font-semibold">
+                  Category Characteristics
+                </h2>
+              </div>
 
-              <Card.Content>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {characteristics.map((characteristic) => (
-                    <div key={characteristic.name}>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {characteristic.name}
-                        {characteristic.required && (
-                          <span className="text-red-500 ml-1">*</span>
-                        )}
-                      </label>
-                      {renderCharacteristicInput(characteristic)}
-                      {characteristic.unit && (
-                        <span className="text-sm text-gray-500 mt-1 block">
-                          {characteristic.unit}
-                        </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {characteristics.map((characteristic) => (
+                  <div key={characteristic.name}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {characteristic.name}
+                      {characteristic.required && (
+                        <span className="text-red-500 ml-1">*</span>
                       )}
-                    </div>
-                  ))}
-                </div>
-              </Card.Content>
-            </Card>
+                    </label>
+                    {renderCharacteristicInput(characteristic)}
+                    {characteristic.unit && (
+                      <span className="text-sm text-gray-500 mt-1 block">
+                        {characteristic.unit}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Image Upload */}
-          <Card className="p-6">
-            <Card.Header>
-              <Card.Title>Product Images</Card.Title>
-            </Card.Header>
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="mb-4 border-b pb-2">
+              <h2 className="text-lg font-semibold">Product Images</h2>
+            </div>
 
-            <Card.Content>
-              <div className="mb-4">
-                <p className="text-sm text-gray-600">
-                  Upload up to 5 images. The first image will be used as the
-                  main product image.
-                </p>
-              </div>
+            <div className="mb-4">
+              <p className="text-sm text-gray-600">
+                Upload up to 5 images. The first image will be used as the main
+                product image.
+              </p>
+            </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                {imagePreviewUrls.map((url, index) => (
-                  <div key={index} className="relative">
-                    <img
-                      src={url}
-                      alt={`Preview ${index + 1}`}
-                      className="w-full h-32 object-cover rounded-lg"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(index)}
-                      className="absolute top-1 right-1 bg-red-100 rounded-full p-1 hover:bg-red-200"
-                    >
-                      <X className="w-4 h-4 text-red-600" />
-                    </button>
-                  </div>
-                ))}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {imagePreviewUrls.map((url, index) => (
+                <div key={index} className="relative">
+                  <img
+                    src={url}
+                    alt={`Preview ${index + 1}`}
+                    className="w-full h-32 object-cover rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(index)}
+                    className="absolute top-1 right-1 bg-red-100 rounded-full p-1 hover:bg-red-200"
+                  >
+                    <X className="w-4 h-4 text-red-600" />
+                  </button>
+                </div>
+              ))}
 
-                {imagePreviewUrls.length < 5 && (
-                  <label className="w-full h-32 flex flex-col items-center justify-center border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50">
-                    <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                    <span className="text-sm text-gray-500">Add Image</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                      multiple
-                    />
-                  </label>
-                )}
-              </div>
-            </Card.Content>
-          </Card>
+              {imagePreviewUrls.length < 5 && (
+                <label className="w-full h-32 flex flex-col items-center justify-center border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50">
+                  <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                  <span className="text-sm text-gray-500">Add Image</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                    multiple
+                  />
+                </label>
+              )}
+            </div>
+          </div>
 
           <div className="flex justify-end space-x-4">
             <Button
