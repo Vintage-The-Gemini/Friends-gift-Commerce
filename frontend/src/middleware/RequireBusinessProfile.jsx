@@ -1,13 +1,8 @@
-// src/middleware/RequireBusinessProfile.jsx
 import React, { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { getBusinessProfile } from "../services/api/business";
 
-/**
- * A middleware component that checks if a seller has a business profile
- * and redirects to the setup page if not
- */
 const RequireBusinessProfile = ({ children }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
