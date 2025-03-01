@@ -1,6 +1,6 @@
 // frontend/src/pages/dashboard/seller/SellerSettings.jsx
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Save,
   Bell,
@@ -10,6 +10,7 @@ import {
   Mail,
   Phone,
   MapPin,
+  AlertCircle,
 } from "lucide-react";
 import {
   getBusinessProfile,
@@ -21,10 +22,14 @@ import ImageUpload from "../../../components/common/ImageUpload";
 
 const SellerSettings = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState("profile");
+  const [activeTab, setActiveTab] = useState(
+    location.state?.activeTab || "profile"
+  );
   const [loading, setLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
+  const [error, setError] = useState(null);
   const [settings, setSettings] = useState({
     profile: {
       name: user?.name || "",
@@ -83,11 +88,14 @@ const SellerSettings = () => {
           profile: {
             ...prevSettings.profile,
             email: response.data.email || "",
+            name: user?.name || "",
+            phoneNumber: response.data.phone || user?.phoneNumber || "",
           },
         }));
       }
     } catch (error) {
       console.error("Error fetching settings:", error);
+      setError("Failed to load your business profile");
       toast.error("Failed to load your business profile");
     } finally {
       setIsFetching(false);
@@ -97,6 +105,7 @@ const SellerSettings = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
 
     try {
       // Construct the data object based on active tab
@@ -104,13 +113,16 @@ const SellerSettings = () => {
 
       if (activeTab === "profile") {
         dataToSubmit = {
-          ...settings.business,
+          name: settings.profile.name,
           email: settings.profile.email,
           phone: settings.profile.phoneNumber,
         };
       } else if (activeTab === "business") {
         dataToSubmit = {
           ...settings.business,
+        };
+      } else if (activeTab === "hours") {
+        dataToSubmit = {
           businessHours: settings.businessHours,
         };
       } else if (activeTab === "notifications") {
@@ -119,15 +131,38 @@ const SellerSettings = () => {
         };
       }
 
+      console.log("Submitting data:", dataToSubmit);
       const response = await updateBusinessProfile(dataToSubmit);
 
       if (response.success) {
         toast.success("Settings updated successfully");
+
+        // If user's name or business name was updated, update local storage
+        if (activeTab === "profile" && settings.profile.name !== user.name) {
+          // Update local user data - simple approach
+          const userData = JSON.parse(localStorage.getItem("user") || "{}");
+          userData.name = settings.profile.name;
+          localStorage.setItem("user", JSON.stringify(userData));
+
+          // You might want to add a more robust approach with your auth context
+          // like a refreshUser() method that pulls from the API
+        }
+
+        if (
+          activeTab === "business" &&
+          settings.business.businessName !== user.businessName
+        ) {
+          // Update local user data
+          const userData = JSON.parse(localStorage.getItem("user") || "{}");
+          userData.businessName = settings.business.businessName;
+          localStorage.setItem("user", JSON.stringify(userData));
+        }
       } else {
         throw new Error(response.message || "Failed to update settings");
       }
     } catch (error) {
       console.error("Error updating settings:", error);
+      setError(error.message || "Failed to update settings");
       toast.error(error.message || "Failed to update settings");
     } finally {
       setLoading(false);
@@ -189,11 +224,18 @@ const SellerSettings = () => {
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">Settings</h1>
 
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg flex items-center">
+          <AlertCircle className="w-5 h-5 mr-2" />
+          <span>{error}</span>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow">
         {/* Settings Tabs */}
-        <div className="flex border-b">
+        <div className="flex border-b overflow-x-auto scrollbar-hide">
           <button
-            className={`px-4 py-2 flex items-center ${
+            className={`px-4 py-2 flex items-center whitespace-nowrap ${
               activeTab === "profile"
                 ? "border-b-2 border-blue-500 text-blue-600"
                 : "text-gray-600"
@@ -204,7 +246,7 @@ const SellerSettings = () => {
             Profile
           </button>
           <button
-            className={`px-4 py-2 flex items-center ${
+            className={`px-4 py-2 flex items-center whitespace-nowrap ${
               activeTab === "business"
                 ? "border-b-2 border-blue-500 text-blue-600"
                 : "text-gray-600"
@@ -215,7 +257,7 @@ const SellerSettings = () => {
             Business Information
           </button>
           <button
-            className={`px-4 py-2 flex items-center ${
+            className={`px-4 py-2 flex items-center whitespace-nowrap ${
               activeTab === "hours"
                 ? "border-b-2 border-blue-500 text-blue-600"
                 : "text-gray-600"
@@ -226,7 +268,7 @@ const SellerSettings = () => {
             Business Hours
           </button>
           <button
-            className={`px-4 py-2 flex items-center ${
+            className={`px-4 py-2 flex items-center whitespace-nowrap ${
               activeTab === "notifications"
                 ? "border-b-2 border-blue-500 text-blue-600"
                 : "text-gray-600"
@@ -253,10 +295,9 @@ const SellerSettings = () => {
                       handleChange("profile", "name", e.target.value)
                     }
                     className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    disabled={true} // Name should be changed through account settings
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Name cannot be changed here. Please contact support.
+                    This is the name that will be displayed to others.
                   </p>
                 </div>
                 <div>
@@ -270,10 +311,9 @@ const SellerSettings = () => {
                       handleChange("profile", "phoneNumber", e.target.value)
                     }
                     className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    disabled={true} // Phone should be changed through account settings
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Phone cannot be changed here. Please contact support.
+                    Use the format: +254XXXXXXXXX
                   </p>
                 </div>
                 <div className="md:col-span-2">
@@ -289,6 +329,9 @@ const SellerSettings = () => {
                     className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                     required
                   />
+                  <p className="mt-1 text-xs text-gray-500">
+                    This is where we'll send order notifications.
+                  </p>
                 </div>
               </div>
             </div>
@@ -296,26 +339,34 @@ const SellerSettings = () => {
 
           {activeTab === "business" && (
             <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Business Logo
-                </label>
-                <ImageUpload
-                  onUpload={handleLogoUpload}
-                  currentImage={settings.business.logo}
-                  label="Upload Logo"
-                />
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Business Logo
+                  </label>
+                  <ImageUpload
+                    onUpload={handleLogoUpload}
+                    currentImage={settings.business.logo}
+                    label="Upload Logo"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Recommended size: 400x400px, square format
+                  </p>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Cover Image
-                </label>
-                <ImageUpload
-                  onUpload={handleCoverImageUpload}
-                  currentImage={settings.business.coverImage}
-                  label="Upload Cover Image"
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cover Image
+                  </label>
+                  <ImageUpload
+                    onUpload={handleCoverImageUpload}
+                    currentImage={settings.business.coverImage}
+                    label="Upload Cover Image"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Recommended size: 1200x400px, landscape format
+                  </p>
+                </div>
               </div>
 
               <div>
@@ -384,30 +435,53 @@ const SellerSettings = () => {
 
           {activeTab === "hours" && (
             <div className="space-y-4">
+              <p className="text-sm text-gray-500 mb-4">
+                Set your business hours. Use the "closed" option if you're not
+                operating on a specific day.
+              </p>
               {Object.entries(settings.businessHours).map(([day, hours]) => (
                 <div key={day} className="grid grid-cols-3 gap-4 items-center">
                   <div className="text-sm font-medium text-gray-700 capitalize">
                     {day}
                   </div>
                   <div>
-                    <input
-                      type="time"
+                    <select
                       value={hours.open}
                       onChange={(e) =>
                         handleHoursChange(day, "open", e.target.value)
                       }
                       className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
+                    >
+                      <option value="closed">Closed</option>
+                      {Array.from({ length: 24 }).map((_, i) => {
+                        const hour = i.toString().padStart(2, "0");
+                        return (
+                          <option key={hour} value={`${hour}:00`}>
+                            {`${hour}:00`}
+                          </option>
+                        );
+                      })}
+                    </select>
                   </div>
                   <div>
-                    <input
-                      type="time"
+                    <select
                       value={hours.close}
                       onChange={(e) =>
                         handleHoursChange(day, "close", e.target.value)
                       }
                       className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
+                      disabled={hours.open === "closed"}
+                    >
+                      <option value="closed">Closed</option>
+                      {Array.from({ length: 24 }).map((_, i) => {
+                        const hour = i.toString().padStart(2, "0");
+                        return (
+                          <option key={hour} value={`${hour}:00`}>
+                            {`${hour}:00`}
+                          </option>
+                        );
+                      })}
+                    </select>
                   </div>
                 </div>
               ))}

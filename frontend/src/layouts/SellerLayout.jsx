@@ -17,6 +17,8 @@ import {
   ChevronDown,
   Calendar,
   Search,
+  LayoutDashboard,
+  ExternalLink,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 
@@ -84,12 +86,18 @@ const SellerLayout = () => {
   const displayName = user?.businessName || user?.name || "Your Business";
   const initials = getUserInitials(user?.name);
 
-  // Navigation items
+  // Navigation items - Added Home as the first item
   const navigationItems = [
+    {
+      name: "Go to Homepage",
+      href: "/",
+      icon: Home,
+      external: true,
+    },
     {
       name: "Dashboard",
       href: "/seller/dashboard",
-      icon: Home,
+      icon: LayoutDashboard,
     },
     {
       name: "Products",
@@ -111,7 +119,7 @@ const SellerLayout = () => {
       href: "/seller/analytics",
       icon: BarChart2,
     },
-    // Add profile link
+    // Keep profile link
     {
       name: "Business Profile",
       href: "/seller/profile",
@@ -187,8 +195,20 @@ const SellerLayout = () => {
         <div className="p-4 flex flex-col h-[calc(100%-4rem)]">
           <nav className="flex-1 space-y-1">
             {navigationItems.map((item) => {
-              const isActive = location.pathname === item.href;
-              return (
+              const isActive =
+                !item.external && location.pathname === item.href;
+
+              return item.external ? (
+                <a
+                  key={item.name}
+                  href={item.href}
+                  className="flex items-center px-3 py-2.5 rounded-lg transition-colors text-gray-700 hover:bg-gray-50"
+                >
+                  <item.icon className="w-5 h-5 mr-3 text-gray-500" />
+                  <span className="font-medium">{item.name}</span>
+                  <ExternalLink className="w-3.5 h-3.5 ml-auto text-gray-400" />
+                </a>
+              ) : (
                 <Link
                   key={item.name}
                   to={item.href}
@@ -220,7 +240,7 @@ const SellerLayout = () => {
             </button>
           </div>
 
-          {/* User Profile */}
+          {/* User Profile - Simplified */}
           <div className="mt-auto border-t pt-4">
             <div className="flex items-center p-2">
               <div className="w-10 h-10 rounded-full bg-[#5551FF] flex items-center justify-center text-white font-medium">
