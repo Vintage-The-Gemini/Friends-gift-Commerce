@@ -11,10 +11,12 @@ import {
   Edit,
   Users,
   DollarSign,
+  AlertCircle,
 } from "lucide-react";
 import { eventService } from "../../../services/api/event";
 import { formatCurrency } from "../../../utils/currency";
 import { toast } from "react-toastify";
+import Button from "../../../components/common/Button";
 
 const SellerEvents = () => {
   const [events, setEvents] = useState([]);
@@ -30,18 +32,24 @@ const SellerEvents = () => {
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const response = await eventService.getUserEvents({
-        status: filter !== "all" ? filter : undefined,
-      });
+      console.log("Fetching events with filter:", filter);
+
+      const params = {};
+      if (filter !== "all") {
+        params.status = filter;
+      }
+
+      const response = await eventService.getUserEvents(params);
 
       if (response.success) {
+        console.log("Events fetched successfully:", response.data);
         setEvents(response.data);
       } else {
         throw new Error(response.message || "Failed to fetch events");
       }
     } catch (error) {
       console.error("Error fetching events:", error);
-      setError("Failed to load events");
+      setError("Failed to load events. Please try again later.");
       toast.error("Failed to load events");
     } finally {
       setLoading(false);
@@ -97,14 +105,6 @@ const SellerEvents = () => {
     );
   });
 
-  if (loading && events.length === 0) {
-    return (
-      <div className="p-6 flex items-center justify-center min-h-[300px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -143,12 +143,17 @@ const SellerEvents = () => {
       </div>
 
       {error && (
-        <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6">
+        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg mb-6 flex items-center">
+          <AlertCircle className="w-5 h-5 mr-2" />
           {error}
         </div>
       )}
 
-      {filteredEvents.length === 0 ? (
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+        </div>
+      ) : filteredEvents.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg shadow">
           <Gift className="w-16 h-16 mx-auto text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -161,9 +166,10 @@ const SellerEvents = () => {
           </p>
           <Link
             to="/events/create"
-            className="text-blue-600 hover:text-blue-800 font-medium"
+            className="text-blue-600 hover:text-blue-800 font-medium flex items-center justify-center"
           >
-            Create Your First Event →
+            <Plus className="w-4 h-4 mr-2" />
+            Create Your First Event
           </Link>
         </div>
       ) : (

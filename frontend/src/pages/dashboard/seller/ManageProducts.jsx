@@ -11,6 +11,7 @@ import {
   Menu,
   X,
   AlertCircle,
+  Package,
 } from "lucide-react";
 import { sellerProductService } from "../../../services/api/sellerProduct";
 import { toast } from "react-toastify";
@@ -23,8 +24,9 @@ const ManageProducts = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [filter, setFilter] = useState("all");
-  const [showConfirmDelete, setShowConfirmDelete] = useState(null);
+  const [filter, setFilter] = useState("active"); // Default to active products
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
@@ -36,16 +38,22 @@ const ManageProducts = () => {
       setLoading(true);
       setError("");
 
-      // Prepare query params
+      // Prepare query params - make sure to filter by status
       const params = {};
+
+      // Set the isActive filter based on the selected filter value
       if (filter !== "all") {
         params.status = filter === "active" ? "true" : "false";
       }
 
+      console.log("Fetching products with params:", params);
       const response = await sellerProductService.getSellerProducts(params);
 
       if (response.success) {
         setProducts(response.data);
+        console.log(
+          `Loaded ${response.data.length} products with filter: ${filter}`
+        );
       } else {
         throw new Error(response.message || "Failed to fetch products");
       }
@@ -58,25 +66,36 @@ const ManageProducts = () => {
     }
   };
 
-  const handleDelete = async (productId) => {
-    // First click just shows confirmation
-    if (showConfirmDelete !== productId) {
-      setShowConfirmDelete(productId);
-      return;
-    }
+  // Show delete confirmation modal
+  const confirmDelete = (product) => {
+    setProductToDelete(product);
+    setShowDeleteModal(true);
+  };
 
-    // Second click performs the delete
+  // Cancel deletion
+  const cancelDelete = () => {
+    setProductToDelete(null);
+    setShowDeleteModal(false);
+  };
+
+  const handleDelete = async () => {
+    if (!productToDelete) return;
+
     try {
       setDeleteLoading(true);
-
-      console.log("Attempting to delete product:", productId); // Debug log
-
-      const response = await sellerProductService.deleteProduct(productId);
+      const response = await sellerProductService.deleteProduct(
+        productToDelete._id
+      );
 
       if (response.success) {
         toast.success("Product deleted successfully");
-        // Remove product from state to avoid refetching
-        setProducts(products.filter((p) => p._id !== productId));
+
+        // Remove product from state
+        setProducts(products.filter((p) => p._id !== productToDelete._id));
+
+        // Force a refetch of the products to ensure sync with server
+        // Uncomment the line below if you want to refetch from server instead of removing from state
+        // fetchProducts();
       } else {
         throw new Error(response.message || "Failed to delete product");
       }
@@ -85,7 +104,8 @@ const ManageProducts = () => {
       toast.error(error.message || "Failed to delete product");
     } finally {
       setDeleteLoading(false);
-      setShowConfirmDelete(null);
+      setShowDeleteModal(false);
+      setProductToDelete(null);
     }
   };
 
@@ -248,18 +268,9 @@ const ManageProducts = () => {
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(product._id)}
-                          className={`${
-                            showConfirmDelete === product._id
-                              ? "text-red-600 hover:text-red-900"
-                              : "text-gray-600 hover:text-gray-900"
-                          }`}
-                          disabled={deleteLoading}
-                          title={
-                            showConfirmDelete === product._id
-                              ? "Confirm Delete"
-                              : "Delete"
-                          }
+                          onClick={() => confirmDelete(product)}
+                          className="text-gray-600 hover:text-red-600"
+                          title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -269,6 +280,36 @@ const ManageProducts = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Confirm Delete
+            </h3>
+            <p className="text-gray-500 mb-6">
+              Are you sure you want to delete "{productToDelete?.name}"? This
+              action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={cancelDelete}
+                className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteLoading}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteLoading ? "Deleting..." : "Delete"}
+              </button>
+            </div>
           </div>
         </div>
       )}
