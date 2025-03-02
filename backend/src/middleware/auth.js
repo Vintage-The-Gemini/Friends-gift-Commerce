@@ -2,12 +2,12 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
-// Middleware to protect routes
-const protect = async (req, res, next) => {
+// Protect routes - authentication middleware
+exports.protect = async (req, res, next) => {
   try {
     let token;
 
-    // Check if token exists in headers
+    // Get token from Authorization header
     if (
       req.headers.authorization &&
       req.headers.authorization.startsWith("Bearer")
@@ -15,7 +15,7 @@ const protect = async (req, res, next) => {
       token = req.headers.authorization.split(" ")[1];
     }
 
-    // Check if no token
+    // Check if token exists
     if (!token) {
       return res.status(401).json({
         success: false,
@@ -28,45 +28,57 @@ const protect = async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
       // Get user from token
-      req.user = await User.findById(decoded.id).select("-password");
+      const user = await User.findById(decoded.id).select("-password");
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      // Check if user is active
+      if (!user.isActive) {
+        return res.status(401).json({
+          success: false,
+          message: "User account is deactivated",
+        });
+      }
+
+      // Add user to request
+      req.user = user;
       next();
-    } catch (err) {
+    } catch (error) {
       return res.status(401).json({
         success: false,
-        message: "Token is not valid",
+        message: "Token is invalid or expired",
       });
     }
   } catch (error) {
-    res.status(500).json({
+    console.error("Authorization error:", error);
+    return res.status(500).json({
       success: false,
-      message: "Server Error",
+      message: "Server error during authorization",
     });
   }
 };
 
-const authorize = (...roles) => {
+// Authorization middleware - role-based access control
+exports.authorize = (roles) => {
   return (req, res, next) => {
-    // Flatten the roles array if needed
-    const flatRoles = Array.isArray(roles[0]) ? roles[0] : roles;
+    // Convert single role to array if needed
+    const roleArray = Array.isArray(roles) ? roles : [roles];
 
-    console.log(
-      "Authorize middleware - User role:",
-      req.user.role,
-      "Required roles:",
-      flatRoles
-    );
-
-    if (!flatRoles.includes(req.user.role)) {
-      console.log("Authorization failed - role does not match");
+    if (!roleArray.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        message: `User role ${req.user.role} is not authorized to access this route`,
+        message: `User role ${
+          req.user.role
+        } is not authorized to access this route. Required role(s): ${roleArray.join(
+          ", "
+        )}`,
       });
     }
-
-    console.log("Authorization successful");
     next();
   };
 };
-
-module.exports = { protect, authorize };

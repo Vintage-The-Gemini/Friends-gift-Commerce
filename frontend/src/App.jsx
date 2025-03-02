@@ -1,4 +1,4 @@
-// src/App.jsx
+// frontend/src/App.jsx
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
@@ -43,7 +43,7 @@ import SellerOrders from "./pages/dashboard/seller/SellerOrders";
 import SellerEvents from "./pages/dashboard/seller/SellerEvents";
 import SellerAnalytics from "./pages/dashboard/seller/SellerAnalytics";
 import SellerSettings from "./pages/dashboard/seller/SellerSettings";
-import BusinessProfilePage from "./pages/dashboard/seller/BusinessProfilePage"; // Add the new page
+import BusinessProfilePage from "./pages/dashboard/seller/BusinessProfilePage";
 
 // Buyer Pages
 import BuyerDashboard from "./pages/dashboard/buyer/BuyerDashboard";
@@ -192,7 +192,6 @@ const router = createBrowserRouter(
                 </RequireBusinessProfile>
               ),
             },
-            // Add the new route for Business Profile
             {
               path: "profile",
               element: (

@@ -1,11 +1,11 @@
 // src/pages/admin/AdminSellers.jsx
-import { useState, useEffect } from 'react';
-import { Edit, Trash2, Search, CheckCircle, XCircle } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Edit, Trash2, Search, CheckCircle, XCircle } from "lucide-react";
 
 const AdminSellers = () => {
   const [sellers, setSellers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     fetchSellers();
@@ -13,15 +13,15 @@ const AdminSellers = () => {
 
   const fetchSellers = async () => {
     try {
-      const response = await fetch('/api/admin/sellers', {
+      const response = await fetch("/api/admin/sellers", {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
       });
       const data = await response.json();
       setSellers(data.data);
     } catch (error) {
-      console.error('Error fetching sellers:', error);
+      console.error("Error fetching sellers:", error);
     } finally {
       setLoading(false);
     }
@@ -72,9 +72,7 @@ const AdminSellers = () => {
                 <td className="px-6 py-4 whitespace-nowrap font-medium">
                   {seller.businessName}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {seller.name}
-                </td>
+                <td className="px-6 py-4 whitespace-nowrap">{seller.name}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   {seller.phoneNumber}
                 </td>
@@ -90,15 +88,19 @@ const AdminSellers = () => {
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <button 
+                  <button
                     className="text-blue-600 hover:text-blue-900 mr-3"
-                    onClick={() => {/* Handle edit */}}
+                    onClick={() => {
+                      /* Handle edit */
+                    }}
                   >
                     <Edit className="w-4 h-4" />
                   </button>
-                  <button 
+                  <button
                     className="text-red-600 hover:text-red-900"
-                    onClick={() => {/* Handle delete */}}
+                    onClick={() => {
+                      /* Handle delete */
+                    }}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
