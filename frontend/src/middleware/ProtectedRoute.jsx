@@ -23,6 +23,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     return children;
   }
 
+  // In your ProtectedRoute.jsx or similar
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
     // Redirect based on role if unauthorized
     switch (user.role) {

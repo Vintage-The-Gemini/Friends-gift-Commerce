@@ -29,8 +29,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // In useAuth.jsx - login function
   const login = async (credentials) => {
     try {
+      console.log("Attempting login with credentials:", {
+        ...credentials,
+        password: "[REDACTED]",
+      });
+
       const response = await axios.post("/api/auth/login", credentials);
       const { data } = response;
 

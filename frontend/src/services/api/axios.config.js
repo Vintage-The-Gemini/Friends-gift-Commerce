@@ -9,14 +9,13 @@ const ErrorTypes = {
   SERVER_ERROR: 500,
 };
 
-// Create axios instance with default config
+// Update the baseURL to point to your backend server
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+  baseURL: "http://localhost:5000/api", // Change to your actual backend URL
   headers: {
     "Content-Type": "application/json",
   },
   withCredentials: true,
-  timeout: 30000, // 30 second timeout
 });
 
 // Request interceptor to add auth token

@@ -1,14 +1,12 @@
-// frontend/src/pages/admin/AdminLogin.jsx - Updated version
+// frontend/src/pages/admin/AdminLogin.jsx
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import api from "../../services/api/axios.config";
-import { useAuth } from "../../hooks/useAuth";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -23,19 +21,39 @@ const AdminLogin = () => {
     setError("");
 
     try {
-      // Use the regular login endpoint but specify admin role
-      const response = await login({
-        ...formData,
-        role: "admin",
-      });
+      // Use the specific admin login endpoint
+      const response = await api.post("/admin/login", formData);
 
-      if (response.user.role === "admin") {
-        navigate("/admin/dashboard");
+      if (response.data.success) {
+        // Store authentication data in localStorage
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+
+        // Debug the user object and role
+        console.log("Login successful. User data:", response.data.user);
+        console.log("User role:", response.data.user.role);
+
+        // Check role explicitly and redirect accordingly
+        if (response.data.user.role === "admin") {
+          console.log("Redirecting to admin dashboard");
+          navigate("/admin/dashboard");
+        } else if (response.data.user.role === "seller") {
+          console.log("User is a seller, redirecting to seller dashboard");
+          navigate("/seller/dashboard");
+        } else {
+          console.log("User is a buyer, redirecting to buyer dashboard");
+          navigate("/");
+        }
       } else {
-        throw new Error("Unauthorized access. Admin privileges required.");
+        throw new Error(response.data.message || "Login failed");
       }
     } catch (err) {
-      setError(err.message || "Invalid admin credentials");
+      console.error("Admin login error:", err);
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Invalid admin credentials"
+      );
     } finally {
       setLoading(false);
     }

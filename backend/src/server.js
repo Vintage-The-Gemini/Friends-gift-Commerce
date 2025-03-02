@@ -50,6 +50,7 @@ const orderRoutes = require("./routes/order.routes");
 const contributionRoutes = require("./routes/contribution.routes");
 const analyticsRoutes = require("./routes/analytics.routes");
 const buyerRoutes = require("./routes/buyer");
+const initializeAdmin = require("./utils/initAdmin");
 
 // Mount routes
 app.use("/api/auth", authRoutes);
@@ -62,6 +63,8 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/contributions", contributionRoutes);
 app.use("/api/seller/analytics", analyticsRoutes);
 app.use("/api/buyer", buyerRoutes);
+
+initializeAdmin();
 
 // Basic route
 app.get("/api", (req, res) => {

@@ -11,11 +11,19 @@ const initializeAdmin = async () => {
       return;
     }
 
+    // Admin credentials for logging (don't log the actual password)
+    const adminPhone = process.env.ADMIN_PHONE || "254700000000";
+    const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+
+    console.log("Creating admin user with phone:", adminPhone);
+
     // Create admin user
     const adminUser = await User.create({
-      phoneNumber: process.env.ADMIN_PHONE || "254700000000",
-      password: process.env.ADMIN_PASSWORD || "admin123",
+      name: "System Administrator",
+      phoneNumber: adminPhone,
+      password: adminPassword, // This will be hashed by the User model pre-save hook
       role: "admin",
+      isActive: true,
     });
 
     console.log("Admin user created successfully:", adminUser.phoneNumber);
