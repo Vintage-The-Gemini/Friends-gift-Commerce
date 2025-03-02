@@ -9,22 +9,36 @@ const ErrorTypes = {
   SERVER_ERROR: 500,
 };
 
-// Update the baseURL to point to your backend server
+// We need to fix the double API issue by removing /api from the baseURL
 const api = axios.create({
-  baseURL: "http://localhost:5000/api", // Change to your actual backend URL
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
   headers: {
     "Content-Type": "application/json",
   },
   withCredentials: true,
 });
 
-// Request interceptor to add auth token
+// Request interceptor to add auth token and fix double /api prefix issue
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Remove any duplicated /api prefix in the URL to prevent the double /api/api issue
+    if (config.url.startsWith("/api/")) {
+      console.warn(
+        `Detected double API prefix in URL: ${config.url}. Fixing...`
+      );
+      config.url = config.url.replace("/api/", "/");
+    }
+
+    // Log API requests in development
+    if (process.env.NODE_ENV === "development") {
+      console.log(`API Request: ${config.method.toUpperCase()} ${config.url}`);
+    }
+
     return config;
   },
   (error) => {
@@ -50,7 +64,7 @@ const errorHandlers = {
 
   [ErrorTypes.NOT_FOUND]: (error) => {
     console.error("[Endpoint Not Found]:", error.config.url);
-    throw new Error(`API endpoint '${error.config.url}' not found`);
+    throw new Error(`API endpoint not found. Please check your request.`);
   },
 
   [ErrorTypes.SERVER_ERROR]: (error) => {

@@ -1,5 +1,4 @@
-// frontend/src/pages/admin/AdminCategories.jsx - Enhanced version
-
+// frontend/src/pages/admin/AdminCategories.jsx
 import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, Search, AlertCircle } from "lucide-react";
 import api from "../../services/api/axios.config";
@@ -19,6 +18,7 @@ const AdminCategories = () => {
     name: "",
     description: "",
     parent: "",
+    characteristics: [],
   });
 
   useEffect(() => {
@@ -28,11 +28,8 @@ const AdminCategories = () => {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/api/categories", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      // Use /admin/categories endpoint
+      const response = await api.get("/admin/categories");
 
       if (response.data.success) {
         setCategories(response.data.data);
@@ -53,16 +50,24 @@ const AdminCategories = () => {
     setActionLoading(true);
 
     try {
-      const response = await api.post("/api/categories", formData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      // Add characteristics as empty array if not provided
+      const formattedData = {
+        ...formData,
+        characteristics: formData.characteristics || [],
+      };
+
+      // Use /admin/categories endpoint
+      const response = await api.post("/admin/categories", formattedData);
 
       if (response.data.success) {
         toast.success("Category created successfully");
         setShowAddModal(false);
-        setFormData({ name: "", description: "", parent: "" });
+        setFormData({
+          name: "",
+          description: "",
+          parent: "",
+          characteristics: [],
+        });
         fetchCategories();
       } else {
         throw new Error(response.data.message || "Failed to create category");
@@ -80,14 +85,10 @@ const AdminCategories = () => {
     setActionLoading(true);
 
     try {
+      // Use /admin/categories/:id endpoint
       const response = await api.put(
-        `/api/categories/${selectedCategory._id}`,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+        `/admin/categories/${selectedCategory._id}`,
+        formData
       );
 
       if (response.data.success) {
@@ -110,13 +111,9 @@ const AdminCategories = () => {
     setActionLoading(true);
 
     try {
+      // Use /admin/categories/:id endpoint
       const response = await api.delete(
-        `/api/categories/${selectedCategory._id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+        `/admin/categories/${selectedCategory._id}`
       );
 
       if (response.data.success) {
@@ -141,6 +138,7 @@ const AdminCategories = () => {
       name: category.name,
       description: category.description || "",
       parent: category.parent?._id || "",
+      characteristics: category.characteristics || [],
     });
     setShowEditModal(true);
   };
@@ -150,11 +148,18 @@ const AdminCategories = () => {
     setShowDeleteModal(true);
   };
 
+  // Filter categories based on search term
   const filteredCategories = categories.filter((category) =>
     category.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (loading) {
+  // Create a map of categories to find parent names
+  const categoryMap = categories.reduce((map, category) => {
+    map[category._id] = category;
+    return map;
+  }, {});
+
+  if (loading && categories.length === 0) {
     return (
       <div className="p-6 flex justify-center items-center min-h-[400px]">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
@@ -165,25 +170,28 @@ const AdminCategories = () => {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Categories</h1>
-        <div className="flex items-center space-x-4">
+        <h1 className="text-2xl font-bold">Categories Management</h1>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-green-700"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Add Category
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-4 mb-6">
+        <div className="flex-1 min-w-[300px]">
           <div className="relative">
             <input
               type="text"
               placeholder="Search categories..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border rounded-lg"
+              className="pl-10 pr-4 py-2 border rounded-lg w-full"
             />
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Add Category
-          </button>
         </div>
       </div>
 
@@ -208,6 +216,9 @@ const AdminCategories = () => {
                 Parent Category
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Level
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -215,19 +226,26 @@ const AdminCategories = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredCategories.length === 0 ? (
               <tr>
-                <td colSpan="4" className="px-6 py-4 text-center text-gray-500">
+                <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
                   No categories found
                 </td>
               </tr>
             ) : (
               filteredCategories.map((category) => (
                 <tr key={category._id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap font-medium">
                     {category.name}
                   </td>
                   <td className="px-6 py-4">{category.description || "-"}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {category.parent?.name || "-"}
+                    {category.parent
+                      ? categoryMap[category.parent]?.name ||
+                        category.parent.name ||
+                        "-"
+                      : "-"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    {category.level}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <button
@@ -298,7 +316,7 @@ const AdminCategories = () => {
                     }
                     className="w-full px-3 py-2 border rounded-lg"
                   >
-                    <option value="">None</option>
+                    <option value="">None (Root Category)</option>
                     {categories.map((category) => (
                       <option key={category._id} value={category._id}>
                         {category.name}
@@ -318,7 +336,7 @@ const AdminCategories = () => {
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
                 >
                   {actionLoading ? "Adding..." : "Add Category"}
                 </button>
@@ -374,10 +392,9 @@ const AdminCategories = () => {
                         parent: e.target.value,
                       })
                     }
-                    // frontend/src/pages/admin/AdminCategories.jsx - Continued
                     className="w-full px-3 py-2 border rounded-lg"
                   >
-                    <option value="">None</option>
+                    <option value="">None (Root Category)</option>
                     {categories
                       .filter((cat) => cat._id !== selectedCategory._id) // Prevent category being its own parent
                       .map((category) => (
@@ -386,6 +403,26 @@ const AdminCategories = () => {
                         </option>
                       ))}
                   </select>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="isActive"
+                    checked={formData.isActive !== false}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        isActive: e.target.checked,
+                      })
+                    }
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label
+                    htmlFor="isActive"
+                    className="ml-2 block text-sm text-gray-900"
+                  >
+                    Active Category
+                  </label>
                 </div>
               </div>
               <div className="flex justify-end mt-6 space-x-3">

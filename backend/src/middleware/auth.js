@@ -69,6 +69,11 @@ exports.authorize = (roles) => {
     // Convert single role to array if needed
     const roleArray = Array.isArray(roles) ? roles : [roles];
 
+    // Allow admin to access all routes regardless of required role
+    if (req.user.role === "admin") {
+      return next();
+    }
+
     if (!roleArray.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
