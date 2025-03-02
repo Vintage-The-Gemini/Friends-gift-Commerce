@@ -35,26 +35,12 @@ api.interceptors.request.use(
 
 // Handle different error types
 const errorHandlers = {
-  [ErrorTypes.UNAUTHORIZED]: async (error, originalRequest) => {
-    if (originalRequest._retry) {
-      throw error;
-    }
-
-    try {
-      originalRequest._retry = true;
-      const { data } = await api.post("/auth/refresh-token");
-      if (data.token) {
-        localStorage.setItem("token", data.token);
-        originalRequest.headers["Authorization"] = `Bearer ${data.token}`;
-        return api(originalRequest);
-      }
-      throw error;
-    } catch (refreshError) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      window.location.href = "/auth/signin";
-      throw refreshError;
-    }
+  [ErrorTypes.UNAUTHORIZED]: async (error) => {
+    // Don't try to refresh, just clear tokens and redirect
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.location.href = "/auth/signin";
+    throw error;
   },
 
   [ErrorTypes.FORBIDDEN]: (error) => {
@@ -116,7 +102,7 @@ api.interceptors.response.use(
     // Get error handler based on status code
     const handler = errorHandlers[error.response.status];
     if (handler) {
-      return handler(error, error.config);
+      return handler(error);
     }
 
     // Default error handling

@@ -29,7 +29,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // In useAuth.jsx - login function
   const login = async (credentials) => {
     try {
       console.log("Attempting login with credentials:", {
@@ -96,6 +95,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     register,
+    setUser, // Added this to expose the setter
   };
 
   if (loading) {

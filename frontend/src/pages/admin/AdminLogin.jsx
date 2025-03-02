@@ -1,12 +1,13 @@
 // frontend/src/pages/admin/AdminLogin.jsx
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import api from "../../services/api/axios.config";
+import { useAuth } from "../../hooks/useAuth"; // Added import
 
 const AdminLogin = () => {
   const navigate = useNavigate();
+  const { setUser } = useAuth(); // Added hook usage
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -21,29 +22,18 @@ const AdminLogin = () => {
     setError("");
 
     try {
-      // Use the specific admin login endpoint
+      // Make sure the URL is correct
       const response = await api.post("/admin/login", formData);
 
       if (response.data.success) {
-        // Store authentication data in localStorage
+        // Store authentication data
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("user", JSON.stringify(response.data.user));
 
-        // Debug the user object and role
-        console.log("Login successful. User data:", response.data.user);
-        console.log("User role:", response.data.user.role);
+        // Update auth context
+        setUser(response.data.user);
 
-        // Check role explicitly and redirect accordingly
-        if (response.data.user.role === "admin") {
-          console.log("Redirecting to admin dashboard");
-          navigate("/admin/dashboard");
-        } else if (response.data.user.role === "seller") {
-          console.log("User is a seller, redirecting to seller dashboard");
-          navigate("/seller/dashboard");
-        } else {
-          console.log("User is a buyer, redirecting to buyer dashboard");
-          navigate("/");
-        }
+        navigate("/admin/dashboard");
       } else {
         throw new Error(response.data.message || "Login failed");
       }
