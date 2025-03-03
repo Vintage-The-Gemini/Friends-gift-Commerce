@@ -1,222 +1,375 @@
 // src/components/layout/Navbar.jsx
-import { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom"; // Changed from "react" to "react-router-dom"
+import React, { useState, useEffect, useRef } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import {
   Menu,
-  Plus,
+  X,
+  Search,
+  Gift,
   Heart,
-  Calendar,
+  User,
   LogOut,
   Settings,
-  Gift,
+  Calendar,
   ChevronDown,
-  User,
   ShoppingBag,
-  Store, // Added missing Store icon
+  Store,
+  Bell,
+  ChevronRight,
 } from "lucide-react";
 import Logo from "../../assets/Friends-gift-logo.svg";
 
 const Navbar = () => {
   const { user, logout } = useAuth();
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [showEventsMenu, setShowEventsMenu] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const dropdownRef = useRef(null);
-  const eventsDropdownRef = useRef(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const profileDropdownRef = useRef(null);
 
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowProfileMenu(false);
-      }
       if (
-        eventsDropdownRef.current &&
-        !eventsDropdownRef.current.contains(event.target)
+        profileDropdownRef.current &&
+        !profileDropdownRef.current.contains(event.target)
       ) {
-        setShowEventsMenu(false);
+        setProfileDropdownOpen(false);
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
-  const getInitial = (name) => {
-    if (!name) return "?";
-    const names = name.split(" ");
-    if (names.length >= 2) {
-      return `${names[0][0]}${names[1][0]}`.toUpperCase();
-    }
-    return name[0].toUpperCase();
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location.pathname]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (!searchTerm.trim()) return;
+
+    navigate(`/products?search=${encodeURIComponent(searchTerm)}`);
+    setSearchTerm("");
+    setIsSearchExpanded(false);
   };
 
-  const mainNavItems = [
-    { label: "Events", path: "/events", icon: Gift },
-    { label: "Products", path: "/products", icon: ShoppingBag },
-  ];
+  // Format user initials for avatar
+  const getInitials = (name) => {
+    if (!name) return "?";
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .substring(0, 2);
+  };
 
-  const userNavItems = [
-    { label: "Create Event", path: "/events/create", icon: Plus },
-    { label: "My Events", path: "/buyer/dashboard", icon: Calendar },
-    { label: "Settings", path: "/profile/settings", icon: Settings },
+  // Navigation links
+  const navLinks = [
+    { name: "Home", path: "/" },
+    { name: "Events", path: "/events" },
+    { name: "Products", path: "/products" },
   ];
 
   return (
     <nav className="bg-white shadow sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="h-16 flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex-shrink-0">
-            <Link to="/" className="flex items-center">
-              <img src={Logo} alt="Friends Gift" className="h-8" />
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo and main nav (desktop) */}
+          <div className="flex items-center">
+            <Link to="/" className="flex-shrink-0">
+              <img className="h-8 w-auto" src={Logo} alt="Friends Gift" />
             </Link>
-          </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            {/* Main Navigation Items */}
-            {mainNavItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className="text-gray-700 hover:text-[#5551FF] flex items-center space-x-1"
-              >
-                <item.icon className="w-4 h-4" />
-                <span>{item.label}</span>
-              </Link>
-            ))}
-
-            {/* Seller Dashboard Link */}
-            {user?.role === "seller" && (
-              <Link
-                to="/seller/dashboard"
-                className="text-gray-700 hover:text-[#5551FF] flex items-center space-x-1"
-              >
-                <Store className="w-4 h-4" />
-                <span>Seller Dashboard</span>
-              </Link>
-            )}
-          </div>
-
-          {/* Right side buttons */}
-          <div className="hidden md:flex items-center space-x-4">
-            {user ? (
-              <>
-                {/* Wishlist Button */}
+            {/* Desktop Navigation */}
+            <div className="hidden md:ml-6 md:flex md:space-x-4">
+              {navLinks.map((link) => (
                 <Link
-                  to="/favorites"
-                  className="p-2 text-gray-700 hover:text-[#5551FF] rounded-full hover:bg-gray-100"
+                  key={link.path}
+                  to={link.path}
+                  className={`px-3 py-2 text-sm font-medium transition-colors ${
+                    location.pathname === link.path
+                      ? "text-indigo-600"
+                      : "text-gray-700 hover:text-indigo-600"
+                  }`}
                 >
-                  <Heart className="w-5 h-5" />
+                  {link.name}
                 </Link>
+              ))}
+            </div>
+          </div>
 
-                {/* Profile Dropdown */}
-                <div className="relative" ref={dropdownRef}>
+          {/* Search and action buttons */}
+          <div className="flex items-center">
+            {/* Search - desktop */}
+            <div
+              className={`hidden md:flex items-center ${
+                isSearchExpanded ? "w-64" : "w-40"
+              } transition-all duration-300`}
+            >
+              <form onSubmit={handleSearch} className="w-full">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search products..."
+                    className="w-full pl-10 pr-3 py-1.5 text-sm border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onFocus={() => setIsSearchExpanded(true)}
+                    onBlur={() => setIsSearchExpanded(false)}
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-4 w-4 text-gray-400" />
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center md:ml-6 space-x-2">
+              {/* Create Event Button */}
+              {user && (
+                <Link
+                  to="/events/create"
+                  className="hidden sm:flex items-center text-sm text-white bg-indigo-600 hover:bg-indigo-700 transition-colors px-3 py-1.5 rounded-full"
+                >
+                  <Gift className="h-4 w-4 mr-1" />
+                  <span>Create Event</span>
+                </Link>
+              )}
+
+              {/* Wishlist */}
+              <Link
+                to="/wishlist"
+                className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <Heart className="h-5 w-5" />
+              </Link>
+
+              {/* User Menu */}
+              {user ? (
+                <div className="relative" ref={profileDropdownRef}>
                   <button
-                    onClick={() => setShowProfileMenu(!showProfileMenu)}
-                    className="flex items-center space-x-2 p-2 rounded-full hover:bg-gray-100"
+                    className="flex items-center space-x-1 p-1 border-transparent rounded-full text-gray-500 hover:text-indigo-600 focus:outline-none"
+                    onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
                   >
-                    <div className="w-8 h-8 rounded-full bg-[#5551FF] text-white flex items-center justify-center font-medium">
-                      {getInitial(user.name)}
+                    <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm font-medium">
+                      {getInitials(user.name)}
                     </div>
-                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                    <ChevronDown className="h-4 w-4" />
                   </button>
 
-                  {showProfileMenu && (
-                    <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg py-2 border">
-                      <div className="px-4 py-3 border-b">
-                        <p className="font-medium text-gray-900">{user.name}</p>
-                        <p className="text-sm text-gray-500">
+                  {/* Dropdown menu */}
+                  {profileDropdownOpen && (
+                    <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 z-50">
+                      <div className="px-4 py-2 border-b border-gray-100">
+                        <p className="text-sm font-medium text-gray-900">
+                          {user.name}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
                           {user.phoneNumber}
                         </p>
                       </div>
 
-                      {userNavItems.map((item) => (
+                      {user.role === "buyer" && (
                         <Link
-                          key={item.path}
-                          to={item.path}
-                          className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-50"
+                          to="/buyer/dashboard"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                         >
-                          <item.icon className="w-4 h-4 mr-3" />
-                          {item.label}
+                          <Calendar className="h-4 w-4 mr-2 text-gray-500" />
+                          My Events
                         </Link>
-                      ))}
+                      )}
 
-                      <div className="border-t mt-2">
+                      {user.role === "seller" && (
+                        <Link
+                          to="/seller/dashboard"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                        >
+                          <Store className="h-4 w-4 mr-2 text-gray-500" />
+                          Seller Dashboard
+                        </Link>
+                      )}
+
+                      <Link
+                        to="/profile/settings"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                      >
+                        <Settings className="h-4 w-4 mr-2 text-gray-500" />
+                        Settings
+                      </Link>
+
+                      <div className="border-t border-gray-100">
                         <button
                           onClick={logout}
-                          className="flex w-full items-center px-4 py-2 text-red-600 hover:bg-gray-50"
+                          className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center"
                         >
-                          <LogOut className="w-4 h-4 mr-3" />
+                          <LogOut className="h-4 w-4 mr-2" />
                           Sign out
                         </button>
                       </div>
                     </div>
                   )}
                 </div>
-              </>
-            ) : (
-              <Link
-                to="/auth/signin"
-                className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-[#5551FF] hover:bg-[#4440FF]"
-              >
-                Sign in
-              </Link>
-            )}
-          </div>
+              ) : (
+                <Link
+                  to="/auth/signin"
+                  className="flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-800"
+                >
+                  <User className="h-5 w-5 mr-1" />
+                  <span>Sign In</span>
+                </Link>
+              )}
 
-          {/* Mobile menu button */}
-          <div className="md:hidden">
-            <button
-              onClick={() => setShowMobileMenu(!showMobileMenu)}
-              className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-            >
-              <Menu className="h-6 w-6" />
-            </button>
+              {/* Mobile menu button */}
+              <button
+                className="md:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-500 hover:text-indigo-600 hover:bg-gray-100"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+              >
+                <span className="sr-only">Open main menu</span>
+                {isMenuOpen ? (
+                  <X className="block h-6 w-6" aria-hidden="true" />
+                ) : (
+                  <Menu className="block h-6 w-6" aria-hidden="true" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Mobile menu */}
-      {showMobileMenu && (
-        <div className="md:hidden border-t border-gray-200 bg-white">
-          <div className="px-2 pt-2 pb-3 space-y-1">
-            {mainNavItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-[#5551FF] hover:bg-gray-50"
-              >
-                <item.icon className="w-5 h-5 mr-3" />
-                {item.label}
-              </Link>
-            ))}
+      <div className={`md:hidden ${isMenuOpen ? "block" : "hidden"}`}>
+        <div className="pt-2 pb-3 space-y-1 px-4">
+          {/* Mobile search */}
+          <form onSubmit={handleSearch} className="pb-3">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search products..."
+                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+            </div>
+          </form>
 
-            {user &&
-              userNavItems.map((item) => (
+          {/* Navigation items */}
+          {navLinks.map((link) => (
+            <Link
+              key={link.path}
+              to={link.path}
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                location.pathname === link.path
+                  ? "bg-indigo-50 text-indigo-600"
+                  : "text-gray-700 hover:bg-gray-50 hover:text-indigo-600"
+              }`}
+            >
+              {link.name}
+            </Link>
+          ))}
+
+          {/* Create Event (Mobile) */}
+          {user && (
+            <Link
+              to="/events/create"
+              className="flex items-center justify-between px-3 py-2 rounded-md text-base font-medium text-indigo-600 hover:bg-indigo-50"
+            >
+              <div className="flex items-center">
+                <Gift className="h-5 w-5 mr-2" />
+                Create Event
+              </div>
+              <ChevronRight className="h-5 w-5" />
+            </Link>
+          )}
+
+          {/* Wishlist (Mobile) */}
+          <Link
+            to="/wishlist"
+            className="flex items-center justify-between px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600"
+          >
+            <div className="flex items-center">
+              <Heart className="h-5 w-5 mr-2" />
+              My Wishlist
+            </div>
+            <ChevronRight className="h-5 w-5" />
+          </Link>
+
+          {/* Authentication links (Mobile) */}
+          {user ? (
+            <>
+              {user.role === "buyer" && (
                 <Link
-                  key={item.path}
-                  to={item.path}
-                  className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-[#5551FF] hover:bg-gray-50"
+                  to="/buyer/dashboard"
+                  className="flex items-center justify-between px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600"
                 >
-                  <item.icon className="w-5 h-5 mr-3" />
-                  {item.label}
+                  <div className="flex items-center">
+                    <Calendar className="h-5 w-5 mr-2" />
+                    My Events
+                  </div>
+                  <ChevronRight className="h-5 w-5" />
                 </Link>
-              ))}
+              )}
 
-            {!user && (
+              {user.role === "seller" && (
+                <Link
+                  to="/seller/dashboard"
+                  className="flex items-center justify-between px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600"
+                >
+                  <div className="flex items-center">
+                    <Store className="h-5 w-5 mr-2" />
+                    Seller Dashboard
+                  </div>
+                  <ChevronRight className="h-5 w-5" />
+                </Link>
+              )}
+
               <Link
-                to="/auth/signin"
-                className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-[#5551FF] hover:bg-gray-50"
+                to="/profile/settings"
+                className="flex items-center justify-between px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600"
               >
-                <User className="w-5 h-5 mr-3" />
-                Sign in
+                <div className="flex items-center">
+                  <Settings className="h-5 w-5 mr-2" />
+                  Settings
+                </div>
+                <ChevronRight className="h-5 w-5" />
               </Link>
-            )}
-          </div>
+
+              <div className="border-t border-gray-200 mt-2 pt-2">
+                <button
+                  onClick={logout}
+                  className="flex items-center w-full px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50"
+                >
+                  <LogOut className="h-5 w-5 mr-2" />
+                  Sign out
+                </button>
+              </div>
+            </>
+          ) : (
+            <Link
+              to="/auth/signin"
+              className="flex items-center justify-between px-3 py-2 rounded-md text-base font-medium bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
+            >
+              <div className="flex items-center">
+                <User className="h-5 w-5 mr-2" />
+                Sign In
+              </div>
+              <ChevronRight className="h-5 w-5" />
+            </Link>
+          )}
         </div>
-      )}
+      </div>
     </nav>
   );
 };

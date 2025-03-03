@@ -1,18 +1,13 @@
-// src/components/products/ProductCard.jsx
+// src/components/products/CompactProductCard.jsx
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Heart, Gift, Eye, AlertCircle } from "lucide-react";
+import { Heart, Gift, Eye } from "lucide-react";
 import { formatCurrency } from "../../utils/currency";
 import { productService } from "../../services/api/product";
 import { useAuth } from "../../hooks/useAuth";
 import { toast } from "react-toastify";
 
-const ProductCard = ({
-  product,
-  onAddToEvent,
-  compact = false,
-  className = "",
-}) => {
+const CompactProductCard = ({ product, onAddToEvent }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isWishlisted, setIsWishlisted] = useState(
@@ -22,7 +17,7 @@ const ProductCard = ({
 
   if (!product) return null;
 
-  const { _id, name, price, description, images, stock } = product;
+  const { _id, name, price, images, stock } = product;
   const isInStock = stock > 0;
 
   // Get the primary image URL with fallback
@@ -76,35 +71,8 @@ const ProductCard = ({
     }
   };
 
-  // Compact version for selection lists, etc.
-  if (compact) {
-    return (
-      <Link
-        to={`/products/${_id}`}
-        className={`group flex items-center p-3 border rounded-lg hover:border-indigo-500 hover:shadow-md transition-all ${className}`}
-      >
-        <div className="w-16 h-16 flex-shrink-0 rounded-md overflow-hidden">
-          <img
-            src={imageUrl}
-            alt={name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-        </div>
-        <div className="ml-3 flex-1">
-          <h3 className="font-medium text-gray-900">{name}</h3>
-          <p className="text-indigo-600 font-semibold">
-            {formatCurrency(price)}
-          </p>
-        </div>
-      </Link>
-    );
-  }
-
-  // Default card view
   return (
-    <div
-      className={`group bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 ${className}`}
-    >
+    <div className="group bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
       <Link to={`/products/${_id}`} className="block relative">
         <div className="aspect-square overflow-hidden">
           <img
@@ -114,65 +82,53 @@ const ProductCard = ({
           />
         </div>
 
-        {/* Status Badge */}
-        {!isInStock && (
-          <div className="absolute top-2 left-2 bg-red-100 text-red-800 text-xs font-medium px-2 py-1 rounded-full flex items-center">
-            <AlertCircle className="w-3 h-3 mr-1" />
-            Out of Stock
-          </div>
-        )}
-
         {/* Wishlist Action */}
         <button
           onClick={handleToggleWishlist}
           disabled={isWishlistLoading}
-          className="absolute top-2 right-2 p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white transition-colors"
+          className="absolute top-2 right-2 p-1.5 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white transition-colors"
           aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
         >
           <Heart
-            className={`w-4 h-4 ${
+            className={`w-3 h-3 ${
               isWishlisted ? "fill-red-500 text-red-500" : "text-gray-600"
             } transition-colors`}
           />
         </button>
       </Link>
 
-      <div className="p-4">
+      <div className="p-3">
         <Link to={`/products/${_id}`}>
-          <h3 className="font-medium text-gray-900 group-hover:text-indigo-700 transition-colors mb-1 truncate">
+          <h3 className="font-medium text-sm text-gray-900 group-hover:text-indigo-700 transition-colors mb-1 truncate">
             {name}
           </h3>
-          <p className="text-gray-600 text-sm mb-3 line-clamp-2 h-10">
-            {description}
-          </p>
         </Link>
 
         <div className="flex items-center justify-between">
-          <span className="text-lg font-bold text-indigo-700">
+          <span className="text-sm font-bold text-indigo-700">
             {formatCurrency(price)}
           </span>
 
-          <div className="flex gap-2">
+          <div className="flex gap-1">
             <Link
               to={`/products/${_id}`}
-              className="p-2 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition-colors"
+              className="p-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition-colors"
               aria-label="View details"
             >
-              <Eye className="w-4 h-4" />
+              <Eye className="w-3 h-3" />
             </Link>
 
             <button
               onClick={handleAddToEvent}
               disabled={!isInStock}
-              className={`px-3 py-1.5 rounded-full flex items-center ${
+              className={`p-1.5 rounded-full flex items-center ${
                 isInStock
                   ? "bg-indigo-600 text-white hover:bg-indigo-700"
                   : "bg-gray-200 text-gray-400 cursor-not-allowed"
               } transition-colors`}
               aria-label={isInStock ? "Add to event" : "Out of stock"}
             >
-              <Gift className="w-4 h-4 mr-1.5" />
-              <span className="text-sm font-medium">Add</span>
+              <Gift className="w-3 h-3" />
             </button>
           </div>
         </div>
@@ -181,4 +137,4 @@ const ProductCard = ({
   );
 };
 
-export default ProductCard;
+export default CompactProductCard;

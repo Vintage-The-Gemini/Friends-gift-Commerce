@@ -14,9 +14,9 @@ import SellerLayout from "./layouts/SellerLayout";
 import HomePage from "./pages/public/HomePage";
 import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
-import EventsPage from "./pages/public/EventPage";
+import EventsPage from "./pages/public/EventsPage";
 import ProductsPage from "./pages/public/ProductsPage";
-import ProductDetails from "./components/products/ProductDetails";
+import ProductDetailsPage from "./pages/public/ProductDetailsPage";
 
 // Event Pages
 import CreateEvent from "./pages/events/CreateEvent";
@@ -76,7 +76,7 @@ const router = createBrowserRouter(
 
             // Product Routes
             { path: "/products", element: <ProductsPage /> },
-            { path: "/products/:id", element: <ProductDetails /> },
+            { path: "/products/:id", element: <ProductDetailsPage /> },
 
             // Event Routes
             { path: "/events", element: <EventsPage /> },
