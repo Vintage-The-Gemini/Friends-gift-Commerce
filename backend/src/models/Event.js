@@ -1,81 +1,106 @@
-// src/models/Event.js
+// backend/src/models/Event.js
 const mongoose = require("mongoose");
-
-const productReferenceSchema = new mongoose.Schema({
-  product: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Product",
-    required: true,
-  },
-  quantity: {
-    type: Number,
-    required: true,
-    min: [1, "Quantity must be at least 1"],
-  },
-  status: {
-    type: String,
-    enum: ["pending", "contributed", "purchased"],
-    default: "pending",
-  },
-});
 
 const eventSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: [true, "Event title is required"],
+      required: [true, "Please add a title"],
       trim: true,
+      maxlength: [100, "Title cannot be more than 100 characters"],
+    },
+    description: {
+      type: String,
+      required: [true, "Please add a description"],
+      maxlength: [1000, "Description cannot be more than 1000 characters"],
+    },
+    eventType: {
+      type: String,
+      required: [true, "Please specify the event type"],
+      enum: {
+        values: [
+          "birthday",
+          "wedding",
+          "graduation",
+          "babyShower",
+          "houseWarming",
+          "anniversary",
+          "other", // Added 'other' for custom event types
+        ],
+        message: "Please select a valid event type",
+      },
+    },
+    customEventType: {
+      type: String,
+      trim: true,
+      maxlength: [50, "Custom event type cannot be more than 50 characters"],
+      // This will be used when eventType is 'other'
+    },
+    eventDate: {
+      type: Date,
+      required: [true, "Please add an event date"],
+    },
+    endDate: {
+      type: Date,
+      required: [true, "Please add an end date"],
     },
     creator: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-    eventType: {
-      type: String,
-      enum: [
-        "birthday",
-        "wedding",
-        "graduation",
-        "babyShower",
-        "houseWarming",
-        "anniversary",
-      ],
-      required: true,
-    },
-    description: {
-      type: String,
-      required: [true, "Event description is required"],
-    },
-    eventDate: {
-      type: Date,
-      required: [true, "Event date is required"],
-    },
-    products: [productReferenceSchema],
-    targetAmount: {
-      type: Number,
-      required: true,
-      min: [0, "Target amount cannot be negative"],
-    },
-    currentAmount: {
-      type: Number,
-      default: 0,
-      min: [0, "Current amount cannot be negative"],
-    },
-    status: {
-      type: String,
-      enum: ["draft", "active", "completed", "cancelled"],
-      default: "active",
-    },
     visibility: {
       type: String,
       enum: ["public", "private", "unlisted"],
       default: "public",
+      required: true,
     },
-    shareableLink: {
+    accessCode: {
       type: String,
-      unique: true,
+      // For providing access to private events with a code
     },
+    invitedUsers: [
+      {
+        email: String,
+        phoneNumber: String,
+        status: {
+          type: String,
+          enum: ["pending", "accepted", "declined"],
+          default: "pending",
+        },
+      },
+    ],
+    image: {
+      type: String,
+    },
+    targetAmount: {
+      type: Number,
+      required: [true, "Please add a target amount"],
+    },
+    currentAmount: {
+      type: Number,
+      default: 0,
+    },
+    products: [
+      {
+        product: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Product",
+          required: true,
+        },
+        quantity: {
+          type: Number,
+          required: true,
+          min: [1, "Quantity must be at least 1"],
+          default: 1,
+        },
+        status: {
+          type: String,
+          enum: ["pending", "contributed", "completed"],
+          default: "pending",
+        },
+      },
+    ],
     contributions: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -88,11 +113,11 @@ const eventSchema = new mongoose.Schema(
         ref: "Order",
       },
     ],
-    endDate: {
-      type: Date,
-      required: true,
+    status: {
+      type: String,
+      enum: ["active", "completed", "cancelled"],
+      default: "active",
     },
-    image: String,
   },
   {
     timestamps: true,
@@ -101,24 +126,18 @@ const eventSchema = new mongoose.Schema(
   }
 );
 
-// Virtual field for contribution stats
-eventSchema.virtual("contributionStats").get(function () {
-  return {
-    totalContributions: this.contributions?.length || 0,
-    progress: this.currentAmount
-      ? (this.currentAmount / this.targetAmount) * 100
-      : 0,
-  };
+// Create a virtual field for progress percentage
+eventSchema.virtual("progressPercentage").get(function () {
+  if (this.targetAmount === 0) return 0;
+  return Math.min(
+    Math.round((this.currentAmount / this.targetAmount) * 100),
+    100
+  );
 });
 
-// Generate shareable link before saving
-eventSchema.pre("save", function (next) {
-  if (!this.shareableLink) {
-    this.shareableLink = `${this._id}-${Math.random()
-      .toString(36)
-      .substring(2, 7)}`;
-  }
-  next();
-});
+// Add index for efficient queries
+eventSchema.index({ creator: 1, status: 1 });
+eventSchema.index({ visibility: 1, status: 1 });
+eventSchema.index({ eventDate: 1 });
 
 module.exports = mongoose.model("Event", eventSchema);
