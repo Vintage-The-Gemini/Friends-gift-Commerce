@@ -1,10 +1,11 @@
-// src/services/api/event.js
+// src/services/api/event.js - Fixed version
+
 import api from "./axios.config";
 
 // API endpoints
 const ENDPOINTS = {
   BASE: "/events",
-  MY_EVENTS: "/events/user", // Updated to the correct endpoint based on your backend
+  MY_EVENTS: "/events/user",
   DETAIL: (id) => `/events/${id}`,
   STATS: (id) => `/events/${id}/stats`,
 };
@@ -13,7 +14,32 @@ const ENDPOINTS = {
 export const eventService = {
   createEvent: async (eventData) => {
     try {
-      const response = await api.post(ENDPOINTS.BASE, eventData);
+      // Fix - Convert 'products' property if it's a JSON string to an actual array
+      const formattedData = { ...eventData };
+
+      // If products is a string that's actually a JSON array, parse it
+      if (typeof formattedData.products === "string") {
+        try {
+          // Check if the string is already a valid JSON array
+          const parsed = JSON.parse(formattedData.products);
+
+          // If it's an array, use it directly, otherwise keep as string
+          // (server may expect string format)
+          if (!Array.isArray(parsed)) {
+            console.log("Warning: Parsed products is not an array", parsed);
+          }
+        } catch (err) {
+          console.error("Error parsing products JSON:", err);
+          // If parsing fails, create a new array with the products
+          formattedData.products = JSON.stringify(eventData.products);
+        }
+      } else if (Array.isArray(eventData.products)) {
+        // If it's already an array, stringify it
+        formattedData.products = JSON.stringify(eventData.products);
+      }
+
+      console.log("Sending formatted data to API:", formattedData);
+      const response = await api.post(ENDPOINTS.BASE, formattedData);
       return response.data;
     } catch (error) {
       console.error("[Event Service] Create Error:", error);
@@ -84,7 +110,23 @@ export const eventService = {
 
   updateEvent: async (eventId, eventData) => {
     try {
-      const response = await api.put(ENDPOINTS.DETAIL(eventId), eventData);
+      // Apply the same fix for updating events
+      const formattedData = { ...eventData };
+
+      if (typeof formattedData.products === "string") {
+        try {
+          JSON.parse(formattedData.products);
+          // Keep it as is if already properly formatted JSON string
+        } catch (err) {
+          // If parsing fails, create a new array with the products
+          formattedData.products = JSON.stringify(eventData.products);
+        }
+      } else if (Array.isArray(eventData.products)) {
+        // If it's already an array, stringify it
+        formattedData.products = JSON.stringify(eventData.products);
+      }
+
+      const response = await api.put(ENDPOINTS.DETAIL(eventId), formattedData);
       return response.data;
     } catch (error) {
       console.error("[Event Service] Update Error:", error);

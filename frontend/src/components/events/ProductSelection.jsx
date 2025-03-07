@@ -1,3 +1,5 @@
+// src/components/events/ProductSelection.jsx - Fixed version
+
 import React, { useState, useEffect } from "react";
 import { Search, Filter, Plus, Minus, X } from "lucide-react";
 import { productService } from "../../services/api/product";
@@ -163,9 +165,9 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
       {selectedProducts.length > 0 && (
         <div className="bg-gray-50 p-4 rounded-lg space-y-4">
           <h3 className="font-medium">Selected Products</h3>
-          {selectedProducts.map((item) => (
+          {selectedProducts.map((item, index) => (
             <div
-              key={item.product._id}
+              key={`selected-${item.product._id}-${index}`}
               className="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm"
             >
               <div className="flex items-center">
@@ -223,7 +225,7 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {products.map((product) => (
             <div
-              key={product._id}
+              key={`grid-${product._id}`}
               className={`border rounded-lg overflow-hidden cursor-pointer transition-all ${
                 isProductSelected(product._id)
                   ? "border-[#5551FF] ring-2 ring-[#5551FF]"

@@ -107,8 +107,9 @@ const ManageEvents = () => {
   const copyEventLink = (eventId) => {
     const baseUrl = window.location.origin;
     const eventUrl = `${baseUrl}/events/${eventId}`;
-    
-    navigator.clipboard.writeText(eventUrl)
+
+    navigator.clipboard
+      .writeText(eventUrl)
       .then(() => toast.success("Event link copied to clipboard!"))
       .catch(() => toast.error("Failed to copy link"));
   };
@@ -118,8 +119,9 @@ const ManageEvents = () => {
       toast.error("No access code available for this event");
       return;
     }
-    
-    navigator.clipboard.writeText(accessCode)
+
+    navigator.clipboard
+      .writeText(accessCode)
       .then(() => toast.success("Access code copied to clipboard!"))
       .catch(() => toast.error("Failed to copy access code"));
   };
@@ -212,7 +214,7 @@ const ManageEvents = () => {
             />
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>
-          
+
           <div className="flex space-x-2">
             <button
               onClick={() => setActiveTab("all")}
@@ -314,12 +316,19 @@ const ManageEvents = () => {
                   </div>
                 )}
                 <div className="absolute top-2 right-2 flex space-x-2">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(event.status)}`}>
-                    {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(
+                      event.status
+                    )}`}
+                  >
+                    {event.status.charAt(0).toUpperCase() +
+                      event.status.slice(1)}
                   </span>
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                     {getVisibilityIcon(event.visibility)}
-                    <span className="ml-1">{getVisibilityText(event.visibility)}</span>
+                    <span className="ml-1">
+                      {getVisibilityText(event.visibility)}
+                    </span>
                   </span>
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
@@ -338,7 +347,13 @@ const ManageEvents = () => {
                   <div className="flex justify-between text-sm mb-1">
                     <span className="text-gray-500">Raised</span>
                     <span className="font-medium">
-                      ${event.currentAmount || 0} / ${event.targetAmount}
+                      {formatCurrency
+                        ? formatCurrency(event.currentAmount || 0)
+                        : `$${event.currentAmount || 0}`}{" "}
+                      /{" "}
+                      {formatCurrency
+                        ? formatCurrency(event.targetAmount)
+                        : `$${event.targetAmount}`}
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
@@ -363,7 +378,7 @@ const ManageEvents = () => {
                     <Eye className="w-4 h-4 mr-1.5" />
                     View
                   </Link>
-                  
+
                   <Link
                     to={`/events/edit/${event._id}`}
                     className="flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -371,7 +386,7 @@ const ManageEvents = () => {
                     <Edit className="w-4 h-4 mr-1.5" />
                     Edit
                   </Link>
-                  
+
                   <button
                     onClick={() => copyEventLink(event._id)}
                     className="flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -379,18 +394,19 @@ const ManageEvents = () => {
                     <Share2 className="w-4 h-4 mr-1.5" />
                     Share
                   </button>
-                  
-                  {(event.visibility === "private" || event.visibility === "unlisted") && 
+
+                  {(event.visibility === "private" ||
+                    event.visibility === "unlisted") &&
                     event.accessCode && (
-                    <button
-                      onClick={() => copyAccessCode(event.accessCode)}
-                      className="flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    >
-                      <Copy className="w-4 h-4 mr-1.5" />
-                      Code
-                    </button>
-                  )}
-                  
+                      <button
+                        onClick={() => copyAccessCode(event.accessCode)}
+                        className="flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      >
+                        <Copy className="w-4 h-4 mr-1.5" />
+                        Code
+                      </button>
+                    )}
+
                   <button
                     onClick={() => handleDeleteEvent(event._id)}
                     className="flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-md bg-red-100 text-red-700 hover:bg-red-200"
@@ -406,4 +422,6 @@ const ManageEvents = () => {
       )}
     </div>
   );
-  export default ManageEvents;
+};
+
+export default ManageEvents;
