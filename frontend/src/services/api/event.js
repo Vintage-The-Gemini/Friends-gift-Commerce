@@ -15,41 +15,46 @@ export const eventService = {
     try {
       console.log("Original event data:", eventData);
 
-      // Create a new object for the request
-      const requestData = { ...eventData };
+      // Create a new object with only the necessary fields
+      const requestData = {
+        title: eventData.title,
+        eventType: eventData.eventType,
+        description: eventData.description,
+        eventDate: eventData.eventDate,
+        endDate: eventData.endDate,
+        visibility: eventData.visibility,
+        targetAmount: eventData.targetAmount,
+      };
 
-      // Check if products is an array (not already stringified)
-      if (requestData.products && typeof requestData.products === "string") {
-        // Already a string, no need to change it
-        console.log("Products already stringified:", requestData.products);
-      } else if (Array.isArray(requestData.products)) {
-        // Convert array to string
-        console.log("Converting products array to string");
-        requestData.products = JSON.stringify(requestData.products);
-      } else if (
-        requestData.selectedProducts &&
-        Array.isArray(requestData.selectedProducts)
+      // Handle the products data - THIS IS THE KEY PART
+      if (
+        eventData.selectedProducts &&
+        Array.isArray(eventData.selectedProducts)
       ) {
-        // Handle case where products data is in selectedProducts
-        console.log("Using selectedProducts array");
-        const formattedProducts = requestData.selectedProducts.map((item) => ({
+        // Create a simple array of objects with just product ID and quantity
+        const productArray = eventData.selectedProducts.map((item) => ({
           product: item.product._id,
           quantity: parseInt(item.quantity) || 1,
         }));
-        requestData.products = JSON.stringify(formattedProducts);
-        // Remove the selectedProducts property as it's not needed on the server
-        delete requestData.selectedProducts;
+
+        // IMPORTANT: Do NOT stringify the array - send it directly
+        requestData.products = productArray;
+
+        console.log("Sending product array directly:", productArray);
       }
 
-      console.log("Sending request data:", requestData);
-
+      // Make the API request
       const response = await api.post(ENDPOINTS.BASE, requestData);
       return response.data;
     } catch (error) {
       console.error("[Event Service] Create Error:", error);
-      if (error.response?.data) {
-        console.error("Server error response:", error.response.data);
+
+      // Enhanced error logging
+      if (error.response) {
+        console.error("Response status:", error.response.status);
+        console.error("Response data:", error.response.data);
       }
+
       throw (
         error.response?.data || {
           success: false,
@@ -117,21 +122,27 @@ export const eventService = {
   updateEvent: async (eventId, eventData) => {
     try {
       // Copy eventData to avoid modifying the original object
-      const requestData = { ...eventData };
+      const requestData = {
+        title: eventData.title,
+        eventType: eventData.eventType,
+        description: eventData.description,
+        eventDate: eventData.eventDate,
+        endDate: eventData.endDate,
+        visibility: eventData.visibility,
+      };
 
-      // Format products data if needed
-      if (requestData.products && typeof requestData.products !== "string") {
-        requestData.products = JSON.stringify(requestData.products);
-      } else if (
-        requestData.selectedProducts &&
-        Array.isArray(requestData.selectedProducts)
+      // Handle selected products consistent with createEvent
+      if (
+        eventData.selectedProducts &&
+        Array.isArray(eventData.selectedProducts)
       ) {
-        const formattedProducts = requestData.selectedProducts.map((item) => ({
+        const productArray = eventData.selectedProducts.map((item) => ({
           product: item.product._id,
           quantity: parseInt(item.quantity) || 1,
         }));
-        requestData.products = JSON.stringify(formattedProducts);
-        delete requestData.selectedProducts;
+
+        // Do NOT stringify - send directly as array
+        requestData.products = productArray;
       }
 
       const response = await api.put(ENDPOINTS.DETAIL(eventId), requestData);

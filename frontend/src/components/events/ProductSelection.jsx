@@ -1,3 +1,4 @@
+// src/components/events/ProductSelection.jsx
 import React, { useState, useEffect } from "react";
 import { Search, Filter, Plus, Minus, X } from "lucide-react";
 import { productService } from "../../services/api/product";
@@ -66,7 +67,14 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
         if (reset) {
           setProducts(response.data);
         } else {
-          setProducts((prev) => [...prev, ...response.data]);
+          // Filter out any duplicates when appending new products
+          const newProducts = response.data.filter(
+            (newProduct) =>
+              !products.some(
+                (existingProduct) => existingProduct._id === newProduct._id
+              )
+          );
+          setProducts((prev) => [...prev, ...newProducts]);
         }
 
         // Check if there are more pages
@@ -221,9 +229,9 @@ const ProductSelection = ({ selectedProducts = [], onProductSelect }) => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {products.map((product) => (
+          {products.map((product, index) => (
             <div
-              key={`product-${product._id}`}
+              key={`product-${product._id}-${index}`}
               className={`border rounded-lg overflow-hidden cursor-pointer transition-all ${
                 isProductSelected(product._id)
                   ? "border-[#5551FF] ring-2 ring-[#5551FF]"

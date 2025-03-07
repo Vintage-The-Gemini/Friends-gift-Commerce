@@ -1,3 +1,4 @@
+// src/pages/events/CreateEvent.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ChevronRight, ChevronLeft } from "lucide-react";
@@ -72,19 +73,37 @@ const CreateEvent = () => {
     }
   };
 
+  // Enhanced product validation
   const validateProducts = () => {
     if (!formData.selectedProducts?.length) {
       throw new Error("Please select at least one product");
     }
 
-    formData.selectedProducts.forEach((item) => {
+    formData.selectedProducts.forEach((item, index) => {
       if (!item.product?._id) {
-        throw new Error("Invalid product selection");
+        throw new Error(
+          `Invalid product at position ${index + 1}. Missing product ID`
+        );
       }
+
       if (!item.quantity || item.quantity < 1) {
-        throw new Error("Product quantity must be at least 1");
+        throw new Error(
+          `Product ${item.product.name} must have a quantity of at least 1`
+        );
+      }
+
+      if (!item.product.price || isNaN(parseFloat(item.product.price))) {
+        throw new Error(`Product ${item.product.name} has an invalid price`);
       }
     });
+
+    // Log valid products structure for debugging
+    const validatedProducts = formData.selectedProducts.map((item) => ({
+      product: item.product._id,
+      quantity: parseInt(item.quantity),
+    }));
+    console.log("Validated products structure:", validatedProducts);
+    console.log("JSON string format:", JSON.stringify(validatedProducts));
   };
 
   const handleSubmit = async (e) => {
@@ -107,7 +126,13 @@ const CreateEvent = () => {
       // Calculate target amount from selected products
       const calculatedTargetAmount = calculateTargetAmount();
 
-      // Create event data object - don't stringify products here, let the service handle it
+      // Prepare the simplified products array
+      const simplifiedProducts = formData.selectedProducts.map((item) => ({
+        product: item.product._id,
+        quantity: parseInt(item.quantity) || 1,
+      }));
+
+      // Create event data object with proper formatted products array
       const eventData = {
         title: formData.title.trim(),
         eventType: formData.eventType,
@@ -116,13 +141,15 @@ const CreateEvent = () => {
         endDate: formData.endDate,
         visibility: formData.visibility,
         targetAmount: calculatedTargetAmount,
-        selectedProducts: formData.selectedProducts, // Pass the raw selected products
+        // Explicitly set the formats needed
+        products: JSON.stringify(simplifiedProducts),
+        // Keep the original array for other consumers
+        selectedProducts: formData.selectedProducts,
       };
 
       // Debug logs
       console.log("Creating event with data:", eventData);
-      console.log("Selected products:", formData.selectedProducts);
-      console.log("Calculated target amount:", calculatedTargetAmount);
+      console.log("Products as JSON string:", eventData.products);
 
       const response = await eventService.createEvent(eventData);
 
