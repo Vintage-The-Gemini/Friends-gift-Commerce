@@ -1,13 +1,12 @@
-// frontend/src/pages/admin/AdminLogin.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
-import api from "../../services/api/axios.config";
-import { useAuth } from "../../hooks/useAuth"; // Added import
+import axios from "axios"; // Directly using axios for this critical path
+import { useAuth } from "../../hooks/useAuth";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
-  const { setUser } = useAuth(); // Added hook usage
+  const { setUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -22,8 +21,15 @@ const AdminLogin = () => {
     setError("");
 
     try {
-      // Make sure the URL is correct
-      const response = await api.post("/admin/login", formData);
+      // Use the full API URL to bypass any path resolution issues
+      const apiUrl =
+        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const response = await axios.post(`${apiUrl}/admin/login`, {
+        ...formData,
+        role: "admin", // Explicitly set role as admin
+      });
+
+      console.log("Admin login response:", response.data);
 
       if (response.data.success) {
         // Store authentication data
@@ -33,6 +39,7 @@ const AdminLogin = () => {
         // Update auth context
         setUser(response.data.user);
 
+        // Navigate to admin dashboard
         navigate("/admin/dashboard");
       } else {
         throw new Error(response.data.message || "Login failed");

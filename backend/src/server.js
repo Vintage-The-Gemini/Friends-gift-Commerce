@@ -51,6 +51,7 @@ const contributionRoutes = require("./routes/contribution.routes");
 const analyticsRoutes = require("./routes/analytics.routes");
 const buyerRoutes = require("./routes/buyer");
 const initializeAdmin = require("./utils/initAdmin");
+const User = require("./models/User");
 
 // Mount routes
 app.use("/api/auth", authRoutes);
@@ -65,6 +66,25 @@ app.use("/api/seller/analytics", analyticsRoutes);
 app.use("/api/buyer", buyerRoutes);
 
 initializeAdmin();
+
+setTimeout(async () => {
+  try {
+    const adminUser = await User.findOne({ role: "admin" });
+    console.log(
+      "Admin user check:",
+      adminUser
+        ? {
+            exists: true,
+            id: adminUser._id,
+            phone: adminUser.phoneNumber,
+            active: adminUser.isActive,
+          }
+        : "No admin user found"
+    );
+  } catch (err) {
+    console.error("Admin check error:", err);
+  }
+}, 2000);
 
 // Basic route
 app.get("/api", (req, res) => {

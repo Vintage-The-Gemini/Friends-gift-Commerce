@@ -15,34 +15,92 @@ const generateToken = (id) => {
     expiresIn: "30d",
   });
 };
-
-// @desc    Admin login
-// @route   POST /api/admin/login
-// @access  Public
+// In adminLogin function in admin.controller.js
 exports.adminLogin = async (req, res) => {
   try {
+    console.log("=== ADMIN LOGIN ATTEMPT ===");
+    console.log("Request body:", {
+      phoneNumber: req.body.phoneNumber,
+      passwordProvided: !!req.body.password,
+      role: req.body.role || "not specified",
+    });
+
     const { phoneNumber, password } = req.body;
 
-    // Find admin user
-    const admin = await User.findOne({ phoneNumber, role: "admin" });
+    if (!phoneNumber || !password) {
+      console.log("Missing credentials");
+      return res.status(400).json({
+        success: false,
+        message: "Please provide phone number and password",
+      });
+    }
+
+    // Find admin user - explicitly check for admin role
+    console.log("Searching for admin with phone:", phoneNumber);
+
+    // First try exact match
+    let admin = await User.findOne({ phoneNumber, role: "admin" });
+    console.log("Exact match result:", admin ? "Found" : "Not Found");
+
+    // Try alternate formats if not found
     if (!admin) {
+      // Try without + if it has one
+      if (phoneNumber.startsWith("+")) {
+        const altPhone = phoneNumber.substring(1);
+        console.log("Trying alternate format without +:", altPhone);
+        admin = await User.findOne({ phoneNumber: altPhone, role: "admin" });
+        console.log("Alternate format result:", admin ? "Found" : "Not Found");
+      }
+      // Try with + if it doesn't have one
+      else {
+        const altPhone = `+${phoneNumber}`;
+        console.log("Trying alternate format with +:", altPhone);
+        admin = await User.findOne({ phoneNumber: altPhone, role: "admin" });
+        console.log("Alternate format result:", admin ? "Found" : "Not Found");
+      }
+    }
+
+    if (!admin) {
+      console.log("No admin user found with provided phone number");
+      // Search without role constraint to see if user exists with different role
+      const anyUser = await User.findOne({ phoneNumber });
+      if (anyUser) {
+        console.log("User exists but has role:", anyUser.role);
+      }
+
       return res.status(401).json({
         success: false,
-        message: "Invalid credentials",
+        message: "Invalid admin credentials",
       });
     }
 
     // Verify password
+    console.log("Admin found, verifying password");
+
+    // Log password details for debugging (REMOVE IN PRODUCTION)
+    console.log(
+      "Stored password hash:",
+      admin.password.substring(0, 10) + "..."
+    );
+
     const isMatch = await admin.matchPassword(password);
+    console.log("Password match result:", isMatch);
+
     if (!isMatch) {
+      console.log("Password mismatch");
       return res.status(401).json({
         success: false,
-        message: "Invalid credentials",
+        message: "Invalid admin credentials",
       });
     }
 
     // Generate token
-    const token = generateToken(admin._id);
+    console.log("Login successful, generating token");
+    const token = jwt.sign({ id: admin._id }, process.env.JWT_SECRET, {
+      expiresIn: "30d",
+    });
+
+    console.log("Admin login successful:", admin._id);
 
     res.json({
       success: true,
@@ -63,7 +121,6 @@ exports.adminLogin = async (req, res) => {
     });
   }
 };
-
 // @desc    Get dashboard stats
 // @route   GET /api/admin/dashboard/stats
 // @access  Admin only
