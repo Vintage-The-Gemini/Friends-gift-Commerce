@@ -1,3 +1,4 @@
+// src/components/events/CreateEventForm.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -6,6 +7,12 @@ import {
   DollarSign,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  EyeOff,
+  Users,
+  Globe,
+  Lock,
+  Link,
 } from "lucide-react";
 import ImageUpload from "../common/ImageUpload";
 import ProductSelection from "./ProductSelection";
@@ -21,6 +28,7 @@ const CreateEventForm = () => {
   const [formData, setFormData] = useState({
     title: "",
     eventType: "",
+    customEventType: "",
     description: "",
     eventDate: "",
     endDate: "",
@@ -37,10 +45,16 @@ const CreateEventForm = () => {
     { value: "babyShower", label: "Baby Shower" },
     { value: "houseWarming", label: "House Warming" },
     { value: "anniversary", label: "Anniversary" },
+    { value: "other", label: "Other (Custom)" }, // Added custom option
   ];
 
   // Validation logic for different steps
   const isStepOneValid = () => {
+    // Require customEventType if eventType is 'other'
+    if (formData.eventType === "other" && !formData.customEventType?.trim()) {
+      return false;
+    }
+
     return (
       formData.title?.trim() &&
       formData.eventType &&
@@ -89,21 +103,28 @@ const CreateEventForm = () => {
         eventDate: formData.eventDate,
         endDate: formData.endDate,
         visibility: formData.visibility,
-        targetAmount,
+        targetAmount: targetAmount,
         products: JSON.stringify(formattedProducts),
         image: formData.image,
       };
+
+      // Add customEventType if using "other" event type
+      if (formData.eventType === "other" && formData.customEventType) {
+        eventData.customEventType = formData.customEventType.trim();
+      }
+
+      console.log("Creating event with data:", eventData);
 
       const response = await eventService.createEvent(eventData);
 
       if (response.success) {
         toast.success("Event created successfully!");
-        navigate(`/events/${response.data._id}`);
+        navigate(`/events/${response.data.event._id}`);
       } else {
         throw new Error(response.message || "Failed to create event");
       }
     } catch (error) {
-      console.error("Error creating event:", error);
+      console.error("Error:", error);
       setError(error.message || "Failed to create event");
       toast.error(error.message || "Failed to create event");
     } finally {
@@ -139,9 +160,17 @@ const CreateEventForm = () => {
               </label>
               <select
                 value={formData.eventType}
-                onChange={(e) =>
-                  setFormData({ ...formData, eventType: e.target.value })
-                }
+                onChange={(e) => {
+                  setFormData({
+                    ...formData,
+                    eventType: e.target.value,
+                    // Reset customEventType if not selecting 'other'
+                    customEventType:
+                      e.target.value === "other"
+                        ? formData.customEventType
+                        : "",
+                  });
+                }}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#5551FF]"
                 required
               >
@@ -153,6 +182,28 @@ const CreateEventForm = () => {
                 ))}
               </select>
             </div>
+
+            {/* Custom Event Type field - shows only when "other" is selected */}
+            {formData.eventType === "other" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Custom Event Type <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.customEventType}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      customEventType: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#5551FF]"
+                  placeholder="Enter your custom event type"
+                  required
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -238,28 +289,89 @@ const CreateEventForm = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Event Visibility
               </label>
-              <select
-                value={formData.visibility}
-                onChange={(e) =>
-                  setFormData({ ...formData, visibility: e.target.value })
-                }
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#5551FF]"
-              >
-                <option value="public">Public (Anyone can view)</option>
-                <option value="private">
-                  Private (Only you and invited people)
-                </option>
-                <option value="unlisted">
-                  Unlisted (Only accessible via link)
-                </option>
-              </select>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div
+                  className={`border rounded-lg p-4 cursor-pointer hover:border-[#5551FF] transition-colors ${
+                    formData.visibility === "public"
+                      ? "border-[#5551FF] bg-[#5551FF]/5"
+                      : "border-gray-200"
+                  }`}
+                  onClick={() =>
+                    setFormData({ ...formData, visibility: "public" })
+                  }
+                >
+                  <div className="flex items-center mb-2">
+                    <Globe
+                      className={`w-5 h-5 mr-2 ${
+                        formData.visibility === "public"
+                          ? "text-[#5551FF]"
+                          : "text-gray-500"
+                      }`}
+                    />
+                    <span className="font-medium">Public</span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Anyone can discover and view this event
+                  </p>
+                </div>
+
+                <div
+                  className={`border rounded-lg p-4 cursor-pointer hover:border-[#5551FF] transition-colors ${
+                    formData.visibility === "private"
+                      ? "border-[#5551FF] bg-[#5551FF]/5"
+                      : "border-gray-200"
+                  }`}
+                  onClick={() =>
+                    setFormData({ ...formData, visibility: "private" })
+                  }
+                >
+                  <div className="flex items-center mb-2">
+                    <Lock
+                      className={`w-5 h-5 mr-2 ${
+                        formData.visibility === "private"
+                          ? "text-[#5551FF]"
+                          : "text-gray-500"
+                      }`}
+                    />
+                    <span className="font-medium">Private</span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Only you and invited people can view this event
+                  </p>
+                </div>
+
+                <div
+                  className={`border rounded-lg p-4 cursor-pointer hover:border-[#5551FF] transition-colors ${
+                    formData.visibility === "unlisted"
+                      ? "border-[#5551FF] bg-[#5551FF]/5"
+                      : "border-gray-200"
+                  }`}
+                  onClick={() =>
+                    setFormData({ ...formData, visibility: "unlisted" })
+                  }
+                >
+                  <div className="flex items-center mb-2">
+                    <Link
+                      className={`w-5 h-5 mr-2 ${
+                        formData.visibility === "unlisted"
+                          ? "text-[#5551FF]"
+                          : "text-gray-500"
+                      }`}
+                    />
+                    <span className="font-medium">Unlisted</span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Only people with the direct link can view this event
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-4">
                 Select Products <span className="text-red-500">*</span>
               </label>
               <ProductSelection

@@ -60,9 +60,15 @@ export const eventService = {
     }
   },
 
-  getEvent: async (eventId) => {
+  getEvent: async (eventId, accessCode = null) => {
     try {
-      const response = await api.get(ENDPOINTS.DETAIL(eventId));
+      let url = ENDPOINTS.DETAIL(eventId);
+      // Add access code as query param if provided (for private/unlisted events)
+      if (accessCode) {
+        url += `?accessCode=${accessCode}`;
+      }
+
+      const response = await api.get(url);
       return response.data;
     } catch (error) {
       console.error("[Event Service] Get Event Error:", error);
@@ -139,6 +145,33 @@ export const eventService = {
     }
   },
 
+  getInvitedEvents: async (filters = {}) => {
+    try {
+      // Build query params
+      const params = new URLSearchParams();
+
+      if (filters.page) params.append("page", filters.page);
+      if (filters.limit) params.append("limit", filters.limit);
+
+      const queryString = params.toString();
+      const url = queryString
+        ? `/events/user/invited?${queryString}`
+        : "/events/user/invited";
+
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      console.error("[Event Service] Get Invited Events Error:", error);
+      throw (
+        error.response?.data || {
+          success: false,
+          message: "Failed to fetch invited events",
+          error: error.message,
+        }
+      );
+    }
+  },
+
   getEventStats: async (eventId) => {
     try {
       const response = await api.get(ENDPOINTS.STATS(eventId));
@@ -158,7 +191,7 @@ export const eventService = {
   inviteUsers: async (eventId, emails) => {
     try {
       const response = await api.post(`${ENDPOINTS.DETAIL(eventId)}/invite`, {
-        emails,
+        invites: emails,
       });
       return response.data;
     } catch (error) {
@@ -167,24 +200,6 @@ export const eventService = {
         error.response?.data || {
           success: false,
           message: "Failed to send invitations",
-          error: error.message,
-        }
-      );
-    }
-  },
-
-  getInvitations: async (eventId) => {
-    try {
-      const response = await api.get(
-        `${ENDPOINTS.DETAIL(eventId)}/invitations`
-      );
-      return response.data;
-    } catch (error) {
-      console.error("[Event Service] Get Invitations Error:", error);
-      throw (
-        error.response?.data || {
-          success: false,
-          message: "Failed to fetch invitations",
           error: error.message,
         }
       );
