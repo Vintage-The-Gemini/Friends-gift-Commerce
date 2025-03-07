@@ -13,48 +13,60 @@ const ENDPOINTS = {
 export const eventService = {
   createEvent: async (eventData) => {
     try {
-      console.log("Original event data:", eventData);
+      // Create a FormData object to properly handle file uploads
+      const formData = new FormData();
 
-      // Create a new object with only the necessary fields
-      const requestData = {
-        title: eventData.title,
-        eventType: eventData.eventType,
-        description: eventData.description,
-        eventDate: eventData.eventDate,
-        endDate: eventData.endDate,
-        visibility: eventData.visibility,
-        targetAmount: eventData.targetAmount,
-      };
+      // Add basic event data
+      formData.append("title", eventData.title);
+      formData.append("eventType", eventData.eventType);
+      formData.append("description", eventData.description);
+      formData.append("eventDate", eventData.eventDate);
+      formData.append("endDate", eventData.endDate);
+      formData.append("visibility", eventData.visibility);
+      formData.append("targetAmount", eventData.targetAmount);
 
-      // Handle the products data - THIS IS THE KEY PART
+      // For custom event types
+      if (eventData.eventType === "other" && eventData.customEventType) {
+        formData.append("customEventType", eventData.customEventType);
+      }
+
+      // Handle products - THIS IS THE KEY PART
       if (
         eventData.selectedProducts &&
         Array.isArray(eventData.selectedProducts)
       ) {
-        // Create a simple array of objects with just product ID and quantity
-        const productArray = eventData.selectedProducts.map((item) => ({
+        // Convert selected products to the format expected by backend
+        const productsArray = eventData.selectedProducts.map((item) => ({
           product: item.product._id,
           quantity: parseInt(item.quantity) || 1,
         }));
 
-        // IMPORTANT: Do NOT stringify the array - send it directly
-        requestData.products = productArray;
-
-        console.log("Sending product array directly:", productArray);
+        // Stringify the products array and append it
+        formData.append("products", JSON.stringify(productsArray));
       }
 
-      // Make the API request
-      const response = await api.post(ENDPOINTS.BASE, requestData);
+      // Handle image if provided
+      if (eventData.image) {
+        // If image is a file, append directly
+        if (eventData.image instanceof File) {
+          formData.append("image", eventData.image);
+        }
+        // If image is a URL/string, append as is
+        else if (typeof eventData.image === "string") {
+          formData.append("image", eventData.image);
+        }
+      }
+
+      // Send the request with proper headers for FormData
+      const response = await api.post(ENDPOINTS.BASE, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
       return response.data;
     } catch (error) {
       console.error("[Event Service] Create Error:", error);
-
-      // Enhanced error logging
-      if (error.response) {
-        console.error("Response status:", error.response.status);
-        console.error("Response data:", error.response.data);
-      }
-
       throw (
         error.response?.data || {
           success: false,
@@ -131,6 +143,16 @@ export const eventService = {
         visibility: eventData.visibility,
       };
 
+      // Add customEventType if it exists (for "other" event type)
+      if (eventData.customEventType) {
+        requestData.customEventType = eventData.customEventType;
+      }
+
+      // Add image if it exists
+      if (eventData.image) {
+        requestData.image = eventData.image;
+      }
+
       // Handle selected products consistent with createEvent
       if (
         eventData.selectedProducts &&
@@ -141,8 +163,8 @@ export const eventService = {
           quantity: parseInt(item.quantity) || 1,
         }));
 
-        // Do NOT stringify - send directly as array
-        requestData.products = productArray;
+        // IMPORTANT: Backend expects a stringified JSON array
+        requestData.products = JSON.stringify(productArray);
       }
 
       const response = await api.put(ENDPOINTS.DETAIL(eventId), requestData);

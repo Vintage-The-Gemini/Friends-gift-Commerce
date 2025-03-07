@@ -93,6 +93,20 @@ exports.createEvent = async (req, res) => {
       eventData.customEventType = customEventType.trim();
     }
 
+    let productsList = [];
+    if (products) {
+      try {
+        productsList = JSON.parse(products);
+        // Validate product data here...
+      } catch (error) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid products format",
+          error: error.message,
+        });
+      }
+    }
+
     // Validate and process products
     if (products) {
       try {
