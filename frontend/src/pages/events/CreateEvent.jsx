@@ -87,29 +87,27 @@ const CreateEvent = () => {
     });
   };
 
-  // src/pages/events/CreateEvent.jsx
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
+      // Basic validation
+      if (!formData.title?.trim()) throw new Error("Event title is required");
+      if (!formData.eventType) throw new Error("Event type is required");
+      if (!formData.description?.trim())
+        throw new Error("Description is required");
+      if (!formData.eventDate) throw new Error("Event date is required");
+      if (!formData.endDate) throw new Error("End date is required");
+
+      validateDates();
+      validateProducts();
+
       // Calculate target amount from selected products
-      const calculatedTargetAmount = formData.selectedProducts.reduce(
-        (total, item) => {
-          return total + item.product.price * item.quantity;
-        },
-        0
-      );
+      const calculatedTargetAmount = calculateTargetAmount();
 
-      // Format products data
-      const formattedProducts = formData.selectedProducts.map((item) => ({
-        product: item.product._id,
-        quantity: parseInt(item.quantity) || 1,
-      }));
-
-      // Create event data object
+      // Create event data object - don't stringify products here, let the service handle it
       const eventData = {
         title: formData.title.trim(),
         eventType: formData.eventType,
@@ -117,20 +115,20 @@ const CreateEvent = () => {
         eventDate: formData.eventDate,
         endDate: formData.endDate,
         visibility: formData.visibility,
-        targetAmount: calculatedTargetAmount, // Use calculated amount
-        products: JSON.stringify(formattedProducts),
+        targetAmount: calculatedTargetAmount,
+        selectedProducts: formData.selectedProducts, // Pass the raw selected products
       };
 
       // Debug logs
       console.log("Creating event with data:", eventData);
-      console.log("Formatted products:", formattedProducts);
+      console.log("Selected products:", formData.selectedProducts);
       console.log("Calculated target amount:", calculatedTargetAmount);
 
       const response = await eventService.createEvent(eventData);
 
       if (response.success) {
         toast.success("Event created successfully!");
-        navigate(`/events/${response.data._id}`);
+        navigate(`/events/${response.data._id || response.data.event._id}`);
       } else {
         throw new Error(response.message || "Failed to create event");
       }
@@ -362,7 +360,7 @@ const CreateEvent = () => {
                     <div className="space-y-2">
                       {formData.selectedProducts.map((item, index) => (
                         <div
-                          key={index}
+                          key={`summary-${item.product._id}-${index}`}
                           className="flex justify-between text-sm"
                         >
                           <span>

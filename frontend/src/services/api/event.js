@@ -1,5 +1,4 @@
-// src/services/api/event.js - Fixed version
-
+// src/services/api/event.js
 import api from "./axios.config";
 
 // API endpoints
@@ -14,35 +13,43 @@ const ENDPOINTS = {
 export const eventService = {
   createEvent: async (eventData) => {
     try {
-      // Fix - Convert 'products' property if it's a JSON string to an actual array
-      const formattedData = { ...eventData };
+      console.log("Original event data:", eventData);
 
-      // If products is a string that's actually a JSON array, parse it
-      if (typeof formattedData.products === "string") {
-        try {
-          // Check if the string is already a valid JSON array
-          const parsed = JSON.parse(formattedData.products);
+      // Create a new object for the request
+      const requestData = { ...eventData };
 
-          // If it's an array, use it directly, otherwise keep as string
-          // (server may expect string format)
-          if (!Array.isArray(parsed)) {
-            console.log("Warning: Parsed products is not an array", parsed);
-          }
-        } catch (err) {
-          console.error("Error parsing products JSON:", err);
-          // If parsing fails, create a new array with the products
-          formattedData.products = JSON.stringify(eventData.products);
-        }
-      } else if (Array.isArray(eventData.products)) {
-        // If it's already an array, stringify it
-        formattedData.products = JSON.stringify(eventData.products);
+      // Check if products is an array (not already stringified)
+      if (requestData.products && typeof requestData.products === "string") {
+        // Already a string, no need to change it
+        console.log("Products already stringified:", requestData.products);
+      } else if (Array.isArray(requestData.products)) {
+        // Convert array to string
+        console.log("Converting products array to string");
+        requestData.products = JSON.stringify(requestData.products);
+      } else if (
+        requestData.selectedProducts &&
+        Array.isArray(requestData.selectedProducts)
+      ) {
+        // Handle case where products data is in selectedProducts
+        console.log("Using selectedProducts array");
+        const formattedProducts = requestData.selectedProducts.map((item) => ({
+          product: item.product._id,
+          quantity: parseInt(item.quantity) || 1,
+        }));
+        requestData.products = JSON.stringify(formattedProducts);
+        // Remove the selectedProducts property as it's not needed on the server
+        delete requestData.selectedProducts;
       }
 
-      console.log("Sending formatted data to API:", formattedData);
-      const response = await api.post(ENDPOINTS.BASE, formattedData);
+      console.log("Sending request data:", requestData);
+
+      const response = await api.post(ENDPOINTS.BASE, requestData);
       return response.data;
     } catch (error) {
       console.error("[Event Service] Create Error:", error);
+      if (error.response?.data) {
+        console.error("Server error response:", error.response.data);
+      }
       throw (
         error.response?.data || {
           success: false,
@@ -71,7 +78,6 @@ export const eventService = {
         ? `${ENDPOINTS.BASE}?${queryString}`
         : ENDPOINTS.BASE;
 
-      console.log("Fetching events from:", url);
       const response = await api.get(url);
       return response.data;
     } catch (error) {
@@ -110,23 +116,25 @@ export const eventService = {
 
   updateEvent: async (eventId, eventData) => {
     try {
-      // Apply the same fix for updating events
-      const formattedData = { ...eventData };
+      // Copy eventData to avoid modifying the original object
+      const requestData = { ...eventData };
 
-      if (typeof formattedData.products === "string") {
-        try {
-          JSON.parse(formattedData.products);
-          // Keep it as is if already properly formatted JSON string
-        } catch (err) {
-          // If parsing fails, create a new array with the products
-          formattedData.products = JSON.stringify(eventData.products);
-        }
-      } else if (Array.isArray(eventData.products)) {
-        // If it's already an array, stringify it
-        formattedData.products = JSON.stringify(eventData.products);
+      // Format products data if needed
+      if (requestData.products && typeof requestData.products !== "string") {
+        requestData.products = JSON.stringify(requestData.products);
+      } else if (
+        requestData.selectedProducts &&
+        Array.isArray(requestData.selectedProducts)
+      ) {
+        const formattedProducts = requestData.selectedProducts.map((item) => ({
+          product: item.product._id,
+          quantity: parseInt(item.quantity) || 1,
+        }));
+        requestData.products = JSON.stringify(formattedProducts);
+        delete requestData.selectedProducts;
       }
 
-      const response = await api.put(ENDPOINTS.DETAIL(eventId), formattedData);
+      const response = await api.put(ENDPOINTS.DETAIL(eventId), requestData);
       return response.data;
     } catch (error) {
       console.error("[Event Service] Update Error:", error);
@@ -158,8 +166,6 @@ export const eventService = {
 
   getUserEvents: async (filters = {}) => {
     try {
-      console.log("Fetching user events with filters:", filters);
-
       // Build query params
       const params = new URLSearchParams();
 
@@ -172,7 +178,6 @@ export const eventService = {
         ? `${ENDPOINTS.MY_EVENTS}?${queryString}`
         : ENDPOINTS.MY_EVENTS;
 
-      console.log("Fetching user events from:", url);
       const response = await api.get(url);
       return response.data;
     } catch (error) {
