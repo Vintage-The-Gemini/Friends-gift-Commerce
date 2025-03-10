@@ -4,7 +4,7 @@ import api from "./axios.config";
 // API endpoints
 const ENDPOINTS = {
   BASE: "/events",
-  MY_EVENTS: "/events/user",
+  MY_EVENTS: "/events/my-events",
   DETAIL: (id) => `/events/${id}`,
   STATS: (id) => `/events/${id}/stats`,
 };
@@ -257,6 +257,7 @@ export const eventService = {
         ? `${ENDPOINTS.MY_EVENTS}?${queryString}`
         : ENDPOINTS.MY_EVENTS;
 
+      console.log("Fetching user events from:", url);
       const response = await api.get(url);
       return response.data;
     } catch (error) {
