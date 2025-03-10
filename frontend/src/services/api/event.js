@@ -13,6 +13,8 @@ const ENDPOINTS = {
 export const eventService = {
   createEvent: async (eventData) => {
     try {
+      console.log("Creating event with data:", eventData);
+
       // Create a FormData object to properly handle file uploads
       const formData = new FormData();
 
@@ -22,13 +24,26 @@ export const eventService = {
       formData.append("description", eventData.description);
       formData.append("eventDate", eventData.eventDate);
       formData.append("endDate", eventData.endDate);
-      formData.append("visibility", eventData.visibility);
+      formData.append("visibility", eventData.visibility || "public");
       formData.append("targetAmount", eventData.targetAmount);
 
       // For custom event types
       if (eventData.eventType === "other" && eventData.customEventType) {
         formData.append("customEventType", eventData.customEventType);
       }
+
+      // Debug logging for products
+      console.log(
+        "Selected products before processing:",
+        eventData.selectedProducts
+          ? JSON.stringify(
+              eventData.selectedProducts.map((p) => ({
+                id: p.product._id,
+                name: p.product.name,
+              }))
+            )
+          : "none"
+      );
 
       // Handle products - THIS IS THE KEY PART
       if (
@@ -41,32 +56,62 @@ export const eventService = {
           quantity: parseInt(item.quantity) || 1,
         }));
 
+        console.log("Processed products array:", productsArray);
+        const productsJson = JSON.stringify(productsArray);
+        console.log("Stringified products:", productsJson);
+
         // Stringify the products array and append it
-        formData.append("products", JSON.stringify(productsArray));
+        formData.append("products", productsJson);
+      } else if (eventData.products && typeof eventData.products === "string") {
+        // If products is already a JSON string, use it directly
+        console.log("Using pre-formatted products JSON:", eventData.products);
+        formData.append("products", eventData.products);
+      } else {
+        console.warn(
+          "No products or invalid products format:",
+          eventData.selectedProducts || eventData.products
+        );
       }
 
       // Handle image if provided
       if (eventData.image) {
         // If image is a file, append directly
         if (eventData.image instanceof File) {
+          console.log("Appending image file:", eventData.image.name);
           formData.append("image", eventData.image);
         }
         // If image is a URL/string, append as is
         else if (typeof eventData.image === "string") {
+          console.log("Appending image URL");
           formData.append("image", eventData.image);
         }
       }
 
+      // Debug what's in formData
+      console.log("FormData contents:");
+      for (let pair of formData.entries()) {
+        // Don't log the full image data
+        if (pair[0] === "image" && !(typeof pair[1] === "string")) {
+          console.log("image: [File object]");
+        } else {
+          console.log(pair[0] + ": " + pair[1]);
+        }
+      }
+
       // Send the request with proper headers for FormData
+      console.log("Sending request to:", ENDPOINTS.BASE);
       const response = await api.post(ENDPOINTS.BASE, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
       });
 
+      console.log("Event creation response:", response.data);
       return response.data;
     } catch (error) {
       console.error("[Event Service] Create Error:", error);
+      console.error("Error details:", error.response?.data);
+
       throw (
         error.response?.data || {
           success: false,
@@ -167,6 +212,7 @@ export const eventService = {
         requestData.products = JSON.stringify(productArray);
       }
 
+      console.log("Updating event with data:", requestData);
       const response = await api.put(ENDPOINTS.DETAIL(eventId), requestData);
       return response.data;
     } catch (error) {

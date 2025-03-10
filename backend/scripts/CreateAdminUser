@@ -1,0 +1,94 @@
+// backend/scripts/createAdminUser.js
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const dotenv = require('dotenv');
+
+// Load environment variables
+dotenv.config();
+
+// Connect to MongoDB
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+}).then(() => {
+  console.log('MongoDB Connected');
+}).catch(err => {
+  console.error('MongoDB connection error:', err);
+  process.exit(1);
+});
+
+// Define a simplified User model that matches your existing one
+const userSchema = new mongoose.Schema({
+  name: String,
+  phoneNumber: String,
+  password: String,
+  role: String,
+  isActive: Boolean,
+  createdAt: { 
+    type: Date, 
+    default: Date.now 
+  }
+});
+
+// Use the existing model or create a temporary one
+const User = mongoose.model('User', userSchema);
+
+// Admin credentials
+const ADMIN_DETAILS = {
+  name: 'System Admin',
+  phoneNumber: '+254700000000',
+  password: 'admin123', // Change this to a secure password
+  role: 'admin',
+  isActive: true
+};
+
+const createAdminUser = async () => {
+  try {
+    // Check if admin user already exists
+    const existingAdmin = await User.findOne({ 
+      $or: [
+        { phoneNumber: ADMIN_DETAILS.phoneNumber, role: 'admin' },
+        { name: ADMIN_DETAILS.name, role: 'admin' }
+      ]
+    });
+    
+    if (existingAdmin) {
+      console.log('Admin user already exists with ID:', existingAdmin._id);
+      console.log('Phone:', existingAdmin.phoneNumber);
+      console.log('Name:', existingAdmin.name);
+      
+      // Ask if user wants to reset the password
+      console.log('\nWould you like to reset the password? (Cannot do in this script)');
+      return;
+    }
+    
+    // Generate salt and hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(ADMIN_DETAILS.password, salt);
+    
+    // Create new admin user
+    const newAdmin = new User({
+      name: ADMIN_DETAILS.name,
+      phoneNumber: ADMIN_DETAILS.phoneNumber,
+      password: hashedPassword,
+      role: ADMIN_DETAILS.role,
+      isActive: ADMIN_DETAILS.isActive
+    });
+    
+    await newAdmin.save();
+    
+    console.log('New admin user created successfully!');
+    console.log('Admin ID:', newAdmin._id);
+    console.log('Admin credentials:');
+    console.log('Phone:', ADMIN_DETAILS.phoneNumber);
+    console.log('Password:', ADMIN_DETAILS.password);
+    
+  } catch (error) {
+    console.error('Error creating admin user:', error);
+  } finally {
+    // Close the connection
+    mongoose.connection.close();
+  }
+};
+
+createAdminUser();

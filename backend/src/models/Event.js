@@ -1,5 +1,6 @@
 // backend/src/models/Event.js
 const mongoose = require("mongoose");
+const crypto = require("crypto");
 
 const eventSchema = new mongoose.Schema(
   {
@@ -58,6 +59,13 @@ const eventSchema = new mongoose.Schema(
     accessCode: {
       type: String,
       // For providing access to private events with a code
+    },
+    // Add the shareableLink field definition here
+    shareableLink: {
+      type: String,
+      default: function () {
+        return crypto.randomBytes(8).toString("hex");
+      },
     },
     invitedUsers: [
       {
@@ -139,5 +147,7 @@ eventSchema.virtual("progressPercentage").get(function () {
 eventSchema.index({ creator: 1, status: 1 });
 eventSchema.index({ visibility: 1, status: 1 });
 eventSchema.index({ eventDate: 1 });
+// Change the shareableLink index to not be unique
+eventSchema.index({ shareableLink: 1 }, { unique: false });
 
 module.exports = mongoose.model("Event", eventSchema);

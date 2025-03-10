@@ -1,3 +1,4 @@
+// frontend/src/pages/admin/AdminLogin.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
@@ -24,8 +25,17 @@ const AdminLogin = () => {
       // Use the full API URL to bypass any path resolution issues
       const apiUrl =
         import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+      console.log("Sending admin login request to:", `${apiUrl}/admin/login`);
+      console.log("With payload:", {
+        phoneNumber: formData.phoneNumber,
+        password: formData.password,
+        role: "admin",
+      });
+
       const response = await axios.post(`${apiUrl}/admin/login`, {
-        ...formData,
+        phoneNumber: formData.phoneNumber,
+        password: formData.password,
         role: "admin", // Explicitly set role as admin
       });
 

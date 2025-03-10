@@ -12,7 +12,7 @@ const generateAccessCode = () => {
 
 exports.createEvent = async (req, res) => {
   try {
-    console.log("Received event creation request:", req.body);
+    console.log("Creating event with data:", req.body);
 
     const {
       title,
@@ -68,8 +68,33 @@ exports.createEvent = async (req, res) => {
       }
     }
 
-    // Prepare event data
-    const eventData = {
+    // Generate unique shareableLink - GUARANTEED to be set
+    const shareableLink = crypto.randomBytes(8).toString("hex");
+    console.log("Generated shareableLink:", shareableLink);
+
+    // Process products if provided
+    let productData = [];
+    if (products) {
+      try {
+        const productsList = JSON.parse(products);
+        for (const item of productsList) {
+          productData.push({
+            product: item.product,
+            quantity: parseInt(item.quantity) || 1,
+            status: "pending",
+          });
+        }
+      } catch (error) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid products format",
+          error: error.message,
+        });
+      }
+    }
+
+    // Create event object explicitly with all fields
+    const eventObj = {
       title: title.trim(),
       creator: req.user._id,
       eventType,
@@ -81,171 +106,40 @@ exports.createEvent = async (req, res) => {
       status: "active",
       endDate,
       image: imageUrl,
+      products: productData,
+      shareableLink: shareableLink, // Explicitly set
     };
 
     // Generate access code for private/unlisted events
     if (visibility === "private" || visibility === "unlisted") {
-      eventData.accessCode = generateAccessCode();
+      eventObj.accessCode = generateAccessCode();
     }
 
     // Handle custom event type
     if (eventType === "other" && customEventType) {
-      eventData.customEventType = customEventType.trim();
+      eventObj.customEventType = customEventType.trim();
     }
 
-    let productsList = [];
-    if (products) {
-      try {
-        productsList = JSON.parse(products);
-        // Validate product data here...
-      } catch (error) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid products format",
-          error: error.message,
-        });
-      }
-    }
+    console.log(
+      "Final event object being saved:",
+      JSON.stringify(eventObj, null, 2)
+    );
 
-    // Validate and process products
-    if (products) {
-      try {
-        const productsList = JSON.parse(products);
-        const sellerOrders = new Map(); // Group products by seller
+    // Create the event using direct object creation
+    const event = await Event.create(eventObj);
+    console.log("Event created with ID:", event._id);
 
-        // Validate product data
-        const validatedProducts = [];
-        for (const item of productsList) {
-          const product = await Product.findById(item.product).populate(
-            "seller",
-            "name businessName"
-          );
+    // Return the created event with populated fields
+    const populatedEvent = await Event.findById(event._id)
+      .populate("creator", "name")
+      .populate("products.product", "name price images");
 
-          if (!product) {
-            return res.status(400).json({
-              success: false,
-              message: `Product ${item.product} not found`,
-            });
-          }
-
-          // Validate quantity
-          const quantity = parseInt(item.quantity) || 1;
-          if (quantity < 1) {
-            return res.status(400).json({
-              success: false,
-              message: "Product quantity must be at least 1",
-            });
-          }
-
-          if (quantity > product.stock) {
-            return res.status(400).json({
-              success: false,
-              message: `Insufficient stock for product: ${product.name}`,
-            });
-          }
-
-          validatedProducts.push({
-            product: product,
-            quantity: quantity,
-            status: "pending",
-          });
-
-          // Group by seller
-          const sellerId = product.seller._id.toString();
-          if (!sellerOrders.has(sellerId)) {
-            sellerOrders.set(sellerId, []);
-          }
-          sellerOrders.get(sellerId).push({ product, quantity });
-        }
-
-        // Add validated products to event data
-        eventData.products = validatedProducts.map((item) => ({
-          product: item.product._id,
-          quantity: item.quantity,
-          status: "pending",
-        }));
-
-        // Create event
-        const event = await Event.create(eventData);
-
-        // Create orders for each seller
-        const orderPromises = Array.from(sellerOrders.entries()).map(
-          async ([sellerId, products]) => {
-            const orderTotal = products.reduce(
-              (sum, item) => sum + item.product.price * item.quantity,
-              0
-            );
-
-            const order = await Order.create({
-              event: event._id,
-              products: products.map((item) => ({
-                product: item.product._id,
-                quantity: item.quantity,
-                price: item.product.price,
-                status: "pending",
-              })),
-              totalAmount: orderTotal,
-              seller: sellerId,
-              buyer: req.user._id,
-              status: "pending",
-              eventType,
-              timeline: [
-                {
-                  status: "pending",
-                  description: "Order created",
-                  timestamp: new Date(),
-                },
-              ],
-              // Add default shipping details
-              shippingDetails: {
-                address: "To be updated",
-                city: "To be updated",
-                phone: req.user.phoneNumber || "To be updated",
-                notes: "Shipping details will be updated before processing",
-              },
-            });
-
-            event.orders.push(order._id);
-            return order;
-          }
-        );
-
-        const orders = await Promise.all(orderPromises);
-        await event.save();
-
-        // Populate event details
-        await event.populate([
-          { path: "creator", select: "name" },
-          {
-            path: "products.product",
-            select: "name price images description",
-          },
-          {
-            path: "orders",
-            select: "status totalAmount",
-            populate: {
-              path: "seller",
-              select: "name businessName",
-            },
-          },
-        ]);
-
-        res.status(201).json({
-          success: true,
-          data: {
-            event,
-            orders,
-          },
-        });
-      } catch (error) {
-        console.error("Products parsing error:", error);
-        return res.status(400).json({
-          success: false,
-          message: "Invalid products format",
-          error: error.message,
-        });
-      }
-    }
+    res.status(201).json({
+      success: true,
+      data: {
+        event: populatedEvent,
+      },
+    });
   } catch (error) {
     console.error("Event creation error:", error);
     res.status(400).json({
