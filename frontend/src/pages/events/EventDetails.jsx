@@ -1,4 +1,3 @@
-// frontend/src/pages/events/EventDetails.jsx
 import React, { useState, useEffect } from "react";
 import {
   useParams,
@@ -118,16 +117,18 @@ const EventDetails = () => {
   };
 
   const handleDelete = async () => {
-    try {
-      if (!deleteConfirm) {
-        setDeleteConfirm(true);
-        return;
-      }
+    if (!deleteConfirm) {
+      setDeleteConfirm(true);
+      return;
+    }
 
+    try {
       const response = await eventService.deleteEvent(id);
       if (response.success) {
         toast.success("Event deleted successfully");
         navigate("/events");
+      } else {
+        throw new Error(response.message || "Failed to delete event");
       }
     } catch (error) {
       toast.error(error.message || "Failed to delete event");
@@ -480,7 +481,7 @@ const EventDetails = () => {
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
             Gift Registry
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {event.products?.map((item) => (
               <div
                 key={item.product._id}

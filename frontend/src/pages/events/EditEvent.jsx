@@ -1,3 +1,4 @@
+// frontend/src/pages/events/EditEvent.jsx
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { ChevronLeft, Save, Trash2 } from "lucide-react";

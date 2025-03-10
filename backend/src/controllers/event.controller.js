@@ -454,9 +454,6 @@ exports.inviteUsers = async (req, res) => {
 
     await event.save();
 
-    // Here you would typically send email/SMS to invitees
-    // That part would be implemented separately
-
     res.json({
       success: true,
       message: "Invitations sent successfully",
