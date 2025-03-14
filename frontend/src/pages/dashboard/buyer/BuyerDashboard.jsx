@@ -16,7 +16,7 @@ const BuyerDashboard = () => {
 
   useEffect(() => {
     fetchUserEvents();
-  }, [activeTab]);
+  }, [activeTab]); // Added activeTab as dependency
 
   const fetchUserEvents = async () => {
     try {
