@@ -310,66 +310,99 @@ exports.getUserEvents = async (req, res) => {
   }
 };
 
-// Fix 3: Improved getEvent function to properly handle private events
-// Path: backend/src/controllers/event.controller.js
-
-exports.getEvent = async (req, res) => {
+// Fixed getEvents function for public events
+exports.getEvents = async (req, res) => {
   try {
-    const event = await Event.findById(req.params.id)
-      .populate("creator", "name")
-      .populate({
-        path: "products.product",
-        select: "name price images description stock",
-      })
-      .populate("contributions.contributor", "name");
+    // Build query based on visibility and user
+    const query = {};
 
-    if (!event) {
-      return res.status(404).json({
-        success: false,
-        message: "Event not found",
-      });
+    // Filter by status if provided
+    if (req.query.status) {
+      query.status = req.query.status;
     }
 
-    // Check visibility permissions
-    if (event.visibility === "private") {
-      // For private events, only creator, admin, or invited users can access
-      const isCreator =
-        req.user && event.creator._id.toString() === req.user._id.toString();
-      const isAdmin = req.user && req.user.role === "admin";
-      const isInvited =
-        req.user &&
-        event.invitedUsers &&
-        event.invitedUsers.some(
-          (user) =>
-            (user.phoneNumber && user.phoneNumber === req.user.phoneNumber) ||
-            (user.email && user.email === req.user.email)
-        );
-      const hasAccessCode =
-        req.query.accessCode && req.query.accessCode === event.accessCode;
+    // Filter by visibility - default to showing only public events
+    if (req.query.visibility) {
+      query.visibility = req.query.visibility;
+    } else {
+      // If no visibility specified, default to public
+      query.visibility = "public";
+    }
 
-      if (!isCreator && !isAdmin && !isInvited && !hasAccessCode) {
-        return res.status(403).json({
-          success: false,
-          message: "Not authorized to view this private event",
-          errorType: "accessDenied",
-        });
+    // If authenticated user wants to see their own events regardless of visibility
+    if (req.user && req.query.includeOwn === "true") {
+      query.$or = [{ visibility: "public" }, { creator: req.user._id }];
+
+      // If we're using $or, remove the default visibility filter
+      delete query.visibility;
+    }
+
+    // Add event type filter
+    if (req.query.eventType) {
+      query.eventType = req.query.eventType;
+    }
+
+    // Add date filters
+    if (req.query.startDate) {
+      query.eventDate = { $gte: new Date(req.query.startDate) };
+    }
+    if (req.query.endDate) {
+      query.endDate = { $lte: new Date(req.query.endDate) };
+    }
+
+    // Add search functionality
+    if (req.query.search) {
+      const searchOr = [
+        { title: { $regex: req.query.search, $options: "i" } },
+        { description: { $regex: req.query.search, $options: "i" } },
+      ];
+
+      // Add $or to the existing query correctly
+      if (query.$or) {
+        // If we already have $or conditions, we need to use $and to combine them
+        query.$and = [{ $or: query.$or }, { $or: searchOr }];
+        delete query.$or;
+      } else {
+        query.$or = searchOr;
       }
-    } else if (event.visibility === "unlisted") {
-      // For unlisted events, you need the direct link (with ID) or access code
-      // Just having the ID is enough for unlisted events (that's the point of unlisted)
-      // Additional access code check is optional
     }
 
-    // If we've reached here, the user can access the event
+    // Log the final query for debugging
+    console.log("Public events query:", JSON.stringify(query));
+
+    // Pagination
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const startIndex = (page - 1) * limit;
+
+    // Sorting
+    const sortBy = req.query.sortBy || "-createdAt";
+
+    const events = await Event.find(query)
+      .populate("creator", "name")
+      .populate("products.product", "name price images")
+      .sort(sortBy)
+      .skip(startIndex)
+      .limit(limit);
+
+    const total = await Event.countDocuments(query);
+
     res.json({
       success: true,
-      data: event,
+      count: events.length,
+      pagination: {
+        page,
+        totalPages: Math.ceil(total / limit),
+        total,
+      },
+      data: events,
     });
   } catch (error) {
-    console.error("Error fetching event:", error);
+    console.error("Error fetching events:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to fetch event details",
+      message: "Failed to fetch events",
+      error: error.message,
     });
   }
 };

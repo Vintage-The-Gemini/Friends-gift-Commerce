@@ -22,6 +22,7 @@ import ProductDetailsPage from "./pages/public/ProductDetailsPage";
 import CreateEvent from "./pages/events/CreateEvent";
 import EditEvent from "./pages/events/EditEvent";
 import EventDetails from "./pages/events/EventDetails";
+import MyEventsPage from "./pages/events/MyEventsPage";
 
 // Admin Pages
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -40,14 +41,9 @@ import ManageProducts from "./pages/dashboard/seller/ManageProducts";
 import AddProduct from "./pages/dashboard/seller/AddProduct";
 import EditProduct from "./pages/dashboard/seller/EditProduct";
 import SellerOrders from "./pages/dashboard/seller/SellerOrders";
-import SellerEvents from "./pages/dashboard/seller/SellerEvents";
 import SellerAnalytics from "./pages/dashboard/seller/SellerAnalytics";
 import SellerSettings from "./pages/dashboard/seller/SellerSettings";
 import BusinessProfilePage from "./pages/dashboard/seller/BusinessProfilePage";
-
-// Buyer Pages
-import BuyerDashboard from "./pages/dashboard/buyer/BuyerDashboard";
-import ManageEvents from "./pages/dashboard/buyer/ManageEvents";
 
 // Error Boundary
 import ErrorBoundary from "./components/common/ErrorBoundary";
@@ -81,6 +77,18 @@ const router = createBrowserRouter(
             // Event Routes
             { path: "/events", element: <EventsPage /> },
             { path: "/events/:id", element: <EventDetails /> },
+
+            // Consolidated My Events Page (protected)
+            {
+              path: "/events/my-events",
+              element: (
+                <ProtectedRoute allowedRoles={["buyer", "seller"]}>
+                  <MyEventsPage />
+                </ProtectedRoute>
+              ),
+            },
+
+            // Create/Edit Event (protected)
             {
               path: "/events/create",
               element: (
@@ -96,24 +104,6 @@ const router = createBrowserRouter(
                   <EditEvent />
                 </ProtectedRoute>
               ),
-            },
-          ],
-        },
-
-        // Buyer Routes
-        {
-          path: "/buyer",
-          element: (
-            <ProtectedRoute allowedRoles={["buyer"]}>
-              <RootLayout />
-            </ProtectedRoute>
-          ),
-          children: [
-            { path: "dashboard", element: <BuyerDashboard /> },
-            { path: "events", element: <ManageEvents /> },
-            {
-              path: "events/edit/:id",
-              element: <EditEvent />,
             },
           ],
         },
@@ -165,14 +155,6 @@ const router = createBrowserRouter(
               element: (
                 <RequireBusinessProfile>
                   <SellerOrders />
-                </RequireBusinessProfile>
-              ),
-            },
-            {
-              path: "events",
-              element: (
-                <RequireBusinessProfile>
-                  <SellerEvents />
                 </RequireBusinessProfile>
               ),
             },
