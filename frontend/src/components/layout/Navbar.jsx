@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { Menu, X, User, Gift, ShoppingBag, LogOut } from "lucide-react";
+import Logo from "../../assets/Friends-gift-logo.svg";
 
 const NavBar = () => {
   const { user, logout } = useAuth();
@@ -31,17 +32,10 @@ const NavBar = () => {
     <nav className="bg-white shadow-sm sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
+          {/* Logo (Increased Size) */}
           <div className="flex-shrink-0">
-            <Link
-              to="/"
-              className="flex items-center"
-              onClick={closeMobileMenu}
-            >
-              <Gift className="h-8 w-8 text-[#5551FF]" />
-              <span className="ml-2 text-xl font-bold text-gray-900">
-                FriendsGift
-              </span>
+            <Link to="/" onClick={closeMobileMenu}>
+              <img src={Logo} alt="FriendsGift Logo" className="h-25 w-20" />
             </Link>
           </div>
 
@@ -50,7 +44,6 @@ const NavBar = () => {
             <Link to="/" className={isActive("/")} onClick={closeMobileMenu}>
               Home
             </Link>
-
             <Link
               to="/events"
               className={isActive("/events")}
@@ -58,16 +51,13 @@ const NavBar = () => {
             >
               Public Events
             </Link>
-
             <Link
               to="/products"
               className={isActive("/products")}
               onClick={closeMobileMenu}
             >
-              Products
+              Gifts
             </Link>
-
-            {/* My Events link for authenticated users */}
             {user && (
               <Link
                 to="/events/my-events"
@@ -89,7 +79,6 @@ const NavBar = () => {
                     <span>{user.name || user.phoneNumber}</span>
                   </button>
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block">
-                    {/* Seller specific links */}
                     {user.role === "seller" && (
                       <Link
                         to="/seller/products"
@@ -102,8 +91,6 @@ const NavBar = () => {
                         </div>
                       </Link>
                     )}
-
-                    {/* Logout button */}
                     <button
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
@@ -141,7 +128,6 @@ const NavBar = () => {
             <button
               type="button"
               className="text-gray-500 hover:text-gray-600 focus:outline-none focus:text-gray-600"
-              aria-label="Toggle menu"
               onClick={toggleMobileMenu}
             >
               {mobileMenuOpen ? (
@@ -165,7 +151,6 @@ const NavBar = () => {
             >
               Home
             </Link>
-
             <Link
               to="/events"
               className={`px-3 py-2 rounded-md ${isActive("/events")}`}
@@ -173,7 +158,6 @@ const NavBar = () => {
             >
               Public Events
             </Link>
-
             <Link
               to="/products"
               className={`px-3 py-2 rounded-md ${isActive("/products")}`}
@@ -181,8 +165,6 @@ const NavBar = () => {
             >
               Products
             </Link>
-
-            {/* My Events link for authenticated users */}
             {user && (
               <Link
                 to="/events/my-events"
@@ -194,8 +176,6 @@ const NavBar = () => {
                 My Events
               </Link>
             )}
-
-            {/* Seller specific links */}
             {user && user.role === "seller" && (
               <Link
                 to="/seller/products"
@@ -207,8 +187,6 @@ const NavBar = () => {
                 My Products
               </Link>
             )}
-
-            {/* Authentication */}
             {!user ? (
               <>
                 <div className="border-t border-gray-200 my-2"></div>
