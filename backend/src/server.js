@@ -52,7 +52,7 @@ const contributionRoutes = require("./src/routes/contribution.routes");
 const analyticsRoutes = require("./src/routes/analytics.routes");
 const buyerRoutes = require("./src/routes/buyer");
 const initializeAdmin = require("./src/utils/initAdmin");
-const User = require("./src/models/User");
+const User = require("./src/models/user");
 
 // Mount routes
 app.use("/api/auth", authRoutes);

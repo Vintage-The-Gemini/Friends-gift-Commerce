@@ -1,6 +1,6 @@
 // resetAdmin.js
 const mongoose = require("mongoose");
-const User = require("./src/models/User"); // Adjust path if needed
+const User = require("./src/models/user"); // Adjust path if needed
 const bcrypt = require("bcryptjs");
 const dotenv = require("dotenv");
 

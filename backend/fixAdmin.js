@@ -1,6 +1,6 @@
 // fixAdmin.js
 const mongoose = require("mongoose");
-const User = require("./src/models/User"); // Adjust path if needed
+const User = require("./src/models/user"); // Adjust path if needed
 const dotenv = require("dotenv");
 
 dotenv.config();
