@@ -44,9 +44,11 @@ import SellerOrders from "./pages/dashboard/seller/SellerOrders";
 import SellerAnalytics from "./pages/dashboard/seller/SellerAnalytics";
 import SellerSettings from "./pages/dashboard/seller/SellerSettings";
 import BusinessProfilePage from "./pages/dashboard/seller/BusinessProfilePage";
+import sellerEvents from "./pages/dashboard/seller/SellerEvents";
 
 // Error Boundary
 import ErrorBoundary from "./components/common/ErrorBoundary";
+import SellerEvents from "./pages/dashboard/seller/SellerEvents";
 
 const Root = () => {
   return (
@@ -155,6 +157,14 @@ const router = createBrowserRouter(
               element: (
                 <RequireBusinessProfile>
                   <SellerOrders />
+                </RequireBusinessProfile>
+              ),
+            },
+            {
+              path: "events",
+              element: (
+                <RequireBusinessProfile>
+                  <SellerEvents />
                 </RequireBusinessProfile>
               ),
             },
