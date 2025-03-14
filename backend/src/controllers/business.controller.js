@@ -1,6 +1,6 @@
 // backend/src/controllers/business.controller.js
 const BusinessProfile = require("../models/BusinessProfile");
-const User = require("../models/User");
+const User = require("../models/user");
 const { uploadToCloudinary } = require("../utils/cloudinary");
 
 /**

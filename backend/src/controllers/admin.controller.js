@@ -1,5 +1,5 @@
 // backend/src/controllers/admin.controller.js
-const User = require("../models/User");
+const User = require("../models/user");
 const Event = require("../models/Event");
 const Product = require("../models/Product");
 const Order = require("../models/Order");

@@ -1,6 +1,6 @@
 // backend/src/middleware/auth.js
 const jwt = require("jsonwebtoken");
-const User = require("../models/User");
+const User = require("../models/user");
 
 // Protect routes - authentication middleware
 exports.protect = async (req, res, next) => {
