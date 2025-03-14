@@ -109,7 +109,7 @@ const HeroSection = () => {
                     <Gift className="w-10 h-10 text-amber-300" />
                     <div className="text-white">
                       <p className="font-medium">New Gift!</p>
-                      <p className="text-xs">Alex contributed $50</p>
+                      <p className="text-xs">Alex contributed 5000kes</p>
                     </div>
                   </div>
                 </div>

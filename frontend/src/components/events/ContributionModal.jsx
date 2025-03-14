@@ -1,8 +1,14 @@
-import React, { useState } from "react";
-import { DollarSign, X, CreditCard, Phone } from "lucide-react";
+// src/components/events/ContributionModal.jsx
+import React, { useState, useEffect } from "react";
+import { DollarSign, X, CreditCard, Phone, Gift } from "lucide-react";
 import { formatCurrency } from "../../utils/currency";
 
-const ContributionModal = ({ event, onClose, onContribute }) => {
+const ContributionModal = ({
+  event,
+  selectedProduct,
+  onClose,
+  onContribute,
+}) => {
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("mpesa");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -10,6 +16,13 @@ const ContributionModal = ({ event, onClose, onContribute }) => {
   const [anonymous, setAnonymous] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    // If it's a product-specific contribution, set a default amount
+    if (selectedProduct) {
+      setAmount(selectedProduct.product.price);
+    }
+  }, [selectedProduct]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,16 +38,23 @@ const ContributionModal = ({ event, onClose, onContribute }) => {
         throw new Error("Please enter a valid Kenyan phone number (+254...)");
       }
 
-      await onContribute({
+      // Create the contribution data object
+      const contributionData = {
         eventId: event._id,
         amount: parseFloat(amount),
         paymentMethod,
         phoneNumber,
         message,
         anonymous,
-      });
+      };
 
-      onClose();
+      // If it's for a specific product, add the product info
+      if (selectedProduct) {
+        contributionData.productId = selectedProduct.product._id;
+        contributionData.productQuantity = selectedProduct.quantity;
+      }
+
+      await onContribute(contributionData);
     } catch (err) {
       setError(err.message || "Failed to process contribution");
     } finally {
@@ -46,7 +66,11 @@ const ContributionModal = ({ event, onClose, onContribute }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-md w-full p-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Make a Contribution</h2>
+          <h2 className="text-xl font-semibold">
+            {selectedProduct
+              ? `Contribute to ${selectedProduct.product.name}`
+              : "Make a Contribution"}
+          </h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
@@ -60,10 +84,40 @@ const ContributionModal = ({ event, onClose, onContribute }) => {
           {/* Event Summary */}
           <div className="bg-gray-50 p-4 rounded-lg">
             <h3 className="font-medium mb-2">{event.title}</h3>
-            <div className="flex justify-between text-sm text-gray-600">
-              <span>Target: {formatCurrency(event.targetAmount)}</span>
-              <span>Raised: {formatCurrency(event.currentAmount || 0)}</span>
-            </div>
+            {selectedProduct ? (
+              <div>
+                <div className="flex items-center mb-2">
+                  <div className="w-10 h-10 rounded bg-gray-200 overflow-hidden mr-2">
+                    {selectedProduct.product.images &&
+                    selectedProduct.product.images[0] ? (
+                      <img
+                        src={selectedProduct.product.images[0].url}
+                        alt={selectedProduct.product.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                        <Gift className="w-5 h-5 text-gray-400" />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-medium">
+                      {selectedProduct.product.name}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {formatCurrency(selectedProduct.product.price)} ×{" "}
+                      {selectedProduct.quantity}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Target: {formatCurrency(event.targetAmount)}</span>
+                <span>Raised: {formatCurrency(event.currentAmount || 0)}</span>
+              </div>
+            )}
             <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
               <div
                 className="bg-[#5551FF] h-2 rounded-full"

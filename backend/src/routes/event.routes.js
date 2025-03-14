@@ -1,3 +1,4 @@
+// backend/src/routes/event.routes.js
 const express = require("express");
 const router = express.Router();
 const { protect, authorize } = require("../middleware/auth");
@@ -8,20 +9,36 @@ const {
   getEvent,
   updateEvent,
   deleteEvent,
-  getUserEvents, // Add this import
+  getUserEvents,
+  inviteUsers,
+  respondToInvitation,
+  getEventContributions,
+  getPrivateEvent,
 } = require("../controllers/event.controller");
 
 // Public routes
 router.get("/", getEvents);
 router.get("/:id", getEvent);
 
-// Protected routes
-router.post("/", protect, upload.single("image"), createEvent);
+// Protected routes (require authentication)
+router.use(protect);
 
-router.put("/:id", protect, upload.single("image"), updateEvent);
+// User's events routes
+router.get("/my-events", getUserEvents);
 
-router.delete("/:id", protect, deleteEvent);
+// Event creation and management
+router.post("/", upload.single("image"), createEvent);
+router.put("/:id", upload.single("image"), updateEvent);
+router.delete("/:id", deleteEvent);
 
-router.get("/my-events", protect, getUserEvents);
+// Invitation handling
+router.post("/:id/invite", inviteUsers);
+router.post("/:id/respond", respondToInvitation);
+
+// Access-controlled routes
+router.get("/:id/access", getPrivateEvent);
+
+// Contributions
+router.get("/:id/contributions", getEventContributions);
 
 module.exports = router;

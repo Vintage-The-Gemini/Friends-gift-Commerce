@@ -7,6 +7,36 @@ const ENDPOINTS = {
   MY_EVENTS: "/events/my-events",
   DETAIL: (id) => `/events/${id}`,
   STATS: (id) => `/events/${id}/stats`,
+  INVITE: (id) => `/events/${id}/invite`,
+  RESPOND: (id) => `/events/${id}/respond`,
+};
+
+// Helper function to handle API errors consistently
+const handleApiError = (error, defaultMessage) => {
+  console.error("[Event Service] Error:", error);
+
+  if (error.response) {
+    // Create enhanced error with additional properties
+    const enhancedError = new Error(
+      error.response.data?.message || defaultMessage
+    );
+
+    // Add useful properties to the error
+    enhancedError.status = error.response.status;
+    enhancedError.errorType = error.response.data?.errorType;
+    enhancedError.response = error.response;
+
+    throw enhancedError;
+  }
+
+  // If no response, throw generic error
+  throw (
+    error.response?.data || {
+      success: false,
+      message: defaultMessage,
+      error: error.message,
+    }
+  );
 };
 
 // Event service methods
@@ -109,16 +139,7 @@ export const eventService = {
       console.log("Event creation response:", response.data);
       return response.data;
     } catch (error) {
-      console.error("[Event Service] Create Error:", error);
-      console.error("Error details:", error.response?.data);
-
-      throw (
-        error.response?.data || {
-          success: false,
-          message: "Failed to create event",
-          error: error.message,
-        }
-      );
+      return handleApiError(error, "Failed to create event");
     }
   },
 
@@ -134,6 +155,7 @@ export const eventService = {
       if (filters.endDate) params.append("endDate", filters.endDate);
       if (filters.page) params.append("page", filters.page);
       if (filters.limit) params.append("limit", filters.limit);
+      if (filters.visibility) params.append("visibility", filters.visibility);
 
       const queryString = params.toString();
       const url = queryString
@@ -143,87 +165,87 @@ export const eventService = {
       const response = await api.get(url);
       return response.data;
     } catch (error) {
-      console.error("[Event Service] Get Events Error:", error);
-      throw (
-        error.response?.data || {
-          success: false,
-          message: "Failed to fetch events",
-          error: error.message,
-        }
-      );
+      return handleApiError(error, "Failed to fetch events");
     }
   },
 
-  getEvent: async (eventId, accessCode = null) => {
+  getEvent: async (eventId, params = {}) => {
     try {
-      let url = ENDPOINTS.DETAIL(eventId);
-      // Add access code as query param if provided (for private/unlisted events)
-      if (accessCode) {
-        url += `?accessCode=${accessCode}`;
-      }
+      // Support passing either accessCode as a string or as part of params object
+      let queryParams = { ...params };
 
-      const response = await api.get(url);
+      // Build URL with params
+      let url = ENDPOINTS.DETAIL(eventId);
+
+      // Make the request with query params
+      const response = await api.get(url, { params: queryParams });
       return response.data;
     } catch (error) {
-      console.error("[Event Service] Get Event Error:", error);
-      throw (
-        error.response?.data || {
-          success: false,
-          message: "Failed to fetch event details",
-          error: error.message,
-        }
-      );
+      return handleApiError(error, "Failed to fetch event details");
     }
   },
 
   updateEvent: async (eventId, eventData) => {
     try {
-      // Copy eventData to avoid modifying the original object
-      const requestData = {
-        title: eventData.title,
-        eventType: eventData.eventType,
-        description: eventData.description,
-        eventDate: eventData.eventDate,
-        endDate: eventData.endDate,
-        visibility: eventData.visibility,
-      };
+      // Use FormData for multipart uploads
+      const formData = new FormData();
+
+      // Add basic event data
+      if (eventData.title) formData.append("title", eventData.title);
+      if (eventData.eventType)
+        formData.append("eventType", eventData.eventType);
+      if (eventData.description)
+        formData.append("description", eventData.description);
+      if (eventData.eventDate)
+        formData.append("eventDate", eventData.eventDate);
+      if (eventData.endDate) formData.append("endDate", eventData.endDate);
+      if (eventData.visibility)
+        formData.append("visibility", eventData.visibility);
 
       // Add customEventType if it exists (for "other" event type)
       if (eventData.customEventType) {
-        requestData.customEventType = eventData.customEventType;
+        formData.append("customEventType", eventData.customEventType);
       }
 
-      // Add image if it exists
+      // Handle image
       if (eventData.image) {
-        requestData.image = eventData.image;
+        if (eventData.image instanceof File) {
+          formData.append("image", eventData.image);
+        } else if (typeof eventData.image === "string") {
+          formData.append("image", eventData.image);
+        }
       }
 
-      // Handle selected products consistent with createEvent
+      // Handle selected products
       if (
         eventData.selectedProducts &&
         Array.isArray(eventData.selectedProducts)
       ) {
         const productArray = eventData.selectedProducts.map((item) => ({
-          product: item.product._id,
+          product: item.product._id || item.product,
           quantity: parseInt(item.quantity) || 1,
         }));
 
         // IMPORTANT: Backend expects a stringified JSON array
-        requestData.products = JSON.stringify(productArray);
+        formData.append("products", JSON.stringify(productArray));
+      } else if (eventData.products) {
+        // Handle direct products property if provided
+        if (typeof eventData.products === "string") {
+          formData.append("products", eventData.products);
+        } else if (Array.isArray(eventData.products)) {
+          formData.append("products", JSON.stringify(eventData.products));
+        }
       }
 
-      console.log("Updating event with data:", requestData);
-      const response = await api.put(ENDPOINTS.DETAIL(eventId), requestData);
+      console.log("Updating event with data:", Object.fromEntries(formData));
+      const response = await api.put(ENDPOINTS.DETAIL(eventId), formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
       return response.data;
     } catch (error) {
-      console.error("[Event Service] Update Error:", error);
-      throw (
-        error.response?.data || {
-          success: false,
-          message: "Failed to update event",
-          error: error.message,
-        }
-      );
+      return handleApiError(error, "Failed to update event");
     }
   },
 
@@ -232,14 +254,7 @@ export const eventService = {
       const response = await api.delete(ENDPOINTS.DETAIL(eventId));
       return response.data;
     } catch (error) {
-      console.error("[Event Service] Delete Error:", error);
-      throw (
-        error.response?.data || {
-          success: false,
-          message: "Failed to delete event",
-          error: error.message,
-        }
-      );
+      return handleApiError(error, "Failed to delete event");
     }
   },
 
@@ -261,14 +276,7 @@ export const eventService = {
       const response = await api.get(url);
       return response.data;
     } catch (error) {
-      console.error("[Event Service] Get User Events Error:", error);
-      throw (
-        error.response?.data || {
-          success: false,
-          message: "Failed to fetch your events",
-          error: error.message,
-        }
-      );
+      return handleApiError(error, "Failed to fetch your events");
     }
   },
 
@@ -288,14 +296,7 @@ export const eventService = {
       const response = await api.get(url);
       return response.data;
     } catch (error) {
-      console.error("[Event Service] Get Invited Events Error:", error);
-      throw (
-        error.response?.data || {
-          success: false,
-          message: "Failed to fetch invited events",
-          error: error.message,
-        }
-      );
+      return handleApiError(error, "Failed to fetch invited events");
     }
   },
 
@@ -304,32 +305,55 @@ export const eventService = {
       const response = await api.get(ENDPOINTS.STATS(eventId));
       return response.data;
     } catch (error) {
-      console.error("[Event Service] Get Event Stats Error:", error);
-      throw (
-        error.response?.data || {
-          success: false,
-          message: "Failed to fetch event statistics",
-          error: error.message,
-        }
-      );
+      return handleApiError(error, "Failed to fetch event statistics");
     }
   },
 
-  inviteUsers: async (eventId, emails) => {
+  // Enhanced method for inviting users with better error handling
+  inviteUsers: async (eventId, invites) => {
     try {
-      const response = await api.post(`${ENDPOINTS.DETAIL(eventId)}/invite`, {
-        invites: emails,
+      // Support both array of emails and array of objects with email/phone
+      const inviteData = Array.isArray(invites)
+        ? { invites: invites }
+        : invites;
+
+      const response = await api.post(ENDPOINTS.INVITE(eventId), inviteData);
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, "Failed to send invitations");
+    }
+  },
+
+  // Add method for responding to invitations
+  respondToInvitation: async (eventId, response) => {
+    try {
+      const result = await api.post(ENDPOINTS.RESPOND(eventId), { response });
+      return result.data;
+    } catch (error) {
+      return handleApiError(error, "Failed to respond to invitation");
+    }
+  },
+
+  // Get access-controlled event with proper error handling
+  getPrivateEvent: async (eventId, accessCode) => {
+    try {
+      const response = await api.get(ENDPOINTS.DETAIL(eventId), {
+        params: { accessCode },
       });
       return response.data;
     } catch (error) {
-      console.error("[Event Service] Invite Users Error:", error);
-      throw (
-        error.response?.data || {
-          success: false,
-          message: "Failed to send invitations",
-          error: error.message,
-        }
-      );
+      // Handle specific error types
+      if (error.response && error.response.status === 403) {
+        // Create enhanced error for better UI handling
+        const accessError = new Error(
+          "You don't have permission to view this event"
+        );
+        accessError.status = 403;
+        accessError.errorType = "accessDenied";
+        throw accessError;
+      }
+
+      return handleApiError(error, "Failed to access private event");
     }
   },
 };
