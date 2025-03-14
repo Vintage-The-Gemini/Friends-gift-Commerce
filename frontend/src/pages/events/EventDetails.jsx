@@ -1,3 +1,4 @@
+// src/pages/events/EventDetails.jsx
 import React, { useState, useEffect } from "react";
 import {
   useParams,
@@ -22,7 +23,7 @@ import {
   Globe,
   Link as LinkIcon,
   Copy,
-  EyeOff,
+  Check,
 } from "lucide-react";
 import { eventService } from "../../services/api/event";
 import { contributionService } from "../../services/api/contribution";
@@ -40,45 +41,55 @@ const EventDetails = () => {
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [errorType, setErrorType] = useState(""); // 'notFound', 'accessDenied', etc.
+  const [errorType, setErrorType] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [showContributeModal, setShowContributeModal] = useState(false);
   const [contributions, setContributions] = useState([]);
   const [accessInput, setAccessInput] = useState("");
   const [verifyingAccess, setVerifyingAccess] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
-  useEffect(() => {
-    fetchEventDetails();
-  }, [id, accessCode]);
+  // ==== CREATE OPERATION IS NAVIGATING TO CREATE PAGE ====
+  // We'll implement this in a separate component
 
+  // ==== READ OPERATION ====
   const fetchEventDetails = async () => {
     try {
       setLoading(true);
       setError("");
       setErrorType("");
 
-      // Fetch event with access code if provided
-      const eventResponse = await eventService.getEvent(id, accessCode);
+      console.log("Fetching event details for ID:", id);
 
-      if (eventResponse.success) {
-        setEvent(eventResponse.data);
+      // Build params for the API call
+      const params = accessCode ? { accessCode } : {};
 
-        // Fetch contributions if we have access to the event
+      // Fetch event
+      const response = await eventService.getEvent(id, params);
+      console.log("Event response:", response);
+
+      if (response.success) {
+        setEvent(response.data);
+
+        // Fetch contributions
         try {
           const contributionsResponse =
             await contributionService.getEventContributions(id);
+          console.log("Contributions response:", contributionsResponse);
+
           if (contributionsResponse.success) {
             setContributions(contributionsResponse.data);
           }
         } catch (err) {
           console.warn("Failed to fetch contributions:", err);
-          // We don't set the main error here since the event details were loaded successfully
         }
+      } else {
+        throw new Error(response.message || "Failed to load event details");
       }
     } catch (error) {
       console.error("Error fetching event:", error);
 
-      // Set appropriate error based on status code
       if (error.status === 403) {
         setError("You don't have permission to view this event.");
         setErrorType("accessDenied");
@@ -94,6 +105,58 @@ const EventDetails = () => {
     }
   };
 
+  useEffect(() => {
+    fetchEventDetails();
+  }, [id, accessCode]);
+
+  // ==== UPDATE OPERATION ====
+  // We'll navigate to edit page, but include direct update capability
+  const handleUpdateStatus = async (newStatus) => {
+    try {
+      const response = await eventService.updateEventStatus(id, newStatus);
+
+      if (response.success) {
+        toast.success(`Event status updated to ${newStatus}`);
+        fetchEventDetails(); // Refresh data
+      } else {
+        throw new Error(response.message || "Failed to update event");
+      }
+    } catch (error) {
+      console.error("Error updating event status:", error);
+      toast.error(error.message || "Failed to update event status");
+    }
+  };
+
+  // ==== DELETE OPERATION ====
+  const handleDelete = async () => {
+    if (!deleteConfirm) {
+      setDeleteConfirm(true);
+      return;
+    }
+
+    try {
+      setDeleteLoading(true);
+      console.log("Deleting event with ID:", id);
+
+      const response = await eventService.deleteEvent(id);
+      console.log("Delete response:", response);
+
+      if (response.success) {
+        toast.success("Event deleted successfully");
+        navigate("/events");
+      } else {
+        throw new Error(response.message || "Failed to delete event");
+      }
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      toast.error(error.message || "Failed to delete event");
+      setDeleteConfirm(false);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  // Handle contribution
   const handleContribute = async (contributionData) => {
     try {
       const response = await contributionService.createContribution(
@@ -102,49 +165,30 @@ const EventDetails = () => {
 
       if (response.success) {
         toast.success("Contribution processed successfully!");
-        toast.info("Processing payment...", { autoClose: 5000 });
-
-        // Refresh event details after contribution
         setTimeout(() => {
           fetchEventDetails();
-          toast.success("Payment completed successfully!");
-        }, 3000);
+        }, 2000);
       }
+
+      setShowContributeModal(false);
+      setSelectedProduct(null);
     } catch (error) {
       toast.error(error.message || "Failed to process contribution");
-      throw error;
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!deleteConfirm) {
-      setDeleteConfirm(true);
-      return;
-    }
-
-    try {
-      const response = await eventService.deleteEvent(id);
-      if (response.success) {
-        toast.success("Event deleted successfully");
-        navigate("/events");
-      } else {
-        throw new Error(response.message || "Failed to delete event");
-      }
-    } catch (error) {
-      toast.error(error.message || "Failed to delete event");
     }
   };
 
   const handleShare = async () => {
     try {
+      const shareUrl = `${window.location.origin}/events/${id}`;
+
       if (navigator.share) {
         await navigator.share({
           title: event.title,
           text: event.description,
-          url: window.location.href,
+          url: shareUrl,
         });
       } else {
-        await navigator.clipboard.writeText(window.location.href);
+        await navigator.clipboard.writeText(shareUrl);
         toast.success("Event link copied to clipboard!");
       }
     } catch (error) {
@@ -166,8 +210,12 @@ const EventDetails = () => {
       return;
     }
 
-    // Redirect to the same URL but with the access code as a query parameter
     navigate(`/events/${id}?accessCode=${accessInput.trim()}`);
+  };
+
+  const handleProductContribution = (product) => {
+    setSelectedProduct(product);
+    setShowContributeModal(true);
   };
 
   const calculateProgress = () => {
@@ -176,15 +224,29 @@ const EventDetails = () => {
   };
 
   const formatDate = (date) => {
-    return new Date(date).toLocaleDateString("en-KE", {
+    return new Date(date).toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
     });
   };
 
+  const getDaysLeft = () => {
+    if (!event || !event.endDate) return 0;
+    const today = new Date();
+    const end = new Date(event.endDate);
+    const diffTime = end - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  };
+
   // Check if user is the event creator
-  const isOwner = user && event?.creator && event.creator._id === user._id;
+  const isOwner =
+    user &&
+    event?.creator &&
+    (typeof event.creator === "string"
+      ? event.creator === user._id
+      : event.creator._id === user._id);
 
   // Render loading state
   if (loading) {
@@ -258,18 +320,6 @@ const EventDetails = () => {
             <ChevronLeft className="w-5 h-5 mr-1" />
             Back to Events
           </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // Render general error state
-  if (error) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center justify-center">
-          <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
-          <span className="text-red-700">{error}</span>
         </div>
       </div>
     );
@@ -359,8 +409,8 @@ const EventDetails = () => {
               <div className="flex items-center text-gray-600">
                 <Clock className="w-5 h-5 mr-2" />
                 <div>
-                  <div className="text-sm font-medium">End Date</div>
-                  <div>{formatDate(event.endDate)}</div>
+                  <div className="text-sm font-medium">Days Left</div>
+                  <div>{getDaysLeft()} days</div>
                 </div>
               </div>
               <div className="flex items-center text-gray-600">
@@ -423,11 +473,36 @@ const EventDetails = () => {
               </div>
             </div>
 
+            {/* Event Status (UPDATE OPERATION) */}
+            {isOwner && (
+              <div className="mb-6">
+                <h3 className="text-lg font-medium mb-2">Event Status</h3>
+                <div className="flex flex-wrap gap-2">
+                  {["active", "completed", "cancelled"].map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => handleUpdateStatus(status)}
+                      className={`px-3 py-1.5 rounded-lg text-sm flex items-center ${
+                        event.status === status
+                          ? "bg-green-100 text-green-800 font-medium"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      {event.status === status && (
+                        <Check className="w-4 h-4 mr-1" />
+                      )}
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex gap-4">
               {user ? (
                 isOwner ? (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Link
                       to={`/events/edit/${event._id}`}
                       className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -437,6 +512,7 @@ const EventDetails = () => {
                     </Link>
                     <button
                       onClick={handleDelete}
+                      disabled={deleteLoading}
                       className={`flex items-center px-4 py-2 ${
                         deleteConfirm
                           ? "bg-red-600 hover:bg-red-700"
@@ -444,7 +520,11 @@ const EventDetails = () => {
                       } text-white rounded-lg`}
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
-                      {deleteConfirm ? "Confirm Delete" : "Delete Event"}
+                      {deleteLoading
+                        ? "Deleting..."
+                        : deleteConfirm
+                        ? "Confirm Delete"
+                        : "Delete Event"}
                     </button>
                   </div>
                 ) : (
@@ -517,12 +597,22 @@ const EventDetails = () => {
                     <span className="text-sm text-gray-500">
                       Quantity: {item.quantity}
                     </span>
-                    <Link
-                      to={`/products/${item.product._id}`}
-                      className="text-[#5551FF] hover:text-[#4440FF] text-sm font-medium"
-                    >
-                      View Details →
-                    </Link>
+                    <div className="flex gap-2">
+                      <Link
+                        to={`/products/${item.product._id}`}
+                        className="text-[#5551FF] hover:text-[#4440FF] text-sm font-medium"
+                      >
+                        View Details
+                      </Link>
+                      {item.status !== "completed" && user && !isOwner && (
+                        <button
+                          onClick={() => handleProductContribution(item)}
+                          className="text-[#5551FF] hover:text-[#4440FF] text-sm font-medium"
+                        >
+                          Contribute
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -570,7 +660,11 @@ const EventDetails = () => {
         {showContributeModal && (
           <ContributionModal
             event={event}
-            onClose={() => setShowContributeModal(false)}
+            selectedProduct={selectedProduct}
+            onClose={() => {
+              setShowContributeModal(false);
+              setSelectedProduct(null);
+            }}
             onContribute={handleContribute}
           />
         )}
