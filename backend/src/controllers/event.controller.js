@@ -530,7 +530,7 @@ exports.getUserEvents = async (req, res) => {
     const limit = parseInt(req.query.limit, 10) || 10;
     const startIndex = (page - 1) * limit;
 
-    // Build query
+    // Build query - show events created by the user
     const query = { creator: req.user._id };
 
     // Add status filter if provided
@@ -538,7 +538,7 @@ exports.getUserEvents = async (req, res) => {
       query.status = req.query.status;
     }
 
-    console.log("Query:", query);
+    console.log("User events query:", query);
 
     // Get events
     const events = await Event.find(query)
@@ -556,7 +556,7 @@ exports.getUserEvents = async (req, res) => {
       .limit(limit)
       .lean(); // Use lean for better performance
 
-    console.log(`Found ${events.length} events`);
+    console.log(`Found ${events.length} events for user ${req.user._id}`);
 
     // Get total count
     const total = await Event.countDocuments(query);

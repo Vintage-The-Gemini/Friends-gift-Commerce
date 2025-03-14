@@ -1,14 +1,15 @@
 // src/services/api/event.js
 import api from "./axios.config";
 
-// API endpoints
+// API endpoints with proper structure to avoid route conflicts
 const ENDPOINTS = {
   BASE: "/events",
-  MY_EVENTS: "/events/my-events",
+  MY_EVENTS: "/events/my-events", // Specific endpoint for user events
   DETAIL: (id) => `/events/${id}`,
   STATS: (id) => `/events/${id}/stats`,
   INVITE: (id) => `/events/${id}/invite`,
   RESPOND: (id) => `/events/${id}/respond`,
+  CONTRIBUTIONS: (id) => `/events/${id}/contributions`,
 };
 
 // Helper function to handle API errors consistently
@@ -41,6 +42,7 @@ const handleApiError = (error, defaultMessage) => {
 
 // Event service methods
 export const eventService = {
+  // Create a new event
   createEvent: async (eventData) => {
     try {
       console.log("Creating event with data:", eventData);
@@ -75,7 +77,7 @@ export const eventService = {
           : "none"
       );
 
-      // Handle products - THIS IS THE KEY PART
+      // Handle products
       if (
         eventData.selectedProducts &&
         Array.isArray(eventData.selectedProducts)
@@ -86,63 +88,39 @@ export const eventService = {
           quantity: parseInt(item.quantity) || 1,
         }));
 
-        console.log("Processed products array:", productsArray);
         const productsJson = JSON.stringify(productsArray);
-        console.log("Stringified products:", productsJson);
-
-        // Stringify the products array and append it
         formData.append("products", productsJson);
       } else if (eventData.products && typeof eventData.products === "string") {
         // If products is already a JSON string, use it directly
-        console.log("Using pre-formatted products JSON:", eventData.products);
         formData.append("products", eventData.products);
-      } else {
-        console.warn(
-          "No products or invalid products format:",
-          eventData.selectedProducts || eventData.products
-        );
       }
 
       // Handle image if provided
       if (eventData.image) {
         // If image is a file, append directly
         if (eventData.image instanceof File) {
-          console.log("Appending image file:", eventData.image.name);
           formData.append("image", eventData.image);
         }
         // If image is a URL/string, append as is
         else if (typeof eventData.image === "string") {
-          console.log("Appending image URL");
           formData.append("image", eventData.image);
         }
       }
 
-      // Debug what's in formData
-      console.log("FormData contents:");
-      for (let pair of formData.entries()) {
-        // Don't log the full image data
-        if (pair[0] === "image" && !(typeof pair[1] === "string")) {
-          console.log("image: [File object]");
-        } else {
-          console.log(pair[0] + ": " + pair[1]);
-        }
-      }
-
       // Send the request with proper headers for FormData
-      console.log("Sending request to:", ENDPOINTS.BASE);
       const response = await api.post(ENDPOINTS.BASE, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
       });
 
-      console.log("Event creation response:", response.data);
       return response.data;
     } catch (error) {
       return handleApiError(error, "Failed to create event");
     }
   },
 
+  // Get all public events
   getEvents: async (filters = {}) => {
     try {
       // Build query params
@@ -169,24 +147,37 @@ export const eventService = {
     }
   },
 
+  // Get an event by ID
   getEvent: async (eventId, params = {}) => {
     try {
-      // Support passing either accessCode as a string or as part of params object
-      let queryParams = { ...params };
+      if (!eventId) {
+        throw new Error("Event ID is required");
+      }
+
+      // Make sure we're using a valid MongoDB ID format
+      // A simple check for a valid-looking ObjectId (24 char hex string)
+      if (!/^[0-9a-fA-F]{24}$/.test(eventId)) {
+        throw new Error("Invalid event ID format");
+      }
 
       // Build URL with params
       let url = ENDPOINTS.DETAIL(eventId);
 
       // Make the request with query params
-      const response = await api.get(url, { params: queryParams });
+      const response = await api.get(url, { params });
       return response.data;
     } catch (error) {
       return handleApiError(error, "Failed to fetch event details");
     }
   },
 
+  // Update an existing event
   updateEvent: async (eventId, eventData) => {
     try {
+      if (!eventId) {
+        throw new Error("Event ID is required");
+      }
+
       // Use FormData for multipart uploads
       const formData = new FormData();
 
@@ -237,7 +228,6 @@ export const eventService = {
         }
       }
 
-      console.log("Updating event with data:", Object.fromEntries(formData));
       const response = await api.put(ENDPOINTS.DETAIL(eventId), formData, {
         headers: {
           "Content-Type": "multipart/form-data",
@@ -249,8 +239,13 @@ export const eventService = {
     }
   },
 
+  // Delete an event
   deleteEvent: async (eventId) => {
     try {
+      if (!eventId) {
+        throw new Error("Event ID is required");
+      }
+
       const response = await api.delete(ENDPOINTS.DETAIL(eventId));
       return response.data;
     } catch (error) {
@@ -258,9 +253,10 @@ export const eventService = {
     }
   },
 
+  // Get current user's events - using the dedicated endpoint
   getUserEvents: async (filters = {}) => {
     try {
-      // Build query params
+      // Build query params for filtering
       const params = new URLSearchParams();
 
       if (filters.status) params.append("status", filters.status);
@@ -280,6 +276,7 @@ export const eventService = {
     }
   },
 
+  // Get events the user has been invited to
   getInvitedEvents: async (filters = {}) => {
     try {
       // Build query params
@@ -300,8 +297,13 @@ export const eventService = {
     }
   },
 
+  // Get stats for an event
   getEventStats: async (eventId) => {
     try {
+      if (!eventId) {
+        throw new Error("Event ID is required");
+      }
+
       const response = await api.get(ENDPOINTS.STATS(eventId));
       return response.data;
     } catch (error) {
@@ -309,9 +311,13 @@ export const eventService = {
     }
   },
 
-  // Enhanced method for inviting users with better error handling
+  // Invite users to an event
   inviteUsers: async (eventId, invites) => {
     try {
+      if (!eventId) {
+        throw new Error("Event ID is required");
+      }
+
       // Support both array of emails and array of objects with email/phone
       const inviteData = Array.isArray(invites)
         ? { invites: invites }
@@ -324,9 +330,13 @@ export const eventService = {
     }
   },
 
-  // Add method for responding to invitations
+  // Respond to an event invitation
   respondToInvitation: async (eventId, response) => {
     try {
+      if (!eventId) {
+        throw new Error("Event ID is required");
+      }
+
       const result = await api.post(ENDPOINTS.RESPOND(eventId), { response });
       return result.data;
     } catch (error) {
@@ -334,9 +344,33 @@ export const eventService = {
     }
   },
 
+  // Get contributions for an event
+  getEventContributions: async (eventId, params = {}) => {
+    try {
+      if (!eventId) {
+        throw new Error("Event ID is required");
+      }
+
+      const response = await api.get(ENDPOINTS.CONTRIBUTIONS(eventId), {
+        params,
+      });
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, "Failed to fetch event contributions");
+    }
+  },
+
   // Get access-controlled event with proper error handling
   getPrivateEvent: async (eventId, accessCode) => {
     try {
+      if (!eventId) {
+        throw new Error("Event ID is required");
+      }
+
+      if (!accessCode) {
+        throw new Error("Access code is required for private events");
+      }
+
       const response = await api.get(ENDPOINTS.DETAIL(eventId), {
         params: { accessCode },
       });

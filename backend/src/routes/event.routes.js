@@ -18,27 +18,24 @@ const {
 
 // Public routes
 router.get("/", getEvents);
-router.get("/:id", getEvent);
 
 // Protected routes (require authentication)
 router.use(protect);
 
-// User's events routes
+// IMPORTANT: Place specific routes BEFORE parameterized routes
+// User's events routes - fix the order to prevent "my-events" being treated as an ID
 router.get("/my-events", getUserEvents);
 
-// Event creation and management
+// Event creation - no ID parameter
 router.post("/", upload.single("image"), createEvent);
+
+// Parameterized routes - must come AFTER specific routes
+router.get("/:id", getEvent);
 router.put("/:id", upload.single("image"), updateEvent);
 router.delete("/:id", deleteEvent);
-
-// Invitation handling
 router.post("/:id/invite", inviteUsers);
 router.post("/:id/respond", respondToInvitation);
-
-// Access-controlled routes
 router.get("/:id/access", getPrivateEvent);
-
-// Contributions
 router.get("/:id/contributions", getEventContributions);
 
 module.exports = router;

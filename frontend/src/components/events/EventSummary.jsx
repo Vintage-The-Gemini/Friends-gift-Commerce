@@ -1,37 +1,27 @@
-// src/components/events/EventSummary.jsx
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   Calendar,
   DollarSign,
-  Users,
   Clock,
-  Gift,
-  ChevronRight,
+  Users,
   Edit,
   Trash2,
   Share2,
-  Copy,
-  AlertCircle,
-  Eye,
+  Gift,
+  ChevronRight,
 } from "lucide-react";
-import { eventService } from "../../services/api/event";
-import { useAuth } from "../../hooks/useAuth";
+import { formatCurrency } from "../../utils/currency";
 import { toast } from "react-toastify";
-import Button from "../common/Button";
 
 const EventSummary = ({
   event,
+  onDelete,
   showActions = true,
-  showDetails = true,
   compact = false,
-  onDelete = null,
-  refreshEvents = null,
 }) => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   if (!event) return null;
 
@@ -61,15 +51,6 @@ const EventSummary = ({
     return diffDays > 0 ? diffDays : 0;
   };
 
-  // Format currency
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-KE", {
-      style: "currency",
-      currency: "KES",
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
   // Status badge styling
   const getStatusStyles = () => {
     switch (event.status) {
@@ -85,56 +66,38 @@ const EventSummary = ({
   };
 
   // Handle event deletion
-  const handleDeleteEvent = async () => {
+  const handleDelete = async () => {
     if (!deleteConfirm) {
       setDeleteConfirm(true);
       return;
     }
 
     try {
-      setLoading(true);
-      const response = await eventService.deleteEvent(event._id);
-
-      if (response.success) {
-        toast.success("Event deleted successfully");
-
-        // Call parent's onDelete handler if provided
-        if (onDelete) {
-          onDelete(event._id);
-        }
-
-        // Refresh events list if refresh function provided
-        if (refreshEvents) {
-          refreshEvents();
-        } else {
-          // Navigate to events page if no refresh function
-          navigate("/events");
-        }
-      } else {
-        throw new Error(response.message || "Failed to delete event");
+      setIsDeleting(true);
+      if (onDelete) {
+        await onDelete(event._id);
       }
     } catch (error) {
       console.error("Error deleting event:", error);
-      toast.error(error.message || "Failed to delete event");
     } finally {
-      setLoading(false);
+      setIsDeleting(false);
       setDeleteConfirm(false);
     }
   };
 
-  // Handle sharing event
+  // Handle share event
   const handleShare = async () => {
     try {
+      const shareUrl = `${window.location.origin}/events/${event._id}`;
+
       if (navigator.share) {
         await navigator.share({
           title: event.title,
           text: event.description,
-          url: `${window.location.origin}/events/${event._id}`,
+          url: shareUrl,
         });
       } else {
-        await navigator.clipboard.writeText(
-          `${window.location.origin}/events/${event._id}`
-        );
+        await navigator.clipboard.writeText(shareUrl);
         toast.success("Event link copied to clipboard!");
       }
     } catch (error) {
@@ -142,23 +105,7 @@ const EventSummary = ({
     }
   };
 
-  // Handle copying access code
-  const handleCopyAccessCode = () => {
-    if (event.accessCode) {
-      navigator.clipboard.writeText(event.accessCode);
-      toast.success("Access code copied to clipboard!");
-    }
-  };
-
-  // Check if current user is the event owner
-  const isOwner =
-    user &&
-    event.creator &&
-    (typeof event.creator === "string"
-      ? event.creator === user._id
-      : event.creator._id === user._id);
-
-  // Compact card version (minimal display)
+  // Compact version for limited space displays
   if (compact) {
     return (
       <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all">
@@ -194,9 +141,10 @@ const EventSummary = ({
     );
   }
 
-  // Full event card
+  // Full card view
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+      {/* Card Image/Header */}
       <div className="relative">
         {event.image ? (
           <img
@@ -209,114 +157,101 @@ const EventSummary = ({
             <Gift className="w-16 h-16 text-white opacity-75" />
           </div>
         )}
-        <div className="absolute top-2 right-2 flex space-x-2">
+
+        {/* Status Badge */}
+        <div className="absolute top-2 right-2">
           <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles()}`}
+            className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusStyles()}`}
           >
             {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
           </span>
         </div>
+
+        {/* Title Overlay */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
           <h3 className="text-white font-semibold">{event.title}</h3>
         </div>
       </div>
 
+      {/* Card Content */}
       <div className="p-4">
-        {showDetails && (
-          <>
-            <div className="flex items-center text-sm text-gray-500 mb-4">
-              <Calendar className="w-4 h-4 mr-2" />
-              <span>{formatDate(event.eventDate)}</span>
-            </div>
+        <div className="flex items-center text-sm text-gray-500 mb-4">
+          <Calendar className="w-4 h-4 mr-2" />
+          <span>{formatDate(event.eventDate)}</span>
+        </div>
 
-            {/* Progress Bar */}
-            <div className="mb-4">
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-500">Raised</span>
-                <span className="font-medium">
-                  {formatCurrency(event.currentAmount || 0)} /{" "}
-                  {formatCurrency(event.targetAmount)}
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-[#5551FF] h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${calculateProgress()}%` }}
-                />
-              </div>
-            </div>
+        {/* Progress Bar */}
+        <div className="mb-4">
+          <div className="flex justify-between text-sm mb-1">
+            <span className="text-gray-500">Raised</span>
+            <span className="font-medium">
+              {formatCurrency(event.currentAmount || 0)} /{" "}
+              {formatCurrency(event.targetAmount)}
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-[#5551FF] h-2 rounded-full transition-all duration-500"
+              style={{ width: `${calculateProgress()}%` }}
+            />
+          </div>
+        </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-2 text-sm mb-4">
-              <div className="flex items-center">
-                <Clock className="w-4 h-4 mr-1 text-gray-500" />
-                <span>{getDaysLeft()} days left</span>
-              </div>
-              <div className="flex items-center">
-                <Users className="w-4 h-4 mr-1 text-gray-500" />
-                <span>{event.contributions?.length || 0} contributors</span>
-              </div>
-              <div className="flex items-center">
-                <DollarSign className="w-4 h-4 mr-1 text-gray-500" />
-                <span>{calculateProgress().toFixed(0)}%</span>
-              </div>
-            </div>
-          </>
-        )}
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-2 text-sm mb-4">
+          <div className="flex items-center">
+            <Clock className="w-4 h-4 mr-1 text-gray-500" />
+            <span>{getDaysLeft()} days left</span>
+          </div>
+          <div className="flex items-center">
+            <Users className="w-4 h-4 mr-1 text-gray-500" />
+            <span>{event.contributions?.length || 0} contributors</span>
+          </div>
+          <div className="flex items-center">
+            <DollarSign className="w-4 h-4 mr-1 text-gray-500" />
+            <span>{calculateProgress().toFixed(0)}%</span>
+          </div>
+        </div>
 
         {/* Action Buttons */}
         {showActions && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex justify-between mt-4">
             <Link
               to={`/events/${event._id}`}
-              className="flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-md bg-[#5551FF] text-white hover:bg-[#4440FF]"
+              className="text-[#5551FF] hover:text-[#4440FF] font-medium"
             >
-              <Eye className="w-4 h-4 mr-1.5" />
-              View
+              View Details
             </Link>
-
-            {isOwner && (
-              <>
-                <Link
-                  to={`/events/edit/${event._id}`}
-                  className="flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
-                >
-                  <Edit className="w-4 h-4 mr-1.5" />
-                  Edit
-                </Link>
-
-                <button
-                  onClick={handleDeleteEvent}
-                  disabled={loading}
-                  className={`flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-md ${
-                    deleteConfirm
-                      ? "bg-red-600 text-white hover:bg-red-700"
-                      : "bg-red-100 text-red-700 hover:bg-red-200"
-                  }`}
-                >
-                  <Trash2 className="w-4 h-4 mr-1.5" />
-                  {deleteConfirm ? "Confirm" : "Delete"}
-                </button>
-              </>
-            )}
-
-            <button
-              onClick={handleShare}
-              className="flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
-            >
-              <Share2 className="w-4 h-4 mr-1.5" />
-              Share
-            </button>
-
-            {isOwner && event.visibility !== "public" && event.accessCode && (
-              <button
-                onClick={handleCopyAccessCode}
-                className="flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
+            <div className="flex gap-2">
+              <Link
+                to={`/events/edit/${event._id}`}
+                className="p-2 rounded-full hover:bg-gray-100"
+                title="Edit Event"
               >
-                <Copy className="w-4 h-4 mr-1.5" />
-                Code
+                <Edit className="w-4 h-4 text-gray-600" />
+              </Link>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className={`p-2 rounded-full hover:bg-gray-100 ${
+                  deleteConfirm ? "bg-red-50" : ""
+                }`}
+                title={deleteConfirm ? "Confirm Delete" : "Delete Event"}
+              >
+                <Trash2
+                  className={`w-4 h-4 ${
+                    deleteConfirm ? "text-red-600" : "text-gray-600"
+                  }`}
+                />
               </button>
-            )}
+              <button
+                onClick={handleShare}
+                className="p-2 rounded-full hover:bg-gray-100"
+                title="Share Event"
+              >
+                <Share2 className="w-4 h-4 text-gray-600" />
+              </button>
+            </div>
           </div>
         )}
       </div>

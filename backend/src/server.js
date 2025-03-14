@@ -6,6 +6,7 @@ const connectDB = require("./config/db");
 const cookieParser = require("cookie-parser");
 const morgan = require("morgan");
 const path = require("path");
+const errorHandler = require("./middleware/errorHandler");
 
 // Load env vars
 dotenv.config();
@@ -95,65 +96,15 @@ app.get("/api", (req, res) => {
   });
 });
 
-// 404 handler
+// 404 handler - must come BEFORE error handler
 app.use((req, res, next) => {
-  res.status(404).json({
-    success: false,
-    message: `Route not found: ${req.originalUrl}`,
-  });
+  const error = new Error(`Route not found: ${req.originalUrl}`);
+  error.statusCode = 404;
+  next(error); // Pass to error handler
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  // Log detailed error information
-  console.error("Server Error:", err);
-  console.error("Stack Trace:", err.stack);
-  console.error("Request path:", req.path);
-  console.error("Request method:", req.method);
-
-  // Mongoose validation error
-  if (err.name === "ValidationError") {
-    const messages = Object.values(err.errors).map((val) => val.message);
-    return res.status(400).json({
-      success: false,
-      message: "Validation Error",
-      errors: messages,
-    });
-  }
-
-  // Mongoose duplicate key error
-  if (err.code === 11000) {
-    return res.status(400).json({
-      success: false,
-      message: `Duplicate field value: ${JSON.stringify(err.keyValue)}`,
-    });
-  }
-
-  // JWT authentication error
-  if (err.name === "JsonWebTokenError") {
-    return res.status(401).json({
-      success: false,
-      message: "Invalid token",
-    });
-  }
-
-  // JWT expired error
-  if (err.name === "TokenExpiredError") {
-    return res.status(401).json({
-      success: false,
-      message: "Token expired",
-    });
-  }
-
-  // Default error response
-  const statusCode = err.statusCode || 500;
-  res.status(statusCode).json({
-    success: false,
-    message: err.message || "Something went wrong!",
-    error: process.env.NODE_ENV === "development" ? err : "Server Error",
-    stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
-  });
-});
+// Global error handling middleware
+app.use(errorHandler);
 
 // Set up server
 const PORT = process.env.PORT || 5000;
