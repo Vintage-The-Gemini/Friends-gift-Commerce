@@ -61,7 +61,8 @@ const ProductRejectionDetails = ({ product, onResubmit }) => {
                 onClick={() => onResubmit(product._id)}
                 className="px-4 py-2 border border-red-600 text-red-700 rounded-lg hover:bg-red-50"
               >
-                Resubmit Without Changes
+                // frontend/src/components/seller/ProductRejectionDetails.jsx
+                (continued) Resubmit Without Changes
               </button>
             )}
           </div>
