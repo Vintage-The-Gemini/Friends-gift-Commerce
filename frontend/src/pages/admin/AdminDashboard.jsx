@@ -1,5 +1,6 @@
-// frontend/src/pages/admin/AdminDashboard.jsx
+// frontend/src/pages/admin/AdminDashboard.jsx (Updated)
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   Users,
   ShoppingBag,
@@ -15,10 +16,17 @@ import {
   CreditCard,
   UserCheck,
   Tag,
+  Clock,
+  CheckCircle,
+  X,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import api from "../../services/api/axios.config";
 import { formatCurrency } from "../../utils/currency";
+import {
+  PendingApprovalsWidget,
+  QuickStatsWidget,
+  RecentActivityWidget,
+} from "../../components/admin/AdminDashboardWidgets";
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
@@ -35,43 +43,129 @@ const AdminDashboard = () => {
     recentEvents: [],
     recentOrders: [],
   });
+  const [pendingProducts, setPendingProducts] = useState([]);
+  const [pendingSellers, setPendingSellers] = useState([]);
+  const [approvalStats, setApprovalStats] = useState({
+    products: { pending: 0, approved: 0, rejected: 0, total: 0 },
+  });
+  const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    fetchDashboardStats();
+    fetchDashboardData();
   }, []);
 
-  const fetchDashboardStats = async () => {
+  const fetchDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await api.get("/admin/dashboard/stats");
+      // Make parallel requests to different endpoints
+      const [
+        statsResponse,
+        productsResponse,
+        sellersResponse,
+        approvalsResponse,
+      ] = await Promise.all([
+        api.get("/admin/dashboard/stats"),
+        api.get("/admin/approvals/products?limit=5"),
+        api.get("/admin/sellers?status=pending&limit=5"),
+        api.get("/admin/approvals/stats"),
+      ]);
 
-      if (response.data.success) {
-        setStats(response.data.data);
-      } else {
-        throw new Error(
-          response.data.message || "Failed to fetch dashboard stats"
-        );
+      // Process dashboard stats
+      if (statsResponse.data.success) {
+        setStats(statsResponse.data.data);
       }
+
+      // Process pending products
+      if (productsResponse.data.success) {
+        setPendingProducts(productsResponse.data.data || []);
+      }
+
+      // Process pending sellers
+      if (sellersResponse.data.success) {
+        setPendingSellers(sellersResponse.data.data || []);
+      }
+
+      // Process approval stats
+      if (approvalsResponse.data.success) {
+        setApprovalStats(approvalsResponse.data.data);
+      }
+
+      // Generate activities from recent events
+      generateActivities(
+        statsResponse.data.success ? statsResponse.data.data : null,
+        productsResponse.data.success ? productsResponse.data.data : []
+      );
     } catch (error) {
-      console.error("Error fetching stats:", error);
+      console.error("Error fetching dashboard data:", error);
       setError("Failed to load dashboard statistics. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const refreshStats = async () => {
+  // Generate activities array from various data sources
+  const generateActivities = (statsData, pendingProductsData) => {
+    const activitiesList = [];
+
+    // Add recent user registrations
+    if (statsData?.recentUsers?.length) {
+      statsData.recentUsers.slice(0, 3).forEach((user) => {
+        activitiesList.push({
+          message: `New ${user.role} registered: ${user.name}`,
+          time: new Date(user.createdAt).toLocaleString(),
+          icon: <User className="h-4 w-4 text-blue-600" />,
+          bgColor: "bg-blue-100",
+        });
+      });
+    }
+
+    // Add recent orders
+    if (statsData?.recentOrders?.length) {
+      statsData.recentOrders.slice(0, 3).forEach((order) => {
+        activitiesList.push({
+          message: `New order (${formatCurrency(order.totalAmount)}) from ${
+            order.buyer?.name || "Anonymous"
+          }`,
+          time: new Date(order.createdAt).toLocaleString(),
+          icon: <ShoppingBag className="h-4 w-4 text-green-600" />,
+          bgColor: "bg-green-100",
+          status: order.status,
+        });
+      });
+    }
+
+    // Add pending product approvals
+    if (pendingProductsData?.length) {
+      pendingProductsData.slice(0, 3).forEach((product) => {
+        activitiesList.push({
+          message: `Product needs approval: ${product.name}`,
+          time: new Date(product.createdAt).toLocaleString(),
+          icon: <Clock className="h-4 w-4 text-yellow-600" />,
+          bgColor: "bg-yellow-100",
+          status: "pending",
+        });
+      });
+    }
+
+    // Sort activities by date (newest first)
+    activitiesList.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+    setActivities(activitiesList);
+  };
+
+  const refreshDashboard = async () => {
     try {
       setRefreshing(true);
-      await fetchDashboardStats();
+      await fetchDashboardData();
       // Show success feedback
       setTimeout(() => setRefreshing(false), 1000);
     } catch (error) {
+      // Error already handled in fetchDashboardData
       setRefreshing(false);
     }
   };
@@ -86,53 +180,10 @@ const AdminDashboard = () => {
     });
   };
 
-  // Stat Card Component
-  const StatCard = ({
-    title,
-    value,
-    icon: Icon,
-    color,
-    link,
-    subtitle = null,
-  }) => (
-    <Link
-      to={link}
-      className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow"
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-gray-500 text-sm">{title}</p>
-          <h3 className="text-2xl font-bold mt-2">{value}</h3>
-          {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
-        </div>
-        <div className={`p-3 rounded-full ${color}`}>
-          <Icon className="w-6 h-6 text-white" />
-        </div>
-      </div>
-    </Link>
-  );
-
-  // Quick action card component
-  const QuickActionCard = ({ title, description, icon: Icon, link }) => (
-    <Link
-      to={link}
-      className="bg-white p-5 rounded-lg shadow-md hover:shadow-lg transition-shadow flex items-start"
-    >
-      <div className="p-3 bg-blue-50 rounded-lg mr-4">
-        <Icon className="w-6 h-6 text-blue-600" />
-      </div>
-      <div>
-        <h3 className="font-medium mb-1">{title}</h3>
-        <p className="text-sm text-gray-500">{description}</p>
-      </div>
-      <ChevronRight className="w-5 h-5 text-gray-400 ml-auto self-center" />
-    </Link>
-  );
-
   if (loading && !stats.totalUsers) {
     return (
       <div className="p-6 flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500"></div>
       </div>
     );
   }
@@ -142,9 +193,9 @@ const AdminDashboard = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Admin Dashboard</h1>
         <button
-          onClick={refreshStats}
+          onClick={refreshDashboard}
           disabled={refreshing}
-          className="flex items-center px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"
+          className="flex items-center px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100"
         >
           <RefreshCw
             className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`}
@@ -161,261 +212,213 @@ const AdminDashboard = () => {
       )}
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard
-          title="Total Users"
-          value={stats.totalUsers.toLocaleString()}
-          subtitle={`+${stats.newUsers} new (7d)`}
-          icon={Users}
-          color="bg-blue-500"
-          link="/admin/users"
-        />
-        <StatCard
-          title="Total Sellers"
-          value={stats.totalSellers.toLocaleString()}
-          icon={Store}
-          color="bg-green-500"
-          link="/admin/sellers"
-        />
-        <StatCard
-          title="Active Events"
-          value={stats.activeEvents.toLocaleString()}
-          subtitle={`${stats.totalEvents} total`}
-          icon={Calendar}
-          color="bg-purple-500"
-          link="/admin/events"
-        />
-        <StatCard
-          title="Total Products"
-          value={stats.totalProducts.toLocaleString()}
-          icon={Package}
-          color="bg-yellow-500"
-          link="/admin/products"
-        />
+      <div className="mb-8">
+        <QuickStatsWidget stats={stats} />
       </div>
 
-      {/* Second Row Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard
-          title="Pending Orders"
-          value={stats.pendingOrders?.toLocaleString() || 0}
-          subtitle={`${stats.totalOrders || 0} total orders`}
-          icon={ShoppingBag}
-          color="bg-orange-500"
-          link="/admin/orders"
-        />
-        <StatCard
-          title="Total Revenue"
-          value={formatCurrency(stats.contributionAmount || 0)}
-          icon={DollarSign}
-          color="bg-emerald-500"
-          link="/admin/contributions"
-        />
-        <StatCard
-          title="Completed Events"
-          value={stats.completedEvents?.toLocaleString() || 0}
-          icon={TrendingUp}
-          color="bg-indigo-500"
-          link="/admin/events?status=completed"
-        />
-        <StatCard
-          title="Active Categories"
-          value={stats.totalCategories?.toLocaleString() || 0}
-          icon={Tag}
-          color="bg-pink-500"
-          link="/admin/categories"
-        />
-      </div>
-
-      {/* Quick Actions */}
-      <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-        <QuickActionCard
-          title="Manage Users"
-          description="View, edit and manage user accounts"
-          icon={Users}
-          link="/admin/users"
-        />
-        <QuickActionCard
-          title="Approve Sellers"
-          description="Review and approve seller applications"
-          icon={UserCheck}
-          link="/admin/sellers"
-        />
-        <QuickActionCard
-          title="Manage Categories"
-          description="Create and organize product categories"
-          icon={Tag}
-          link="/admin/categories"
-        />
-        <QuickActionCard
-          title="Process Payments"
-          description="View and manage payment transactions"
-          icon={CreditCard}
-          link="/admin/contributions"
-        />
-      </div>
-
-      {/* Recent Activities */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Users */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">Recent Users</h2>
-            <Link
-              to="/admin/users"
-              className="text-blue-600 text-sm hover:underline"
-            >
-              View All
-            </Link>
+      {/* Approval Stats Cards */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold mb-4">Approval Status</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-lg shadow-sm p-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                  Pending Approvals
+                </p>
+                <p className="text-2xl font-bold text-yellow-500">
+                  {approvalStats.products.pending}
+                </p>
+              </div>
+              <div className="p-2 bg-yellow-100 rounded-full">
+                <Clock className="h-5 w-5 text-yellow-500" />
+              </div>
+            </div>
+            <div className="mt-2">
+              <Link
+                to="/admin/approvals"
+                className="text-sm text-yellow-600 hover:text-yellow-700 flex items-center"
+              >
+                Review Pending <ChevronRight className="h-4 w-4 ml-1" />
+              </Link>
+            </div>
           </div>
 
-          {stats.recentUsers && stats.recentUsers.length > 0 ? (
-            <div className="space-y-4">
-              {stats.recentUsers.map((user) => (
-                <div key={user._id} className="flex items-center p-2 border-b">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-medium">
-                    {user.name ? user.name.charAt(0).toUpperCase() : "U"}
-                  </div>
-                  <div className="ml-3 flex-1">
-                    <p className="font-medium">{user.name}</p>
-                    <p className="text-sm text-gray-500">
-                      {user.role} • {user.phoneNumber}
-                    </p>
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {formatDate(user.createdAt)}
-                  </div>
-                </div>
-              ))}
+          <div className="bg-white rounded-lg shadow-sm p-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                  Approved Products
+                </p>
+                <p className="text-2xl font-bold text-green-500">
+                  {approvalStats.products.approved}
+                </p>
+              </div>
+              <div className="p-2 bg-green-100 rounded-full">
+                <CheckCircle className="h-5 w-5 text-green-500" />
+              </div>
             </div>
-          ) : (
-            <p className="text-gray-500 text-center py-6">No recent users</p>
-          )}
+            <div className="mt-2">
+              <Link
+                to="/admin/products?status=active"
+                className="text-sm text-green-600 hover:text-green-700 flex items-center"
+              >
+                View Approved <ChevronRight className="h-4 w-4 ml-1" />
+              </Link>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                  Rejected Products
+                </p>
+                <p className="text-2xl font-bold text-red-500">
+                  {approvalStats.products.rejected}
+                </p>
+              </div>
+              <div className="p-2 bg-red-100 rounded-full">
+                <X className="h-5 w-5 text-red-500" />
+              </div>
+            </div>
+            <div className="mt-2">
+              <Link
+                to="/admin/products?status=inactive"
+                className="text-sm text-red-600 hover:text-red-700 flex items-center"
+              >
+                View Rejected <ChevronRight className="h-4 w-4 ml-1" />
+              </Link>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                  Total Products
+                </p>
+                <p className="text-2xl font-bold text-indigo-500">
+                  {approvalStats.products.total}
+                </p>
+              </div>
+              <div className="p-2 bg-indigo-100 rounded-full">
+                <Package className="h-5 w-5 text-indigo-500" />
+              </div>
+            </div>
+            <div className="mt-2">
+              <Link
+                to="/admin/products"
+                className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center"
+              >
+                View All <ChevronRight className="h-4 w-4 ml-1" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Dashboard Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Pending Approvals Widget */}
+        <div className="lg:col-span-2">
+          <PendingApprovalsWidget
+            pendingProducts={pendingProducts}
+            pendingSellers={pendingSellers}
+          />
         </div>
 
-        {/* Recent Events */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">Recent Events</h2>
-            <Link
-              to="/admin/events"
-              className="text-blue-600 text-sm hover:underline"
-            >
-              View All
-            </Link>
-          </div>
+        {/* Recent Activity Widget */}
+        <div>
+          <RecentActivityWidget activities={activities} />
+        </div>
+      </div>
 
-          {stats.recentEvents && stats.recentEvents.length > 0 ? (
-            <div className="space-y-4">
-              {stats.recentEvents.map((event) => (
-                <div key={event._id} className="flex items-center p-2 border-b">
-                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-medium">
-                    <Calendar className="w-5 h-5" />
-                  </div>
-                  <div className="ml-3 flex-1">
-                    <p className="font-medium">{event.title}</p>
-                    <p className="text-sm text-gray-500">
-                      {event.eventType} • {formatCurrency(event.targetAmount)}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs ${
-                        event.status === "active"
-                          ? "bg-green-100 text-green-800"
-                          : event.status === "completed"
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {event.status}
-                    </span>
-                    <span className="text-xs text-gray-500 mt-1">
-                      {formatDate(event.createdAt)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 text-center py-6">No recent events</p>
-          )}
+      {/* Recent Orders Section */}
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="flex justify-between items-center p-4 border-b">
+          <h2 className="text-lg font-semibold">Recent Orders</h2>
+          <Link
+            to="/admin/orders"
+            className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center"
+          >
+            View All <ChevronRight className="w-4 h-4 ml-1" />
+          </Link>
         </div>
 
-        {/* Recent Orders */}
-        <div className="bg-white rounded-lg shadow p-6 lg:col-span-2 mt-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">Recent Orders</h2>
-            <Link
-              to="/admin/orders"
-              className="text-blue-600 text-sm hover:underline"
-            >
-              View All
-            </Link>
-          </div>
-
-          {stats.recentOrders && stats.recentOrders.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Buyer
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Amount
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Date
-                    </th>
+        {stats.recentOrders && stats.recentOrders.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Order ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Customer
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Amount
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {stats.recentOrders.map((order) => (
+                  <tr key={order._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      #{order._id.substr(-6)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {order.buyer?.name || "Unknown"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      {formatCurrency(order.totalAmount)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          order.status === "completed"
+                            ? "bg-green-100 text-green-800"
+                            : order.status === "processing"
+                            ? "bg-blue-100 text-blue-800"
+                            : order.status === "pending"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {order.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(order.createdAt)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                      <Link
+                        to={`/admin/orders/${order._id}`}
+                        className="text-indigo-600 hover:text-indigo-900"
+                      >
+                        View
+                      </Link>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {stats.recentOrders.map((order) => (
-                    <tr key={order._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        #{order._id.substr(-6)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {order.buyer?.name || "Unknown"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {formatCurrency(order.totalAmount)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs ${
-                            order.status === "completed"
-                              ? "bg-green-100 text-green-800"
-                              : order.status === "processing"
-                              ? "bg-blue-100 text-blue-800"
-                              : order.status === "pending"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {order.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(order.createdAt)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-gray-500 text-center py-6">No recent orders</p>
-          )}
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-6 text-center text-gray-500">
+            No recent orders available
+          </div>
+        )}
       </div>
     </div>
   );

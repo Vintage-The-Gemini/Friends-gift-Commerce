@@ -12,11 +12,17 @@ import {
   X,
   AlertCircle,
   Package,
+  RefreshCw,
+  Info,
+  Clock,
+  CheckCircle,
+  AlertTriangle,
 } from "lucide-react";
 import { sellerProductService } from "../../../services/api/sellerProduct";
 import { toast } from "react-toastify";
 import Button from "../../../components/common/Button";
 import { formatCurrency } from "../../../utils/currency";
+import SellerProductStatusBadge from "../../../components/seller/SellerProductStatusBadge";
 
 const ManageProducts = () => {
   const navigate = useNavigate();
@@ -24,26 +30,50 @@ const ManageProducts = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [filter, setFilter] = useState("active"); // Default to active products
+  const [filter, setFilter] = useState("all"); // Changed default to show all products
+  const [approvalStatusFilter, setApprovalStatusFilter] = useState("all");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [statusStats, setStatusStats] = useState({
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    total: 0,
+  });
 
   useEffect(() => {
     fetchProducts();
-  }, [filter]);
+    fetchProductStats();
+  }, [filter, approvalStatusFilter]);
+
+  const fetchProductStats = async () => {
+    try {
+      const response = await sellerProductService.getProductStatusStats();
+      if (response.success) {
+        setStatusStats(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching product stats:", error);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
       setError("");
 
-      // Prepare query params - make sure to filter by status
+      // Prepare query params
       const params = {};
 
       // Set the isActive filter based on the selected filter value
       if (filter !== "all") {
         params.status = filter === "active" ? "true" : "false";
+      }
+
+      // Set the approval status filter
+      if (approvalStatusFilter !== "all") {
+        params.approvalStatus = approvalStatusFilter;
       }
 
       console.log("Fetching products with params:", params);
@@ -52,7 +82,7 @@ const ManageProducts = () => {
       if (response.success) {
         setProducts(response.data);
         console.log(
-          `Loaded ${response.data.length} products with filter: ${filter}`
+          `Loaded ${response.data.length} products with filter: ${filter}, approval: ${approvalStatusFilter}`
         );
       } else {
         throw new Error(response.message || "Failed to fetch products");
@@ -93,9 +123,8 @@ const ManageProducts = () => {
         // Remove product from state
         setProducts(products.filter((p) => p._id !== productToDelete._id));
 
-        // Force a refetch of the products to ensure sync with server
-        // Uncomment the line below if you want to refetch from server instead of removing from state
-        // fetchProducts();
+        // Refresh statistics
+        fetchProductStats();
       } else {
         throw new Error(response.message || "Failed to delete product");
       }
@@ -106,6 +135,22 @@ const ManageProducts = () => {
       setDeleteLoading(false);
       setShowDeleteModal(false);
       setProductToDelete(null);
+    }
+  };
+
+  const handleResubmit = async (productId) => {
+    try {
+      const response = await sellerProductService.resubmitProduct(productId);
+      if (response.success) {
+        toast.success("Product resubmitted for approval");
+        fetchProducts();
+        fetchProductStats();
+      } else {
+        throw new Error(response.message || "Failed to resubmit product");
+      }
+    } catch (error) {
+      console.error("Error resubmitting product:", error);
+      toast.error(error.message || "Failed to resubmit product");
     }
   };
 
@@ -125,6 +170,83 @@ const ManageProducts = () => {
         >
           Add New Product
         </Button>
+      </div>
+
+      {/* Product Approval Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-medium text-yellow-700">
+                Pending Approval
+              </p>
+              <p className="text-xl font-bold text-yellow-600">
+                {statusStats.pending}
+              </p>
+            </div>
+            <div className="p-2 bg-yellow-100 rounded-full">
+              <Clock className="h-4 w-4 text-yellow-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-medium text-green-700">Approved</p>
+              <p className="text-xl font-bold text-green-600">
+                {statusStats.approved}
+              </p>
+            </div>
+            <div className="p-2 bg-green-100 rounded-full">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-medium text-red-700">Rejected</p>
+              <p className="text-xl font-bold text-red-600">
+                {statusStats.rejected}
+              </p>
+            </div>
+            <div className="p-2 bg-red-100 rounded-full">
+              <X className="h-4 w-4 text-red-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-medium text-blue-700">
+                Total Products
+              </p>
+              <p className="text-xl font-bold text-blue-600">
+                {statusStats.total}
+              </p>
+            </div>
+            <div className="p-2 bg-blue-100 rounded-full">
+              <Package className="h-4 w-4 text-blue-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Info banner about approval process */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <h3 className="font-medium text-blue-800 flex items-center">
+          <Info className="w-5 h-5 mr-2" />
+          Product Approval Process
+        </h3>
+        <p className="mt-2 text-blue-700 text-sm">
+          All products require admin approval before they become visible to
+          customers. After submission, your products will be reviewed by our
+          team. If approved, they will be listed on the marketplace. If
+          rejected, you'll see the reason and can edit and resubmit.
+        </p>
       </div>
 
       <div className="mb-6 flex flex-col md:flex-row gap-4">
@@ -147,6 +269,17 @@ const ManageProducts = () => {
           <option value="all">All Products</option>
           <option value="active">Active Products</option>
           <option value="inactive">Inactive Products</option>
+        </select>
+
+        <select
+          value={approvalStatusFilter}
+          onChange={(e) => setApprovalStatusFilter(e.target.value)}
+          className="px-4 py-2 border rounded-lg"
+        >
+          <option value="all">All Statuses</option>
+          <option value="pending">Pending Approval</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
         </select>
       </div>
 
@@ -172,8 +305,8 @@ const ManageProducts = () => {
           <p className="text-gray-500 mb-6">
             {searchTerm
               ? `No products match your search for "${searchTerm}"`
-              : filter !== "all"
-              ? `You don't have any ${filter} products`
+              : filter !== "all" || approvalStatusFilter !== "all"
+              ? `No products match your current filters`
               : "You haven't added any products yet"}
           </p>
           <Button
@@ -201,6 +334,9 @@ const ManageProducts = () => {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Approval Status
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -249,6 +385,12 @@ const ManageProducts = () => {
                         {product.isActive ? "Active" : "Inactive"}
                       </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <SellerProductStatusBadge
+                        product={product}
+                        showTooltip={true}
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end space-x-2">
                         <button
@@ -267,6 +409,15 @@ const ManageProducts = () => {
                         >
                           <Edit className="w-4 h-4" />
                         </button>
+                        {product.approvalStatus === "rejected" && (
+                          <button
+                            onClick={() => handleResubmit(product._id)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                            title="Resubmit for approval"
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => confirmDelete(product)}
                           className="text-gray-600 hover:text-red-600"

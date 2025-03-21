@@ -1,4 +1,4 @@
-// models/Product.js
+// backend/src/models/Product.js (Updated with approval fields)
 const mongoose = require("mongoose");
 
 const imageSchema = new mongoose.Schema({
@@ -56,7 +56,7 @@ const productSchema = new mongoose.Schema(
     },
     isActive: {
       type: Boolean,
-      default: true,
+      default: false, // Products are inactive by default until approved
     },
     tags: [String],
     viewCount: {
@@ -66,6 +66,46 @@ const productSchema = new mongoose.Schema(
     rating: {
       average: { type: Number, default: 0 },
       count: { type: Number, default: 0 },
+    },
+
+    // New approval system fields
+    approvalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    reviewedAt: {
+      type: Date,
+    },
+    reviewNotes: {
+      type: String,
+    },
+
+    // Fields for rejected products resubmission
+    previousVersions: [
+      {
+        name: String,
+        description: String,
+        price: Number,
+        category: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
+        images: [imageSchema],
+        characteristics: Map,
+        rejectionReason: String,
+        rejectedAt: Date,
+        rejectedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      },
+    ],
+    resubmitted: {
+      type: Boolean,
+      default: false,
+    },
+    resubmissionCount: {
+      type: Number,
+      default: 0,
     },
   },
   {
@@ -108,5 +148,40 @@ productSchema.pre("save", async function (next) {
   }
   next();
 });
+
+// Add middleware for resubmitting a rejected product
+productSchema.methods.resubmit = function (productData) {
+  // Store the current version in previous versions
+  if (this.approvalStatus === "rejected") {
+    this.previousVersions.push({
+      name: this.name,
+      description: this.description,
+      price: this.price,
+      category: this.category,
+      images: this.images,
+      characteristics: this.characteristics,
+      rejectionReason: this.reviewNotes,
+      rejectedAt: this.reviewedAt,
+      rejectedBy: this.reviewedBy,
+    });
+
+    // Update product with new data
+    Object.assign(this, productData);
+
+    // Reset approval status
+    this.approvalStatus = "pending";
+    this.reviewedBy = undefined;
+    this.reviewedAt = undefined;
+    this.reviewNotes = undefined;
+
+    // Update resubmission metadata
+    this.resubmitted = true;
+    this.resubmissionCount += 1;
+
+    return true;
+  }
+
+  return false;
+};
 
 module.exports = mongoose.model("Product", productSchema);

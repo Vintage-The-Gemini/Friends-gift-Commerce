@@ -14,6 +14,11 @@ const {
   getBusinessProfile,
   updateBusinessProfile,
 } = require("../controllers/business.controller");
+const {
+  resubmitProduct,
+  getProductHistory,
+  getProductStatusStats,
+} = require("../controllers/productResubmit.controller");
 
 // Business Profile Routes
 router.get(
@@ -35,7 +40,7 @@ router.put(
   updateBusinessProfile
 );
 
-// Product Routes - Add these routes
+// Product Routes
 router.get("/products", protect, authorize("seller"), getSellerProducts);
 router.post(
   "/products",
@@ -52,5 +57,25 @@ router.put(
   updateProduct
 );
 router.delete("/products/:id", protect, authorize("seller"), deleteProduct);
+
+// Product resubmission routes
+router.post(
+  "/products/:id/resubmit",
+  protect,
+  authorize("seller"),
+  resubmitProduct
+);
+router.get(
+  "/products/:id/history",
+  protect,
+  authorize("seller"),
+  getProductHistory
+);
+router.get(
+  "/products/stats/approval",
+  protect,
+  authorize("seller"),
+  getProductStatusStats
+);
 
 module.exports = router;

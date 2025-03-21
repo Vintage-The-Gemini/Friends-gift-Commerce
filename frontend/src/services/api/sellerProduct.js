@@ -1,4 +1,4 @@
-// Fixed version of frontend/src/services/api/sellerProduct.js
+// frontend/src/services/api/sellerProduct.js
 import api from "./axios.config";
 
 // API endpoints
@@ -89,6 +89,64 @@ export const sellerProductService = {
     } catch (error) {
       console.error("[Seller Product Service] Upload Images Error:", error);
       throw error.response?.data || new Error("Failed to upload images");
+    }
+  },
+
+  /**
+   * Resubmit a rejected product without changes
+   * @param {string} id - Product ID
+   * @returns {Promise<Object>} API response
+   */
+  resubmitProduct: async (id) => {
+    try {
+      const response = await api.post(
+        `${ENDPOINTS.SELLER_PRODUCTS}/${id}/resubmit`
+      );
+      return response.data;
+    } catch (error) {
+      console.error("[Seller Product Service] Resubmit Product Error:", error);
+      throw error.response?.data || new Error("Failed to resubmit product");
+    }
+  },
+
+  /**
+   * Get product rejection history
+   * @param {string} id - Product ID
+   * @returns {Promise<Object>} API response with previous versions
+   */
+  getProductHistory: async (id) => {
+    try {
+      const response = await api.get(
+        `${ENDPOINTS.SELLER_PRODUCTS}/${id}/history`
+      );
+      return response.data;
+    } catch (error) {
+      console.error(
+        "[Seller Product Service] Get Product History Error:",
+        error
+      );
+      throw (
+        error.response?.data || new Error("Failed to fetch product history")
+      );
+    }
+  },
+
+  /**
+   * Get product approval status counts
+   * @returns {Promise<Object>} API response with product stats by approval status
+   */
+  getProductStatusStats: async () => {
+    try {
+      const response = await api.get(
+        `${ENDPOINTS.SELLER_PRODUCTS}/stats/approval`
+      );
+      return response.data;
+    } catch (error) {
+      console.error("[Seller Product Service] Get Status Stats Error:", error);
+      throw (
+        error.response?.data ||
+        new Error("Failed to fetch product status statistics")
+      );
     }
   },
 };

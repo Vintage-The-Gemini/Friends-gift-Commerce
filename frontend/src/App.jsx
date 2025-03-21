@@ -33,6 +33,8 @@ import AdminEvents from "./pages/admin/AdminEvents";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminCategories from "./pages/admin/AdminCategories";
+import AdminApprovalsList from "./pages/admin/AdminApprovalsList";
+import AdminProductReview from "./pages/admin/AdminProductReview";
 
 // Seller Pages
 import BusinessSetup from "./pages/dashboard/seller/BusinessSetup";
@@ -44,11 +46,10 @@ import SellerOrders from "./pages/dashboard/seller/SellerOrders";
 import SellerAnalytics from "./pages/dashboard/seller/SellerAnalytics";
 import SellerSettings from "./pages/dashboard/seller/SellerSettings";
 import BusinessProfilePage from "./pages/dashboard/seller/BusinessProfilePage";
-import sellerEvents from "./pages/dashboard/seller/SellerEvents";
+import SellerEvents from "./pages/dashboard/seller/SellerEvents";
 
 // Error Boundary
 import ErrorBoundary from "./components/common/ErrorBoundary";
-import SellerEvents from "./pages/dashboard/seller/SellerEvents";
 
 const Root = () => {
   return (
@@ -214,6 +215,9 @@ const router = createBrowserRouter(
                 { path: "products", element: <AdminProducts /> },
                 { path: "categories", element: <AdminCategories /> },
                 { path: "settings", element: <AdminSettings /> },
+                // New approval routes
+                { path: "approvals", element: <AdminApprovalsList /> },
+                { path: "product-review/:id", element: <AdminProductReview /> },
               ],
             },
           ],

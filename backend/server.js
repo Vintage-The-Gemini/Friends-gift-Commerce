@@ -53,6 +53,7 @@ const analyticsRoutes = require("./src/routes/analytics.routes");
 const buyerRoutes = require("./src/routes/buyer");
 const initializeAdmin = require("./src/utils/initAdmin");
 const User = require("./src/models/user");
+const approvalRoutes = require("./src/routes/approval.routes");
 
 // Mount routes
 app.use("/api/auth", authRoutes);
@@ -65,6 +66,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/contributions", contributionRoutes);
 app.use("/api/seller/analytics", analyticsRoutes);
 app.use("/api/buyer", buyerRoutes);
+app.use("/api/admin/approvals", approvalRoutes);
 
 initializeAdmin();
 
