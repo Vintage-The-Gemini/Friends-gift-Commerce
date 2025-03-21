@@ -14,7 +14,7 @@ const errorHandler = (err, req, res, next) => {
   let errorResponse = {
     success: false,
     message: err.message || "Something went wrong",
-    stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+    stack: process.env.NODE_ENV === "production" ? err.stack : undefined,
   };
 
   // Handle Mongoose/MongoDB CastError (invalid ObjectId)

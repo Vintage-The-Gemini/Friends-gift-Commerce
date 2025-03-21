@@ -17,8 +17,8 @@ connectDB();
 const app = express();
 
 // Middleware
-// Logger middleware for development
-if (process.env.NODE_ENV === "development") {
+// Logger middleware for production
+if (process.env.NODE_ENV === "production") {
   app.use(morgan("dev"));
 }
 

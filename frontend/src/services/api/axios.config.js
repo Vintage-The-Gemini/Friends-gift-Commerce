@@ -34,8 +34,8 @@ api.interceptors.request.use(
       config.url = config.url.replace("/api/", "/");
     }
 
-    // Log API requests in development
-    if (process.env.NODE_ENV === "development") {
+    // Log API requests in production
+    if (process.env.NODE_ENV === "production") {
       console.log(`API Request: ${config.method.toUpperCase()} ${config.url}`);
     }
 
@@ -94,8 +94,8 @@ api.interceptors.response.use(
     };
   },
   async (error) => {
-    // Log full error details in development
-    if (process.env.NODE_ENV === "development") {
+    // Log full error details in production
+    if (process.env.NODE_ENV === "production") {
       console.error("[API Error Details]:", {
         status: error.response?.status,
         url: error.config?.url,
@@ -131,8 +131,8 @@ api.interceptors.response.use(
   }
 );
 
-// Add request/response timing in development
-if (process.env.NODE_ENV === "development") {
+// Add request/response timing in production
+if (process.env.NODE_ENV === "production") {
   api.interceptors.request.use((config) => {
     config.metadata = { startTime: new Date() };
     return config;
