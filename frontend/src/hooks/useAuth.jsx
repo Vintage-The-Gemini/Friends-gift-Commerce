@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import api from "../services/api/axios.config";
 
 const AuthContext = createContext(null);
 
@@ -36,7 +37,7 @@ export const AuthProvider = ({ children }) => {
         password: "[REDACTED]",
       });
 
-      const response = await axios.post("/api/auth/login", credentials);
+      const response = await api.post("/api/auth/login", credentials);
       const { data } = response;
 
       if (data.token && data.user) {

@@ -1,49 +1,49 @@
 // src/pages/auth/SignUp.jsx
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
-import Logo from '../../assets/images/Friends-gift-logo.svg';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
+import Logo from "../../assets/images/Friends-gift-logo.svg";
 
 const SignUp = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [role, setRole] = useState('buyer');
+  const [role, setRole] = useState("buyer");
   const [formData, setFormData] = useState({
-    name: '',
-    phoneNumber: '',
-    password: '',
-    confirmPassword: '',
-    businessName: ''
+    name: "",
+    phoneNumber: "",
+    password: "",
+    confirmPassword: "",
+    businessName: "",
   });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     if (!formData.name.trim()) {
-      setError('Please enter your full name');
+      setError("Please enter your full name");
       return;
     }
 
-    if (role === 'seller' && !formData.businessName.trim()) {
-      setError('Business name is required for sellers');
+    if (role === "seller" && !formData.businessName.trim()) {
+      setError("Business name is required for sellers");
       return;
     }
 
     if (!formData.phoneNumber.match(/^\+254[0-9]{9}$/)) {
-      setError('Please enter a valid Kenyan phone number (+254...)');
+      setError("Please enter a valid Kenyan phone number (+254...)");
       return;
     }
 
     if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters long');
+      setError("Password must be at least 8 characters long");
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError("Passwords do not match");
       return;
     }
 
@@ -54,28 +54,31 @@ const SignUp = () => {
         name: formData.name.trim(),
         phoneNumber: formData.phoneNumber,
         password: formData.password,
-        role
+        role,
       };
 
-      if (role === 'seller') {
+      if (role === "seller") {
         requestData.businessName = formData.businessName.trim();
       }
 
-      const response = await fetch('http://localhost:5000/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData),
-      });
+      const response = await fetch(
+        "https://friends-gift-commerce-2.onrender.com/api/auth/register",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestData),
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Registration failed');
+        throw new Error(data.message || "Registration failed");
       }
 
-      navigate('/auth/signin');
+      navigate("/auth/signin");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -96,22 +99,22 @@ const SignUp = () => {
         <div className="flex justify-center gap-4">
           <button
             type="button"
-            onClick={() => setRole('buyer')}
+            onClick={() => setRole("buyer")}
             className={`px-4 py-2 rounded-full text-sm font-medium ${
-              role === 'buyer'
-                ? 'bg-[#5551FF] text-white'
-                : 'bg-gray-100 text-gray-600'
+              role === "buyer"
+                ? "bg-[#5551FF] text-white"
+                : "bg-gray-100 text-gray-600"
             }`}
           >
             As Buyer
           </button>
           <button
             type="button"
-            onClick={() => setRole('seller')}
+            onClick={() => setRole("seller")}
             className={`px-4 py-2 rounded-full text-sm font-medium ${
-              role === 'seller'
-                ? 'bg-[#5551FF] text-white'
-                : 'bg-gray-100 text-gray-600'
+              role === "seller"
+                ? "bg-[#5551FF] text-white"
+                : "bg-gray-100 text-gray-600"
             }`}
           >
             As Seller
@@ -128,13 +131,15 @@ const SignUp = () => {
               name="name"
               autoComplete="name"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#5551FF] focus:border-[#5551FF]"
               required
             />
           </div>
 
-          {role === 'seller' && (
+          {role === "seller" && (
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 Business Name
@@ -144,7 +149,9 @@ const SignUp = () => {
                 name="businessName"
                 autoComplete="organization"
                 value={formData.businessName}
-                onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, businessName: e.target.value })
+                }
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#5551FF] focus:border-[#5551FF]"
                 required
               />
@@ -160,7 +167,9 @@ const SignUp = () => {
               name="phoneNumber"
               autoComplete="tel"
               value={formData.phoneNumber}
-              onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, phoneNumber: e.target.value })
+              }
               placeholder="+254"
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#5551FF] focus:border-[#5551FF]"
               required
@@ -177,7 +186,9 @@ const SignUp = () => {
                 name="password"
                 autoComplete="new-password"
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#5551FF] focus:border-[#5551FF]"
                 required
                 minLength={8}
@@ -187,7 +198,11 @@ const SignUp = () => {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2"
               >
-                {showPassword ? <EyeOff className="h-4 w-4 text-gray-400" /> : <Eye className="h-4 w-4 text-gray-400" />}
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4 text-gray-400" />
+                ) : (
+                  <Eye className="h-4 w-4 text-gray-400" />
+                )}
               </button>
             </div>
           </div>
@@ -201,16 +216,16 @@ const SignUp = () => {
               name="confirmPassword"
               autoComplete="new-password"
               value={formData.confirmPassword}
-              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, confirmPassword: e.target.value })
+              }
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#5551FF] focus:border-[#5551FF]"
               required
             />
           </div>
 
           {error && (
-            <div className="text-red-500 text-sm text-center">
-              {error}
-            </div>
+            <div className="text-red-500 text-sm text-center">{error}</div>
           )}
 
           <button
@@ -218,12 +233,15 @@ const SignUp = () => {
             disabled={loading}
             className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#5551FF] hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#5551FF] disabled:opacity-50"
           >
-            {loading ? 'Creating Account...' : 'Sign Up'}
+            {loading ? "Creating Account..." : "Sign Up"}
           </button>
 
           <p className="text-sm text-center">
-            Already have an account?{' '}
-            <Link to="/auth/signin" className="text-[#5551FF] hover:text-opacity-90">
+            Already have an account?{" "}
+            <Link
+              to="/auth/signin"
+              className="text-[#5551FF] hover:text-opacity-90"
+            >
               Sign in
             </Link>
           </p>
