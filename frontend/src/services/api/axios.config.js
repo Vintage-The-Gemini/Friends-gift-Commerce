@@ -10,8 +10,11 @@ const ErrorTypes = {
 };
 
 // We need to fix the double API issue by removing /api from the baseURL
+// filepath: c:\Users\Admin\Desktop\desighn\Friends-gift-Commerce\frontend\src\services\api\axios.config.js
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+  baseURL:
+    import.meta.env.VITE_API_URL ||
+    "https://friends-gift-commerce-2.onrender.com/api",
   headers: {
     "Content-Type": "application/json",
   },
@@ -76,34 +79,20 @@ const errorHandlers = {
 };
 
 // Response interceptor with improved error handling
+// filepath: c:\Users\Admin\Desktop\desighn\Friends-gift-Commerce\frontend\src\services\api\axios.config.js
 api.interceptors.response.use(
   (response) => {
-    // If response already has success/message structure, return as is
-    if (response.data?.success !== undefined) {
-      return response;
-    }
-
-    // Standardize response structure
-    return {
-      ...response,
-      data: {
-        success: true,
-        data: response.data,
-        message: null,
-      },
-    };
+    console.log("[API Response]:", response);
+    return response;
   },
   async (error) => {
-    // Log full error details in production
-    if (process.env.NODE_ENV === "production") {
-      console.error("[API Error Details]:", {
-        status: error.response?.status,
-        url: error.config?.url,
-        method: error.config?.method,
-        data: error.response?.data,
-        error: error.message,
-      });
-    }
+    console.error("[API Error Details]:", {
+      status: error.response?.status,
+      url: error.config?.url,
+      method: error.config?.method,
+      data: error.response?.data,
+      error: error.message,
+    });
 
     // Handle network errors
     if (!error.response) {
@@ -130,7 +119,6 @@ api.interceptors.response.use(
     throw new Error(errorMessage);
   }
 );
-
 // Add request/response timing in production
 if (process.env.NODE_ENV === "production") {
   api.interceptors.request.use((config) => {
