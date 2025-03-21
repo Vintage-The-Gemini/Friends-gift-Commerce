@@ -2,75 +2,76 @@
 const express = require("express");
 const router = express.Router();
 const { protect, authorize } = require("../middleware/auth");
-const {
-  adminLogin,
-  getDashboardStats,
-  createUser,
-  getUsers,
-  getUser,
-  updateUser,
-  deleteUser,
-  getEvents,
-  getEvent,
-  updateEvent,
-  deleteEvent,
-  getProducts,
-  getProduct,
-  updateProduct,
-  deleteProduct,
-  getOrders,
-  getOrder,
-  updateOrder,
-  getContributions,
-  getSellers,
-  approveSeller,
-  suspendSeller,
-  getCategories,
-  createCategory,
-  updateCategory,
-  deleteCategory,
-} = require("../controllers/admin.controller");
+
+// Import controllers
+const adminController = require("../controllers/admin.controller");
+const productController = require("../controllers/admin.product.controller");
+const orderController = require("../controllers/admin.order.controller");
 
 // Public admin route - no authentication required
-router.post("/login", adminLogin);
+router.post("/login", adminController.adminLogin);
 
 // Apply protection to all routes below
 router.use(protect);
 router.use(authorize(["admin"]));
 
-// Dashboard stats
-router.get("/dashboard/stats", getDashboardStats);
+// Dashboard routes
+router.get("/dashboard/stats", adminController.getDashboardStats);
 
 // User management routes
-router.route("/users").get(getUsers).post(createUser);
-router.route("/users/:id").get(getUser).put(updateUser).delete(deleteUser);
-
-// Event management routes
-router.route("/events").get(getEvents);
-router.route("/events/:id").get(getEvent).put(updateEvent).delete(deleteEvent);
-
-// Product management routes
-router.route("/products").get(getProducts);
 router
-  .route("/products/:id")
-  .get(getProduct)
-  .put(updateProduct)
-  .delete(deleteProduct);
-
-// Order management routes
-router.route("/orders").get(getOrders);
-router.route("/orders/:id").get(getOrder).put(updateOrder);
+  .route("/users")
+  .get(adminController.getUsers)
+  .post(adminController.createUser);
+router
+  .route("/users/:id")
+  .get(adminController.getUser)
+  .put(adminController.updateUser)
+  .delete(adminController.deleteUser);
 
 // Seller management routes
-router.route("/sellers").get(getSellers);
-router.route("/sellers/:id/approve").put(approveSeller);
-router.route("/sellers/:id/suspend").put(suspendSeller);
+router.route("/sellers").get(adminController.getSellers);
+router.route("/sellers/:id/approve").put(adminController.approveSeller);
+router.route("/sellers/:id/suspend").put(adminController.suspendSeller);
+
+// Product management routes
+router.route("/products").get(productController.getProducts);
+router.route("/products/pending").get(productController.getPendingProducts);
+router
+  .route("/products/approval-stats")
+  .get(productController.getApprovalStats);
+router.route("/products/:id").get(productController.getProduct);
+router.route("/products/:id/approve").put(productController.approveProduct);
+router.route("/products/:id/reject").put(productController.rejectProduct);
+
+// Order management routes
+router.route("/orders").get(orderController.getOrders);
+router.route("/orders/stats").get(orderController.getOrderStats);
+router.route("/orders/export").get(orderController.exportOrders);
+router
+  .route("/orders/:id")
+  .get(orderController.getOrder)
+  .put(orderController.updateOrder);
 
 // Category management routes
-router.route("/categories").get(getCategories).post(createCategory);
-router.route("/categories/:id").put(updateCategory).delete(deleteCategory);
+router
+  .route("/categories")
+  .get(adminController.getCategories)
+  .post(adminController.createCategory);
+router
+  .route("/categories/:id")
+  .put(adminController.updateCategory)
+  .delete(adminController.deleteCategory);
 
-// Contribution routes
-router.route("/contributions").get(getContributions);
+// Event management routes
+router.route("/events").get(adminController.getEvents);
+router
+  .route("/events/:id")
+  .get(adminController.getEvent)
+  .put(adminController.updateEvent)
+  .delete(adminController.deleteEvent);
+
+// Contribution management routes
+router.route("/contributions").get(adminController.getContributions);
 
 module.exports = router;
