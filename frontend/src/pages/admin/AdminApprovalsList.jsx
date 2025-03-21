@@ -14,6 +14,10 @@ import {
   Clock,
   Package,
   ShoppingBag,
+  Grid,
+  List,
+  ExternalLink,
+  Info,
 } from "lucide-react";
 import api from "../../services/api/axios.config";
 import { toast } from "react-toastify";
@@ -32,12 +36,38 @@ const AdminApprovalsList = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
+  const [viewMode, setViewMode] = useState("grid"); // grid or table
+  const [approvalStats, setApprovalStats] = useState({
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    total: 0,
+  });
 
   useEffect(() => {
     fetchPendingProducts();
     fetchCategories();
     fetchSellers();
+    fetchApprovalStats();
   }, [page]);
+
+  const fetchApprovalStats = async () => {
+    try {
+      const response = await api.get("/admin/approvals/stats");
+      if (response.data.success) {
+        setApprovalStats(
+          response.data.data.products || {
+            pending: 0,
+            approved: 0,
+            rejected: 0,
+            total: 0,
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching approval stats:", error);
+    }
+  };
 
   const fetchPendingProducts = async () => {
     try {
@@ -47,7 +77,7 @@ const AdminApprovalsList = () => {
       // Build query params
       const params = new URLSearchParams();
       params.append("page", page);
-      params.append("limit", 10);
+      params.append("limit", 12); // Increased limit for better grid view
 
       if (categoryFilter) {
         params.append("category", categoryFilter);
@@ -108,13 +138,16 @@ const AdminApprovalsList = () => {
   const refreshList = async () => {
     setRefreshing(true);
     await fetchPendingProducts();
+    await fetchApprovalStats();
     setRefreshing(false);
+    toast.success("Product list refreshed");
   };
 
   const handleApprove = async (productId) => {
     try {
       const response = await api.put(
-        `/admin/approvals/products/${productId}/approve`
+        `/admin/approvals/products/${productId}/approve`,
+        { notes: "Product approved by admin" }
       );
 
       if (response.data.success) {
@@ -123,6 +156,8 @@ const AdminApprovalsList = () => {
         setPendingProducts(
           pendingProducts.filter((product) => product._id !== productId)
         );
+        // Update stats
+        fetchApprovalStats();
       } else {
         throw new Error(response.data.message || "Failed to approve product");
       }
@@ -152,6 +187,8 @@ const AdminApprovalsList = () => {
         setPendingProducts(
           pendingProducts.filter((product) => product._id !== productId)
         );
+        // Update stats
+        fetchApprovalStats();
       } else {
         throw new Error(response.data.message || "Failed to reject product");
       }
@@ -189,30 +226,119 @@ const AdminApprovalsList = () => {
   // Render loading spinner
   if (loading && pendingProducts.length === 0) {
     return (
-      <div className="p-6 flex justify-center items-center min-h-[400px]">
+      <div className="p-4 md:p-6 flex justify-center items-center min-h-[400px]">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Product Approvals</h1>
-        <button
-          onClick={refreshList}
-          disabled={refreshing}
-          className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50"
-        >
-          <RefreshCw
-            className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`}
-          />
-          Refresh
-        </button>
+    <div className="p-4 md:p-6">
+      {/* Header with Stats */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold">Product Approvals</h1>
+          <p className="text-gray-600 text-sm mt-1">
+            Review and manage product submissions
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={refreshList}
+            disabled={refreshing}
+            className="flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50"
+          >
+            <RefreshCw
+              className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </button>
+          <div className="flex rounded-lg overflow-hidden border border-gray-200">
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`p-2 transition ${
+                viewMode === "grid" ? "bg-gray-200" : "bg-white"
+              }`}
+              title="Grid view"
+            >
+              <Grid className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setViewMode("table")}
+              className={`p-2 transition ${
+                viewMode === "table" ? "bg-gray-200" : "bg-white"
+              }`}
+              title="Table view"
+            >
+              <List className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-sm font-medium text-gray-500">Pending</p>
+              <p className="text-2xl font-bold text-yellow-500">
+                {approvalStats.pending}
+              </p>
+            </div>
+            <div className="p-2 bg-yellow-100 rounded-full">
+              <Clock className="h-5 w-5 text-yellow-500" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-sm font-medium text-gray-500">Approved</p>
+              <p className="text-2xl font-bold text-green-500">
+                {approvalStats.approved}
+              </p>
+            </div>
+            <div className="p-2 bg-green-100 rounded-full">
+              <Check className="h-5 w-5 text-green-500" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-sm font-medium text-gray-500">Rejected</p>
+              <p className="text-2xl font-bold text-red-500">
+                {approvalStats.rejected}
+              </p>
+            </div>
+            <div className="p-2 bg-red-100 rounded-full">
+              <X className="h-5 w-5 text-red-500" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-sm font-medium text-gray-500">
+                Total Products
+              </p>
+              <p className="text-2xl font-bold text-blue-500">
+                {approvalStats.total}
+              </p>
+            </div>
+            <div className="p-2 bg-blue-100 rounded-full">
+              <Package className="h-5 w-5 text-blue-500" />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Search and filters */}
-      <div className="bg-white p-4 rounded-lg shadow mb-6">
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
         <form
           onSubmit={handleSearch}
           className="flex flex-wrap gap-4 items-end"
@@ -225,7 +351,7 @@ const AdminApprovalsList = () => {
               <input
                 type="text"
                 placeholder="Search products..."
-                className="pl-10 pr-4 py-2 border rounded-lg w-full"
+                className="pl-10 pr-4 py-2 border rounded-lg w-full focus:ring-2 focus:ring-blue-500"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -240,7 +366,7 @@ const AdminApprovalsList = () => {
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-4 py-2 border rounded-lg text-gray-700 w-full"
+              className="px-4 py-2 border rounded-lg text-gray-700 w-full focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Categories</option>
               {categories.map((category) => (
@@ -258,7 +384,7 @@ const AdminApprovalsList = () => {
             <select
               value={sellerFilter}
               onChange={(e) => setSellerFilter(e.target.value)}
-              className="px-4 py-2 border rounded-lg text-gray-700 w-full"
+              className="px-4 py-2 border rounded-lg text-gray-700 w-full focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Sellers</option>
               {sellers.map((seller) => (
@@ -269,23 +395,22 @@ const AdminApprovalsList = () => {
             </select>
           </div>
 
-          <div>
+          <div className="flex gap-2">
             <button
               type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
             >
-              Filter
+              <Filter className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">Filter</span>
             </button>
-          </div>
 
-          <div>
             <button
               type="button"
               onClick={resetFilters}
               className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 flex items-center"
             >
               <RefreshCw className="w-4 h-4 mr-2" />
-              Reset
+              <span className="hidden sm:inline">Reset</span>
             </button>
           </div>
         </form>
@@ -293,14 +418,14 @@ const AdminApprovalsList = () => {
 
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg flex items-center">
-          <AlertCircle className="w-5 h-5 mr-2" />
+          <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Products List */}
+      {/* Conditional rendering based on view mode */}
       {pendingProducts.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center">
+        <div className="bg-white rounded-lg shadow-sm p-8 text-center border border-gray-200">
           <Package className="w-16 h-16 mx-auto text-gray-300 mb-4" />
           <h2 className="text-xl font-semibold text-gray-700 mb-2">
             No Pending Products
@@ -309,8 +434,93 @@ const AdminApprovalsList = () => {
             There are no products waiting for approval at this moment.
           </p>
         </div>
+      ) : viewMode === "grid" ? (
+        // Grid View
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
+          {pendingProducts.map((product) => (
+            <div
+              key={product._id}
+              className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col"
+            >
+              {/* Product Image */}
+              <div className="relative h-48 bg-gray-100 overflow-hidden">
+                {product.images && product.images.length > 0 ? (
+                  <img
+                    src={product.images[0].url}
+                    alt={product.name}
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <ShoppingBag className="h-12 w-12 text-gray-400" />
+                  </div>
+                )}
+
+                {/* Resubmitted Badge */}
+                {product.resubmitted && (
+                  <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                    Resubmitted
+                  </div>
+                )}
+
+                {/* Price Badge */}
+                <div className="absolute bottom-2 right-2 bg-white bg-opacity-90 text-gray-900 font-bold px-2 py-1 rounded shadow-sm">
+                  {formatCurrency(product.price)}
+                </div>
+              </div>
+
+              {/* Product Details */}
+              <div className="p-4 flex-grow">
+                <h3 className="font-medium text-gray-900 line-clamp-1">
+                  {product.name}
+                </h3>
+                <p className="text-sm text-gray-500 line-clamp-2 mt-1 h-10">
+                  {product.description}
+                </p>
+
+                <div className="mt-2 flex justify-between items-center text-xs text-gray-500">
+                  <div>
+                    Seller:{" "}
+                    {product.seller?.businessName ||
+                      product.seller?.name ||
+                      "Unknown"}
+                  </div>
+                  <div>Stock: {product.stock}</div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
+                <div className="flex gap-2 justify-between">
+                  <Link
+                    to={`/admin/product-review/${product._id}`}
+                    className="flex-1 bg-blue-50 text-blue-600 px-2 py-1.5 rounded flex items-center justify-center hover:bg-blue-100"
+                  >
+                    <Eye className="w-4 h-4 mr-1.5" />
+                    Review
+                  </Link>
+                  <button
+                    onClick={() => handleApprove(product._id)}
+                    className="flex-1 bg-green-50 text-green-600 px-2 py-1.5 rounded flex items-center justify-center hover:bg-green-100"
+                  >
+                    <Check className="w-4 h-4 mr-1.5" />
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => openRejectModal(product)}
+                    className="flex-1 bg-red-50 text-red-600 px-2 py-1.5 rounded flex items-center justify-center hover:bg-red-100"
+                  >
+                    <X className="w-4 h-4 mr-1.5" />
+                    Reject
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        // Table View
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 mb-6">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -361,6 +571,7 @@ const AdminApprovalsList = () => {
 
                           {product.resubmitted && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 mt-1">
+                              <Info className="w-3 h-3 mr-1" />
                               Resubmitted
                             </span>
                           )}
@@ -399,27 +610,30 @@ const AdminApprovalsList = () => {
                         {new Date(product.createdAt).toLocaleTimeString()}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                      <Link
-                        to={`/admin/product-review/${product._id}`}
-                        className="text-blue-600 hover:text-blue-900 inline-block px-2 py-1 bg-blue-50 rounded"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Link>
-                      <button
-                        onClick={() => handleApprove(product._id)}
-                        className="text-green-600 hover:text-green-900 inline-block px-2 py-1 bg-green-50 rounded"
-                        title="Approve"
-                      >
-                        <Check className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => openRejectModal(product)}
-                        className="text-red-600 hover:text-red-900 inline-block px-2 py-1 bg-red-50 rounded"
-                        title="Reject"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center space-x-2">
+                        <Link
+                          to={`/admin/product-review/${product._id}`}
+                          className="text-blue-600 hover:text-blue-900 inline-flex items-center px-2 py-1 bg-blue-50 rounded hover:bg-blue-100"
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          Review
+                        </Link>
+                        <button
+                          onClick={() => handleApprove(product._id)}
+                          className="text-green-600 hover:text-green-900 inline-flex items-center px-2 py-1 bg-green-50 rounded hover:bg-green-100"
+                        >
+                          <Check className="w-4 h-4 mr-1" />
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => openRejectModal(product)}
+                          className="text-red-600 hover:text-red-900 inline-flex items-center px-2 py-1 bg-red-50 rounded hover:bg-red-100"
+                        >
+                          <X className="w-4 h-4 mr-1" />
+                          Reject
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -431,19 +645,19 @@ const AdminApprovalsList = () => {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex justify-between items-center mt-6">
+        <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
           <div className="text-sm text-gray-700">
             Showing{" "}
             <span className="font-medium">{pendingProducts.length}</span> of{" "}
             <span className="font-medium">{totalProducts}</span> products
           </div>
-          <div className="flex space-x-2">
+          <div className="flex space-x-1">
             <button
               onClick={() => setPage(Math.max(1, page - 1))}
               disabled={page === 1}
-              className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50"
+              className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 flex items-center"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-4 h-4" />
             </button>
             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
               const pageNum = page > 3 && totalPages > 5 ? page - 3 + i : i + 1;
@@ -467,9 +681,9 @@ const AdminApprovalsList = () => {
             <button
               onClick={() => setPage(Math.min(totalPages, page + 1))}
               disabled={page === totalPages}
-              className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50"
+              className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 flex items-center"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -502,7 +716,7 @@ const AdminApprovalsList = () => {
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowRejectModal(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg"
               >
                 Cancel
               </button>

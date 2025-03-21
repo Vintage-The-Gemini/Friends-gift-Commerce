@@ -19,6 +19,10 @@ import {
   Calendar,
   Info,
   ExternalLink,
+  MessageCircle,
+  ThumbsUp,
+  ThumbsDown,
+  History,
 } from "lucide-react";
 import api from "../../services/api/axios.config";
 import { toast } from "react-toastify";
@@ -32,7 +36,9 @@ const AdminProductReview = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [approvalNotes, setApprovalNotes] = useState("");
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showApproveModal, setShowApproveModal] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [showPreviousVersion, setShowPreviousVersion] = useState(false);
   const [previousVersion, setPreviousVersion] = useState(null);
@@ -84,7 +90,7 @@ const AdminProductReview = () => {
       const response = await api.put(
         `/admin/approvals/products/${id}/approve`,
         {
-          notes: "Product approved by admin",
+          notes: approvalNotes || "Product approved by admin",
         }
       );
 
@@ -99,6 +105,7 @@ const AdminProductReview = () => {
       toast.error(error.message || "Failed to approve product");
     } finally {
       setSubmitting(false);
+      setShowApproveModal(false);
     }
   };
 
@@ -131,7 +138,7 @@ const AdminProductReview = () => {
   };
 
   const nextImage = () => {
-    if (product.images && product.images.length > 0) {
+    if (product?.images && product.images.length > 0) {
       setActiveImageIndex((prevIndex) =>
         prevIndex === product.images.length - 1 ? 0 : prevIndex + 1
       );
@@ -139,7 +146,7 @@ const AdminProductReview = () => {
   };
 
   const prevImage = () => {
-    if (product.images && product.images.length > 0) {
+    if (product?.images && product.images.length > 0) {
       setActiveImageIndex((prevIndex) =>
         prevIndex === 0 ? product.images.length - 1 : prevIndex - 1
       );
@@ -154,7 +161,7 @@ const AdminProductReview = () => {
   // Render loading spinner
   if (loading) {
     return (
-      <div className="p-6 flex justify-center items-center min-h-[400px]">
+      <div className="p-4 md:p-6 flex justify-center items-center min-h-[400px]">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
       </div>
     );
@@ -163,9 +170,9 @@ const AdminProductReview = () => {
   // Render error message
   if (error) {
     return (
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg flex items-center">
-          <AlertCircle className="w-5 h-5 mr-2" />
+          <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
           <span>{error}</span>
         </div>
 
@@ -185,9 +192,9 @@ const AdminProductReview = () => {
   // If product is not found
   if (!product) {
     return (
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 p-4 rounded-lg flex items-center">
-          <AlertCircle className="w-5 h-5 mr-2" />
+          <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
           <span>Product not found or may have been already reviewed.</span>
         </div>
 
@@ -209,25 +216,25 @@ const AdminProductReview = () => {
     const images = productData.images || [];
 
     return (
-      <div className="bg-white rounded-lg shadow">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         {isPrevious && (
           <div className="bg-yellow-50 p-3 text-yellow-800 border-b border-yellow-100 text-sm flex items-center">
-            <AlertCircle className="w-4 h-4 mr-2" />
+            <History className="w-4 h-4 mr-2 flex-shrink-0" />
             You're viewing the previous version of this product that was
             rejected.
           </div>
         )}
 
-        <div className="p-6">
-          <div className="flex flex-col md:flex-row gap-8">
+        <div className="p-4 md:p-6">
+          <div className="flex flex-col md:flex-row gap-6 md:gap-8">
             {/* Left column with image */}
             <div className="md:w-1/2">
-              <div className="relative bg-gray-100 rounded-lg overflow-hidden h-80 flex items-center justify-center mb-4">
+              <div className="relative bg-gray-100 rounded-lg overflow-hidden h-60 md:h-80 flex items-center justify-center mb-4">
                 {images.length > 0 ? (
                   <img
                     src={
                       !isPrevious
-                        ? images[activeImageIndex].url
+                        ? images[activeImageIndex]?.url
                         : images[0] && typeof images[0] === "object"
                         ? images[0].url
                         : images[0]
@@ -259,7 +266,7 @@ const AdminProductReview = () => {
 
               {/* Thumbnail navigation */}
               {images.length > 1 && !isPrevious && (
-                <div className="flex gap-2 overflow-x-auto">
+                <div className="flex gap-2 overflow-x-auto pb-2">
                   {images.map((image, index) => (
                     <div
                       key={index}
@@ -283,28 +290,50 @@ const AdminProductReview = () => {
 
             {/* Right column with details */}
             <div className="md:w-1/2">
-              <h1 className="text-2xl font-bold mb-2">{productData.name}</h1>
+              <div className="flex flex-col space-y-4">
+                <div>
+                  <h1 className="text-xl md:text-2xl font-bold mb-2">
+                    {productData.name}
+                  </h1>
+                  <div className="text-2xl font-bold text-blue-700 mb-4">
+                    {formatCurrency(productData.price)}
+                  </div>
+                </div>
 
-              <div className="text-2xl font-bold text-blue-700 mb-4">
-                {formatCurrency(productData.price)}
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex gap-x-8 gap-y-2 flex-wrap">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 md:flex md:flex-wrap md:gap-x-8 text-sm">
                   <div className="flex items-center">
-                    <ShoppingBag className="w-5 h-5 text-gray-500 mr-2" />
-                    <span className="text-sm">
+                    <ShoppingBag className="w-4 h-4 text-gray-500 mr-2" />
+                    <span>
                       Stock: <strong>{productData.stock}</strong>
                     </span>
                   </div>
 
                   <div className="flex items-center">
-                    <Tag className="w-5 h-5 text-gray-500 mr-2" />
-                    <span className="text-sm">
+                    <Tag className="w-4 h-4 text-gray-500 mr-2" />
+                    <span>
                       Category:{" "}
                       <strong>{productData.category?.name || "Unknown"}</strong>
                     </span>
                   </div>
+
+                  <div className="flex items-center">
+                    <Clock className="w-4 h-4 text-gray-500 mr-2" />
+                    <span>
+                      Submitted:{" "}
+                      <strong>
+                        {new Date(productData.createdAt).toLocaleDateString()}
+                      </strong>
+                    </span>
+                  </div>
+
+                  {productData.resubmitted && !isPrevious && (
+                    <div className="flex items-center">
+                      <RefreshCw className="w-4 h-4 text-blue-500 mr-2" />
+                      <span className="text-blue-600 font-medium">
+                        Resubmitted
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-3 border-t border-gray-200">
@@ -361,38 +390,22 @@ const AdminProductReview = () => {
                   </div>
                 </div>
 
-                {/* Submission info */}
-                <div className="pt-3 border-t border-gray-200">
-                  <h3 className="font-semibold text-gray-700 mb-2">
-                    Submission Information
-                  </h3>
-                  <div className="text-sm text-gray-600 space-y-1">
-                    <div className="flex items-center">
-                      <Calendar className="w-4 h-4 text-gray-500 mr-2" />
-                      <span>
-                        Submitted:{" "}
-                        {new Date(productData.createdAt).toLocaleString()}
-                      </span>
-                    </div>
-
-                    {isPrevious && productData.rejectedAt && (
-                      <div className="flex items-center">
-                        <X className="w-4 h-4 text-red-500 mr-2" />
-                        <span>
-                          Rejected:{" "}
-                          {new Date(productData.rejectedAt).toLocaleString()}
-                        </span>
-                      </div>
-                    )}
-
-                    {isPrevious && productData.rejectionReason && (
-                      <div className="mt-2 bg-red-50 p-3 rounded text-red-800 text-sm">
-                        <p className="font-medium mb-1">Rejection Reason:</p>
-                        <p>{productData.rejectionReason}</p>
-                      </div>
-                    )}
+                {/* Rejection info (if viewing previous version) */}
+                {isPrevious && productData.rejectionReason && (
+                  <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-100">
+                    <h4 className="font-medium text-red-700 flex items-center mb-2">
+                      <ThumbsDown className="w-4 h-4 mr-2" />
+                      Rejection Feedback
+                    </h4>
+                    <p className="text-red-800">
+                      {productData.rejectionReason}
+                    </p>
+                    <p className="text-xs text-red-600 mt-2">
+                      Rejected on:{" "}
+                      {new Date(productData.rejectedAt).toLocaleString()}
+                    </p>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
@@ -402,9 +415,9 @@ const AdminProductReview = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       {/* Header with back button */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
         <div className="flex items-center">
           <Link
             to="/admin/approvals"
@@ -412,19 +425,25 @@ const AdminProductReview = () => {
           >
             <ChevronLeft className="w-5 h-5" />
           </Link>
-          <h1 className="text-2xl font-bold">Product Review</h1>
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold">Product Review</h1>
+            <p className="text-sm text-gray-500">
+              Review and approve/reject this product submission
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center space-x-3">
           {product.resubmitted && previousVersion && (
             <button
               onClick={toggleVersionView}
-              className={`px-3 py-1 text-sm rounded-md ${
+              className={`px-3 py-1.5 text-sm rounded-md flex items-center ${
                 showPreviousVersion
                   ? "bg-blue-100 text-blue-700"
                   : "bg-gray-100 text-gray-700"
               }`}
             >
+              <History className="w-4 h-4 mr-1.5" />
               {showPreviousVersion
                 ? "Show Current Version"
                 : "Show Previous Version"}
@@ -435,7 +454,7 @@ const AdminProductReview = () => {
 
       {product.resubmitted && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-lg flex items-center mb-6">
-          <Info className="w-5 h-5 mr-2" />
+          <Info className="w-5 h-5 mr-2 flex-shrink-0" />
           <div>
             <p className="font-medium">This is a resubmitted product</p>
             <p className="text-sm mt-1">
@@ -444,6 +463,9 @@ const AdminProductReview = () => {
               {product.resubmissionCount > 1 &&
                 ` ${product.resubmissionCount} times`}
               .
+              {previousVersion &&
+                showPreviousVersion === false &&
+                " You can view the previous version using the button above."}
             </p>
           </div>
         </div>
@@ -456,14 +478,14 @@ const AdminProductReview = () => {
 
       {/* Approval/Rejection actions */}
       {!showPreviousVersion && (
-        <div className="mt-6 bg-gray-50 p-6 rounded-lg shadow">
+        <div className="mt-6 bg-gray-50 p-6 rounded-lg shadow-sm border border-gray-200">
           <h2 className="text-lg font-semibold mb-4">Review Decision</h2>
 
           <div className="flex flex-col sm:flex-row gap-4">
             <button
-              onClick={handleApprove}
+              onClick={() => setShowApproveModal(true)}
               disabled={submitting}
-              className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center"
+              className="flex-1 bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center font-medium"
             >
               {submitting ? (
                 <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
@@ -476,11 +498,56 @@ const AdminProductReview = () => {
             <button
               onClick={() => setShowRejectModal(true)}
               disabled={submitting}
-              className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center"
+              className="flex-1 bg-red-600 text-white px-4 py-3 rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center font-medium"
             >
               <X className="w-5 h-5 mr-2" />
               Reject Product
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Approval Modal */}
+      {showApproveModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold mb-4">Approve Product</h2>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to approve "{product.name}"? This will make
+              the product visible to all users.
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Approval Notes (Optional)
+              </label>
+              <textarea
+                value={approvalNotes}
+                onChange={(e) => setApprovalNotes(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                rows="3"
+                placeholder="Add any notes for the seller (optional)"
+              />
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowApproveModal(false)}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleApprove}
+                disabled={submitting}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center"
+              >
+                {submitting && (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                )}
+                Approve Product
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -497,7 +564,7 @@ const AdminProductReview = () => {
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Rejection Reason
+                Rejection Reason <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={rejectionReason}
@@ -512,14 +579,14 @@ const AdminProductReview = () => {
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowRejectModal(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleReject}
                 disabled={!rejectionReason.trim() || submitting}
-                className="px-4 py-2 bg-red-600 text-white rounded-md shadow-sm text-sm font-medium hover:bg-red-700 disabled:opacity-50 flex items-center"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center"
               >
                 {submitting && (
                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
