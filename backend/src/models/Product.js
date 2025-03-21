@@ -1,4 +1,5 @@
-// backend/src/models/Product.js (Updated with approval fields)
+// backend/src/models/Product.js
+
 const mongoose = require("mongoose");
 
 const imageSchema = new mongoose.Schema({
@@ -18,12 +19,6 @@ const productSchema = new mongoose.Schema(
       type: String,
       lowercase: true,
       unique: true,
-      default: function () {
-        return this.name
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/(^-|-$)/g, "");
-      },
     },
     description: {
       type: String,
@@ -54,25 +49,16 @@ const productSchema = new mongoose.Schema(
       type: Map,
       of: mongoose.Schema.Types.Mixed,
     },
-    isActive: {
-      type: Boolean,
-      default: false, // Products are inactive by default until approved
-    },
-    tags: [String],
-    viewCount: {
-      type: Number,
-      default: 0,
-    },
-    rating: {
-      average: { type: Number, default: 0 },
-      count: { type: Number, default: 0 },
-    },
 
-    // New approval system fields
+    // Approval system fields - this is the key change
     approvalStatus: {
       type: String,
       enum: ["pending", "approved", "rejected"],
       default: "pending",
+    },
+    isActive: {
+      type: Boolean,
+      default: false, // Products are inactive by default until approved
     },
     reviewedBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -113,75 +99,15 @@ const productSchema = new mongoose.Schema(
   }
 );
 
-// Add text index for search
-productSchema.index({
-  name: "text",
-  description: "text",
-  tags: "text",
-});
-
-// Middleware to ensure unique slug
-productSchema.pre("save", async function (next) {
-  if (this.isModified("name")) {
-    let baseSlug = this.name
+// Generate slug from name
+productSchema.pre("save", function (next) {
+  if (this.isModified("name") && !this.slug) {
+    this.slug = this.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
-
-    let slug = baseSlug;
-    let counter = 1;
-
-    while (true) {
-      const existingProduct = await this.constructor.findOne({
-        slug,
-        _id: { $ne: this._id },
-      });
-
-      if (!existingProduct) {
-        this.slug = slug;
-        break;
-      }
-
-      slug = `${baseSlug}-${counter}`;
-      counter++;
-    }
   }
   next();
 });
-
-// Add middleware for resubmitting a rejected product
-productSchema.methods.resubmit = function (productData) {
-  // Store the current version in previous versions
-  if (this.approvalStatus === "rejected") {
-    this.previousVersions.push({
-      name: this.name,
-      description: this.description,
-      price: this.price,
-      category: this.category,
-      images: this.images,
-      characteristics: this.characteristics,
-      rejectionReason: this.reviewNotes,
-      rejectedAt: this.reviewedAt,
-      rejectedBy: this.reviewedBy,
-    });
-
-    // Update product with new data
-    Object.assign(this, productData);
-
-    // Reset approval status
-    this.approvalStatus = "pending";
-    this.reviewedBy = undefined;
-    this.reviewedAt = undefined;
-    this.reviewNotes = undefined;
-
-    // Update resubmission metadata
-    this.resubmitted = true;
-    this.resubmissionCount += 1;
-
-    return true;
-  }
-
-  return false;
-};
 
 module.exports = mongoose.model("Product", productSchema);

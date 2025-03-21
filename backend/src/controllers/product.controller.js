@@ -2,8 +2,6 @@
 const Product = require("../models/Product");
 const { uploadToCloudinary } = require("../utils/cloudinary");
 
-// Update the createProduct function in product.controller.js
-
 exports.createProduct = async (req, res) => {
   try {
     console.log("Creating product, request body:", req.body);
@@ -63,7 +61,9 @@ exports.createProduct = async (req, res) => {
       characteristics: req.body.characteristics
         ? JSON.parse(req.body.characteristics)
         : {},
-      isActive: true,
+      // Approval system fields
+      approvalStatus: "pending", // All products start as pending
+      isActive: false, // Products are inactive until approved
     });
 
     // Populate category and seller information
@@ -84,6 +84,7 @@ exports.createProduct = async (req, res) => {
     });
   }
 };
+
 exports.getProducts = async (req, res) => {
   try {
     const query = { isActive: true };

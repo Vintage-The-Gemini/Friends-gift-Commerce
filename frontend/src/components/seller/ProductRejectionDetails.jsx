@@ -1,6 +1,7 @@
 // frontend/src/components/seller/ProductRejectionDetails.jsx
+
 import React from "react";
-import { AlertCircle, Calendar, User, RefreshCw } from "lucide-react";
+import { AlertCircle, Calendar, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
 
 /**

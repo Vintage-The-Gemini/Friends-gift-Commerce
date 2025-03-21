@@ -1,6 +1,7 @@
 // frontend/src/components/seller/SellerProductStatusBadge.jsx
+
 import React from "react";
-import { Clock, CheckCircle, X, AlertTriangle, Info } from "lucide-react";
+import { Clock, CheckCircle, X, AlertTriangle } from "lucide-react";
 
 /**
  * Component to display product approval status with appropriate styling
@@ -13,7 +14,7 @@ const SellerProductStatusBadge = ({ product, showTooltip = false }) => {
   let statusConfig = {
     bgColor: "bg-gray-100",
     textColor: "text-gray-800",
-    icon: <Info className="w-3.5 h-3.5 mr-1" />,
+    icon: <AlertTriangle className="w-3.5 h-3.5 mr-1" />,
     label: "Unknown",
     tooltipText: "",
   };
@@ -61,7 +62,7 @@ const SellerProductStatusBadge = ({ product, showTooltip = false }) => {
   }
 
   return (
-    <div className="relative inline-block">
+    <div className="relative inline-block group">
       <span
         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig.bgColor} ${statusConfig.textColor}`}
       >
