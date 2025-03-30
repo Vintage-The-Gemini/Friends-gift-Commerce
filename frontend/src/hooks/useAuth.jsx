@@ -1,121 +1,142 @@
-// src/hooks/useAuth.jsx
-import { createContext, useContext, useState, useEffect } from "react";
+// frontend/src/hooks/useAuth.jsx
+import {
+  useState,
+  useEffect,
+  createContext,
+  useContext,
+  useCallback,
+} from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import api from "../services/api/axios.config";
+import { toast } from "react-toastify";
 
-const AuthContext = createContext(null);
+const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Load user from localStorage on initial render
   useEffect(() => {
-    checkAuth();
+    const loadUser = () => {
+      try {
+        const token = localStorage.getItem("token");
+        const storedUser = localStorage.getItem("user");
+
+        if (token && storedUser) {
+          // Only try to parse if storedUser is not null
+          setUser(JSON.parse(storedUser));
+          setAuthenticated(true);
+        }
+      } catch (error) {
+        // Handle any parsing errors
+        console.error("Error loading user from localStorage:", error);
+        // Clear potentially corrupted data
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUser();
   }, []);
 
-  const checkAuth = () => {
+  // Register user
+  const register = async (userData) => {
     try {
-      const storedUser = localStorage.getItem("user");
-      const token = localStorage.getItem("token");
+      setLoading(true);
+      const response = await api.post("/auth/register", userData);
 
-      if (storedUser && token) {
-        setUser(JSON.parse(storedUser));
+      if (response.data.success) {
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+
+        setUser(response.data.user);
+        setAuthenticated(true);
+
+        // Show message if there's one
+        if (response.data.message) {
+          toast.success(response.data.message);
+        }
+
+        // Redirect based on role (and whether email needs verification)
+        if (response.data.user.role === "seller") {
+          navigate("/seller/dashboard");
+        } else {
+          navigate("/");
+        }
+
+        return response.data;
       }
     } catch (error) {
-      console.error("Auth check error:", error);
+      console.error("Registration error:", error);
+      throw error.response?.data || { message: "Registration failed" };
     } finally {
       setLoading(false);
     }
   };
 
+  // Login user
   const login = async (credentials) => {
     try {
-      console.log("Attempting login with credentials:", {
-        ...credentials,
-        password: "[REDACTED]",
-      });
+      setLoading(true);
+      const response = await api.post("/auth/login", credentials);
 
-      const response = await api.post("/api/auth/login", credentials);
-      const { data } = response;
+      if (response.data.success) {
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("user", JSON.stringify(response.data.user));
 
-      if (data.token && data.user) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        setUser(data.user);
+        setUser(response.data.user);
+        setAuthenticated(true);
 
-        // Navigate based on role
-        if (data.user.role === "seller") {
+        // Redirect based on role
+        if (response.data.user.role === "seller") {
           navigate("/seller/dashboard");
-        } else if (data.user.role === "admin") {
+        } else if (response.data.user.role === "admin") {
           navigate("/admin/dashboard");
         } else {
           navigate("/");
         }
 
-        return data;
-      } else {
-        throw new Error("Invalid response from server");
+        return response.data;
       }
     } catch (error) {
       console.error("Login error:", error);
-      throw new Error(error.response?.data?.message || "Login failed");
+      throw error.response?.data || { message: "Login failed" };
+    } finally {
+      setLoading(false);
     }
   };
 
-  const register = async (userData) => {
-    try {
-      const response = await axios.post("/api/auth/register", userData);
-      const { data } = response;
-
-      if (data.token && data.user) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        setUser(data.user);
-        return data;
-      } else {
-        throw new Error("Invalid response from server");
-      }
-    } catch (error) {
-      console.error("Registration error:", error);
-      throw new Error(error.response?.data?.message || "Registration failed");
-    }
-  };
-
-  const logout = () => {
+  // Logout user
+  const logout = useCallback(() => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);
+    setAuthenticated(false);
     navigate("/auth/signin");
-  };
+  }, [navigate]);
 
-  const value = {
-    user,
-    loading,
-    login,
-    logout,
-    register,
-    setUser, // Added this to expose the setter
-  };
+  // Rest of your auth functions...
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        authenticated,
+        loading,
+        register,
+        login,
+        logout,
+        // Include other auth functions here
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
-
-export default AuthContext;
+export const useAuth = () => useContext(AuthContext);

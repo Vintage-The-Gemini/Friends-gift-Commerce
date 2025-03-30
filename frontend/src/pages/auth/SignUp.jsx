@@ -1,10 +1,14 @@
-// src/pages/auth/SignUp.jsx
+// frontend/src/pages/auth/SignUp.jsx
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
+import { useAuth } from "../../hooks/useAuth";
+import { toast } from "react-toastify";
+import GoogleAuth from "../../components/auth/GoogleAuth";
 import Logo from "../../assets/images/Friends-gift-logo.svg";
 
 const SignUp = () => {
+  const { register } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -13,74 +17,107 @@ const SignUp = () => {
   const [formData, setFormData] = useState({
     name: "",
     phoneNumber: "",
+    email: "",
     password: "",
     confirmPassword: "",
     businessName: "",
   });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
+  const validateForm = () => {
     if (!formData.name.trim()) {
       setError("Please enter your full name");
-      return;
+      return false;
     }
 
     if (role === "seller" && !formData.businessName.trim()) {
       setError("Business name is required for sellers");
-      return;
+      return false;
     }
 
-    if (!formData.phoneNumber.match(/^\+254[0-9]{9}$/)) {
+    // Validate that either phone or email is provided
+    if (!formData.phoneNumber && !formData.email) {
+      setError("Please provide either phone number or email");
+      return false;
+    }
+
+    // Validate phone number format if provided
+    if (
+      formData.phoneNumber &&
+      !formData.phoneNumber.match(/^\+254[0-9]{9}$/)
+    ) {
       setError("Please enter a valid Kenyan phone number (+254...)");
-      return;
+      return false;
+    }
+
+    // Validate email format if provided
+    if (
+      formData.email &&
+      !formData.email.match(/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/)
+    ) {
+      setError("Please enter a valid email address");
+      return false;
     }
 
     if (formData.password.length < 8) {
       setError("Password must be at least 8 characters long");
-      return;
+      return false;
     }
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
-      return;
+      return false;
     }
+
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (!validateForm()) return;
 
     setLoading(true);
 
     try {
-      const requestData = {
+      const userData = {
         name: formData.name.trim(),
-        phoneNumber: formData.phoneNumber,
         password: formData.password,
         role,
       };
 
+      // Add phone if provided
+      if (formData.phoneNumber) {
+        userData.phoneNumber = formData.phoneNumber;
+      }
+
+      // Add email if provided
+      if (formData.email) {
+        userData.email = formData.email;
+      }
+
+      // Add business name for sellers
       if (role === "seller") {
-        requestData.businessName = formData.businessName.trim();
+        userData.businessName = formData.businessName.trim();
       }
 
-      const response = await fetch(
-        "https://friends-gift-commerce-2.onrender.com/api/auth/register",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestData),
-        }
-      );
+      await register(userData);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Registration failed");
+      // If using email, notify about verification
+      if (formData.email) {
+        toast.info("Please check your email to verify your account");
+      } else {
+        toast.success("Registration successful");
       }
 
-      navigate("/auth/signin");
+      // Navigate to sign in (or keep on the page that auth context navigates to)
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -89,8 +126,12 @@ const SignUp = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-6 bg-white p-8 rounded-lg shadow">
-        <div className="flex flex-col items-center">
-          <img src={Logo} alt="Friends Gift Logo" className="h-8 w-auto mb-4" />
+        <div className="text-center">
+          <img
+            src={Logo}
+            alt="Friends Gift Logo"
+            className="h-12 mx-auto mb-2"
+          />
           <h2 className="text-2xl font-bold text-gray-900">
             Create your account
           </h2>
@@ -121,19 +162,35 @@ const SignUp = () => {
           </button>
         </div>
 
+        <div className="mt-4">
+          <GoogleAuth
+            buttonText={`Sign up with Google as ${
+              role === "buyer" ? "Buyer" : "Seller"
+            }`}
+            role={role}
+          />
+        </div>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-gray-500">Or with email</span>
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Full Name
+              Full Name*
             </label>
             <input
               type="text"
               name="name"
               autoComplete="name"
               value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
+              onChange={handleChange}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#5551FF] focus:border-[#5551FF]"
               required
             />
@@ -142,18 +199,16 @@ const SignUp = () => {
           {role === "seller" && (
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Business Name
+                Business Name*
               </label>
               <input
                 type="text"
                 name="businessName"
                 autoComplete="organization"
                 value={formData.businessName}
-                onChange={(e) =>
-                  setFormData({ ...formData, businessName: e.target.value })
-                }
+                onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#5551FF] focus:border-[#5551FF]"
-                required
+                required={role === "seller"}
               />
             </div>
           )}
@@ -167,18 +222,39 @@ const SignUp = () => {
               name="phoneNumber"
               autoComplete="tel"
               value={formData.phoneNumber}
-              onChange={(e) =>
-                setFormData({ ...formData, phoneNumber: e.target.value })
-              }
+              onChange={handleChange}
               placeholder="+254"
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#5551FF] focus:border-[#5551FF]"
-              required
             />
+            <p className="mt-1 text-xs text-gray-500">
+              {!formData.email
+                ? "Phone number is required if email is not provided"
+                : ""}
+            </p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Password
+              Email
+            </label>
+            <input
+              type="email"
+              name="email"
+              autoComplete="email"
+              value={formData.email}
+              onChange={handleChange}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#5551FF] focus:border-[#5551FF]"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              {!formData.phoneNumber
+                ? "Email is required if phone number is not provided"
+                : ""}
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Password*
             </label>
             <div className="relative">
               <input
@@ -186,9 +262,7 @@ const SignUp = () => {
                 name="password"
                 autoComplete="new-password"
                 value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
+                onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#5551FF] focus:border-[#5551FF]"
                 required
                 minLength={8}
@@ -205,33 +279,32 @@ const SignUp = () => {
                 )}
               </button>
             </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Password must be at least 8 characters
+            </p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Confirm Password
+              Confirm Password*
             </label>
             <input
               type="password"
               name="confirmPassword"
               autoComplete="new-password"
               value={formData.confirmPassword}
-              onChange={(e) =>
-                setFormData({ ...formData, confirmPassword: e.target.value })
-              }
+              onChange={handleChange}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#5551FF] focus:border-[#5551FF]"
               required
             />
           </div>
 
-          {error && (
-            <div className="text-red-500 text-sm text-center">{error}</div>
-          )}
+          {error && <div className="text-red-500 text-sm">{error}</div>}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#5551FF] hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#5551FF] disabled:opacity-50"
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#5551FF] hover:bg-[#4440FF] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#5551FF] disabled:opacity-50"
           >
             {loading ? "Creating Account..." : "Sign Up"}
           </button>
@@ -240,7 +313,7 @@ const SignUp = () => {
             Already have an account?{" "}
             <Link
               to="/auth/signin"
-              className="text-[#5551FF] hover:text-opacity-90"
+              className="text-[#5551FF] hover:text-[#4440FF] font-medium"
             >
               Sign in
             </Link>

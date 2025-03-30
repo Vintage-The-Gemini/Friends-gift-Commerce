@@ -1,8 +1,11 @@
-// src/pages/auth/SignIn.jsx
+// frontend/src/pages/auth/SignIn.jsx
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { Eye, EyeOff } from "lucide-react";
+import { toast } from "react-toastify";
+import GoogleAuth from "../../components/auth/GoogleAuth";
+import Logo from "../../assets/images/Friends-gift-logo.svg";
 
 const SignIn = () => {
   const { login } = useAuth();
@@ -11,7 +14,7 @@ const SignIn = () => {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    phoneNumber: "",
+    identifier: "",
     password: "",
   });
 
@@ -20,11 +23,30 @@ const SignIn = () => {
     setLoading(true);
     setError("");
 
+    if (!formData.identifier) {
+      setError("Please provide your email or phone number");
+      setLoading(false);
+      return;
+    }
+
     try {
-      await login({
-        ...formData,
+      // Determine if the identifier is an email or phone number
+      const isEmail = formData.identifier.includes("@");
+
+      const credentials = {
+        password: formData.password,
         role,
-      });
+      };
+
+      // Add either email or phone based on the format
+      if (isEmail) {
+        credentials.email = formData.identifier;
+      } else {
+        credentials.phoneNumber = formData.identifier;
+      }
+
+      await login(credentials);
+      toast.success("Login successful");
     } catch (err) {
       setError(err.message || "Failed to sign in");
     } finally {
@@ -35,8 +57,13 @@ const SignIn = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow">
-        <div>
-          <h2 className="text-center text-3xl font-extrabold text-gray-900">
+        <div className="text-center">
+          <img
+            src={Logo}
+            alt="Friends Gift Logo"
+            className="h-12 mx-auto mb-2"
+          />
+          <h2 className="text-3xl font-extrabold text-gray-900">
             Sign in to your account
           </h2>
         </div>
@@ -66,27 +93,48 @@ const SignIn = () => {
           </button>
         </div>
 
+        {/* Google Authentication Button */}
+        <div className="mt-6 mb-4">
+          <GoogleAuth
+            buttonText={`Continue with Google as ${
+              role === "buyer" ? "Buyer" : "Seller"
+            }`}
+            role={role}
+          />
+        </div>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-gray-500">
+              Or continue with
+            </span>
+          </div>
+        </div>
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
+          <div className="rounded-md shadow-sm">
             <div className="mb-4">
               <label
-                htmlFor="phoneNumber"
+                htmlFor="identifier"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                Phone Number
+                Email or Phone Number
               </label>
               <input
-                id="phoneNumber"
-                name="phoneNumber"
-                type="tel"
-                autoComplete="tel"
+                id="identifier"
+                name="identifier"
+                type="text"
+                autoComplete="email tel"
                 required
-                value={formData.phoneNumber}
+                value={formData.identifier}
                 onChange={(e) =>
-                  setFormData({ ...formData, phoneNumber: e.target.value })
+                  setFormData({ ...formData, identifier: e.target.value })
                 }
-                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#5551FF] focus:border-[#5551FF]"
-                placeholder="+254"
+                className="appearance-none rounded block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#5551FF] focus:border-[#5551FF]"
+                placeholder="Email or Phone (+254...)"
               />
             </div>
             <div className="mb-4">
@@ -107,7 +155,7 @@ const SignIn = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, password: e.target.value })
                   }
-                  className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#5551FF] focus:border-[#5551FF]"
+                  className="appearance-none rounded block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#5551FF] focus:border-[#5551FF]"
                 />
                 <button
                   type="button"
@@ -121,6 +169,32 @@ const SignIn = () => {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <input
+                id="remember-me"
+                name="remember-me"
+                type="checkbox"
+                className="h-4 w-4 text-[#5551FF] focus:ring-[#5551FF] border-gray-300 rounded"
+              />
+              <label
+                htmlFor="remember-me"
+                className="ml-2 block text-sm text-gray-900"
+              >
+                Remember me
+              </label>
+            </div>
+
+            <div className="text-sm">
+              <Link
+                to="/auth/forgot-password"
+                className="font-medium text-[#5551FF] hover:text-[#4440FF]"
+              >
+                Forgot your password?
+              </Link>
             </div>
           </div>
 

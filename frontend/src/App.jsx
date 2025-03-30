@@ -4,6 +4,8 @@ import { Outlet } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
 import ProtectedRoute from "./middleware/ProtectedRoute";
 import RequireBusinessProfile from "./middleware/RequireBusinessProfile";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 // Layouts
 import RootLayout from "./layouts/RootLayout";
@@ -14,6 +16,10 @@ import SellerLayout from "./layouts/SellerLayout";
 import HomePage from "./pages/public/HomePage";
 import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
+import VerifyEmail from "./pages/auth/VerifyEmail";
+import ResendVerification from "./pages/auth/ResendVerification";
+import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
 import EventsPage from "./pages/public/EventsPage";
 import ProductsPage from "./pages/public/ProductsPage";
 import ProductDetailsPage from "./pages/public/ProductDetailsPage";
@@ -54,6 +60,7 @@ import ErrorBoundary from "./components/common/ErrorBoundary";
 const Root = () => {
   return (
     <AuthProvider>
+      <ToastContainer position="top-right" autoClose={5000} />
       <Outlet />
     </AuthProvider>
   );
@@ -70,8 +77,17 @@ const router = createBrowserRouter(
           children: [
             // Public Routes
             { path: "/", element: <HomePage /> },
+
+            // Auth Routes
             { path: "/auth/signin", element: <SignIn /> },
             { path: "/auth/signup", element: <SignUp /> },
+            { path: "/auth/verify-email/:token", element: <VerifyEmail /> },
+            {
+              path: "/auth/resend-verification",
+              element: <ResendVerification />,
+            },
+            { path: "/auth/forgot-password", element: <ForgotPassword /> },
+            { path: "/auth/reset-password/:token", element: <ResetPassword /> },
 
             // Product Routes
             { path: "/products", element: <ProductsPage /> },
