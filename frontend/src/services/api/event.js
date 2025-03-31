@@ -10,9 +10,10 @@ const ENDPOINTS = {
   INVITE: (id) => `/events/${id}/invite`,
   RESPOND: (id) => `/events/${id}/respond`,
   CONTRIBUTIONS: (id) => `/events/${id}/contributions`,
-  STATUS: (id) => `/events/${id}/status`, // New endpoint for status updates
-};
 
+  // Updated endpoint - remove the leading slash to match backend
+  STATUS: (id) => `/events/${id}/status`,
+};
 // Helper function to handle API errors consistently
 const handleApiError = (error, defaultMessage) => {
   console.error("[Event Service] Error:", error);

@@ -14,6 +14,7 @@ const {
   respondToInvitation,
   getEventContributions,
   getPrivateEvent,
+  updateEventStatus,
 } = require("../controllers/event.controller");
 
 // Public routes
@@ -38,6 +39,5 @@ router.post("/:id/respond", respondToInvitation);
 router.get("/:id/access", getPrivateEvent);
 router.get("/:id/contributions", getEventContributions);
 router.patch("/:id/status", updateEventStatus);
-
 
 module.exports = router;
