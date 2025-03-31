@@ -1,4 +1,5 @@
-// backend/src/routes/event.routes.js
+// Updated backend/src/routes/event.routes.js with proper imports
+
 const express = require("express");
 const router = express.Router();
 const { protect, authorize } = require("../middleware/auth");
@@ -15,6 +16,9 @@ const {
   getEventContributions,
   getPrivateEvent,
   updateEventStatus,
+  // Add the new functions
+  getEventCheckoutEligibility,
+  completeEventCheckout,
 } = require("../controllers/event.controller");
 
 // Public routes
@@ -29,6 +33,10 @@ router.get("/my-events", getUserEvents);
 
 // Event creation - no ID parameter
 router.post("/", upload.single("image"), createEvent);
+
+// Checkout routes
+router.get("/:id/checkout-status", protect, getEventCheckoutEligibility);
+router.post("/:id/checkout", protect, completeEventCheckout);
 
 // Parameterized routes - must come AFTER specific routes
 router.get("/:id", getEvent);

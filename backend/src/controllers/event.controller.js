@@ -1196,6 +1196,185 @@ exports.getEventContributions = async (req, res) => {
 };
 module.exports = exports;
 
+exports.completeEventCheckout = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { shippingDetails, paymentMethod, phoneNumber } = req.body;
+
+    // Validate input
+    if (!shippingDetails || !paymentMethod) {
+      return res.status(400).json({
+        success: false,
+        message: "Shipping details and payment method are required",
+      });
+    }
+
+    // Find the event with populated products
+    const event = await Event.findById(id)
+      .populate("creator", "name email phoneNumber")
+      .populate({
+        path: "products.product",
+        select: "name price images stock seller",
+        populate: {
+          path: "seller",
+          select: "name businessName email phoneNumber",
+        },
+      })
+      .populate("contributions");
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Event not found",
+      });
+    }
+
+    // Check if user is authorized
+    if (
+      event.creator._id.toString() !== req.user._id.toString() &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to checkout this event",
+      });
+    }
+
+    // Check if event is eligible for checkout
+    if (event.status !== "active") {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot checkout an event with status '${event.status}'`,
+      });
+    }
+
+    // Check for product availability
+    const unavailableProducts = [];
+    for (const item of event.products) {
+      if (!item.product || item.product.stock < item.quantity) {
+        unavailableProducts.push({
+          name: item.product ? item.product.name : "Unknown product",
+          requested: item.quantity,
+          available: item.product ? item.product.stock : 0,
+        });
+      }
+    }
+
+    if (unavailableProducts.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Some products are no longer available",
+        data: { unavailableProducts },
+      });
+    }
+
+    // Group products by seller to create separate orders
+    const sellerOrdersMap = {};
+    let totalAmount = 0;
+
+    for (const item of event.products) {
+      const sellerId = item.product.seller._id.toString();
+      const productTotal = item.product.price * item.quantity;
+      totalAmount += productTotal;
+
+      if (!sellerOrdersMap[sellerId]) {
+        sellerOrdersMap[sellerId] = {
+          seller: item.product.seller._id,
+          products: [],
+          totalAmount: 0,
+        };
+      }
+
+      sellerOrdersMap[sellerId].products.push({
+        product: item.product._id,
+        quantity: item.quantity,
+        price: item.product.price,
+        status: "pending",
+      });
+      sellerOrdersMap[sellerId].totalAmount += productTotal;
+    }
+
+    // Create orders for each seller
+    const Order = mongoose.model("Order");
+    const createdOrders = [];
+
+    for (const sellerId in sellerOrdersMap) {
+      const sellerOrder = sellerOrdersMap[sellerId];
+
+      const newOrder = new Order({
+        event: event._id,
+        products: sellerOrder.products,
+        totalAmount: sellerOrder.totalAmount,
+        seller: sellerOrder.seller,
+        buyer: req.user._id,
+        status: "pending",
+        orderProgress: "pending",
+        eventType: event.eventType,
+        shippingDetails,
+        paymentStatus: "completed", // Since event funds are already collected
+        paymentDetails: {
+          method: paymentMethod,
+          transactionId: `EVENT-${event._id}`,
+          paidAmount: sellerOrder.totalAmount,
+          paidAt: new Date(),
+          currency: "KES",
+        },
+        timeline: [
+          {
+            status: "pending",
+            description: "Order created from event checkout",
+            timestamp: new Date(),
+          },
+        ],
+      });
+
+      const savedOrder = await newOrder.save();
+      createdOrders.push(savedOrder);
+
+      // Update product stock
+      for (const item of sellerOrder.products) {
+        await Product.findByIdAndUpdate(item.product, {
+          $inc: { stock: -item.quantity },
+        });
+      }
+    }
+
+    // Update event status to completed
+    event.status = "completed";
+    
+    // Record orders in event
+    event.orders = [...(event.orders || []), ...createdOrders.map(order => order._id)];
+    
+    await event.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Event checkout completed successfully",
+      data: {
+        event: {
+          _id: event._id,
+          title: event.title,
+          status: event.status,
+        },
+        orders: createdOrders.map(order => ({
+          _id: order._id,
+          totalAmount: order.totalAmount,
+          seller: order.seller,
+          status: order.status,
+        })),
+        order: createdOrders[0], // Return first order for redirecting to order page
+      },
+    });
+  } catch (error) {
+    console.error("Error during event checkout:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to process event checkout",
+      error: error.message,
+    });
+  }
+};
+
 exports.updateEventStatus = async (req, res, next) => {
   try {
     const { id } = req.params;

@@ -414,6 +414,33 @@ export const eventService = {
       return handleApiError(error, "Failed to update event status");
     }
   },
+
+  completeEventCheckout: async (checkoutData) => {
+    try {
+      if (!checkoutData.eventId) {
+        throw new Error("Event ID is required");
+      }
+  
+      const response = await api.post(`/events/${checkoutData.eventId}/checkout`, checkoutData);
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, "Failed to complete checkout");
+    }
+  },
+  
+  // Get event checkout eligibility
+  getEventCheckoutEligibility: async (eventId) => {
+    try {
+      if (!eventId) {
+        throw new Error("Event ID is required");
+      }
+  
+      const response = await api.get(`/events/${eventId}/checkout-status`);
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, "Failed to check event eligibility");
+    }
+  },
 };
 
 export default eventService;
