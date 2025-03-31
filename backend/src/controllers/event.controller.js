@@ -1201,6 +1201,10 @@ exports.updateEventStatus = async (req, res, next) => {
     const { id } = req.params;
     const { status } = req.body;
 
+    console.log(
+      `Received status update request - ID: ${id}, Status: ${status}`
+    );
+
     // Validate input
     if (!status) {
       return res.status(400).json({
@@ -1212,6 +1216,7 @@ exports.updateEventStatus = async (req, res, next) => {
     // Find the event
     const event = await Event.findById(id);
     if (!event) {
+      console.log(`Event not found with ID: ${id}`);
       return res.status(404).json({
         success: false,
         message: "Event not found",
@@ -1219,7 +1224,13 @@ exports.updateEventStatus = async (req, res, next) => {
     }
 
     // Validate status transition
-    const validStatuses = ["active", "paused", "completed", "cancelled"];
+    const validStatuses = [
+      "active",
+      "paused",
+      "completed",
+      "cancelled",
+      "pending",
+    ];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
@@ -1231,11 +1242,14 @@ exports.updateEventStatus = async (req, res, next) => {
     event.status = status;
     await event.save();
 
+    console.log(`Event status updated - ID: ${id}, New Status: ${status}`);
+
     res.status(200).json({
       success: true,
       data: event,
     });
   } catch (err) {
+    console.error("Error in updateEventStatus:", err);
     next(err);
   }
 };

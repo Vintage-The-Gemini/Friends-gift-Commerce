@@ -2,12 +2,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
-import axios from "axios"; // Directly using axios for this critical path
 import { useAuth } from "../../hooks/useAuth";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
-  const { setUser } = useAuth();
+  const { adminLogin } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -22,37 +21,20 @@ const AdminLogin = () => {
     setError("");
 
     try {
-      // Use the full API URL to bypass any path resolution issues
-      const apiUrl =
-        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-
-      console.log("Sending admin login request to:", `${apiUrl}/admin/login`);
-      console.log("With payload:", {
-        phoneNumber: formData.phoneNumber,
-        password: formData.password,
-        role: "admin",
-      });
-
-      const response = await axios.post(`${apiUrl}/admin/login`, {
+      // Use the auth hook's adminLogin function instead of direct axios
+      const response = await adminLogin({
         phoneNumber: formData.phoneNumber,
         password: formData.password,
         role: "admin", // Explicitly set role as admin
       });
 
-      console.log("Admin login response:", response.data);
+      console.log("Admin login response:", response);
 
-      if (response.data.success) {
-        // Store authentication data
-        localStorage.setItem("token", response.data.token);
-        localStorage.setItem("user", JSON.stringify(response.data.user));
-
-        // Update auth context
-        setUser(response.data.user);
-
+      if (response.success) {
         // Navigate to admin dashboard
         navigate("/admin/dashboard");
       } else {
-        throw new Error(response.data.message || "Login failed");
+        throw new Error(response.message || "Login failed");
       }
     } catch (err) {
       console.error("Admin login error:", err);

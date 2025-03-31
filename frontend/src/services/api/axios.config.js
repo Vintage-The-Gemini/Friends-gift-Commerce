@@ -37,10 +37,8 @@ api.interceptors.request.use(
       config.url = config.url.replace("/api/", "/");
     }
 
-    // Log API requests in production
-    if (process.env.NODE_ENV === "production") {
-      console.log(`API Request: ${config.method.toUpperCase()} ${config.url}`);
-    }
+    // Log ALL requests in development for debugging
+    console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
 
     return config;
   },

@@ -11,7 +11,7 @@ const ENDPOINTS = {
   RESPOND: (id) => `/events/${id}/respond`,
   CONTRIBUTIONS: (id) => `/events/${id}/contributions`,
 
-  // Updated endpoint - remove the leading slash to match backend
+  // Make absolutely sure this endpoint is formatted correctly
   STATUS: (id) => `/events/${id}/status`,
 };
 // Helper function to handle API errors consistently
@@ -393,7 +393,7 @@ export const eventService = {
     }
   },
 
-  // Update event status
+  // Update event status - using PUT instead of PATCH for better compatibility
   updateEventStatus: async (eventId, status) => {
     try {
       if (!eventId) {
@@ -404,7 +404,11 @@ export const eventService = {
         throw new Error("Status is required");
       }
 
-      const response = await api.patch(ENDPOINTS.STATUS(eventId), { status });
+      console.log(`Updating event status - ID: ${eventId}, Status: ${status}`);
+      console.log(`API call to: ${ENDPOINTS.STATUS(eventId)}`);
+
+      // Try PUT instead of PATCH for better compatibility with some servers
+      const response = await api.put(ENDPOINTS.STATUS(eventId), { status });
       return response.data;
     } catch (error) {
       return handleApiError(error, "Failed to update event status");

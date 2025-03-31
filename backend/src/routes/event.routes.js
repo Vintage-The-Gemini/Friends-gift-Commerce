@@ -38,6 +38,15 @@ router.post("/:id/invite", inviteUsers);
 router.post("/:id/respond", respondToInvitation);
 router.get("/:id/access", getPrivateEvent);
 router.get("/:id/contributions", getEventContributions);
+
+// Status update route - support both PATCH and PUT methods
 router.patch("/:id/status", updateEventStatus);
+router.put("/:id/status", updateEventStatus); // Adding PUT method for better compatibility
+
+// Log all registered routes for debugging
+console.log(
+  "Event routes registered:",
+  router.stack.map((r) => r.route?.path).filter(Boolean)
+);
 
 module.exports = router;

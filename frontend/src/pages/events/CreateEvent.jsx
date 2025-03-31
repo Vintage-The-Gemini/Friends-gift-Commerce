@@ -187,7 +187,17 @@ const CreateEvent = () => {
 
       if (response.success) {
         // Update event status to active
-        await eventService.updateEventStatus(createdEventId, "active");
+        try {
+          console.log("Attempting to update event status:", createdEventId);
+          const statusResult = await eventService.updateEventStatus(
+            createdEventId,
+            "active"
+          );
+          console.log("Status update result:", statusResult);
+        } catch (statusError) {
+          console.error("Error updating status:", statusError);
+          // Continue anyway since the event was created
+        }
 
         toast.success("Event created and activated successfully!");
         navigate(`/events/${createdEventId}`);
@@ -202,7 +212,6 @@ const CreateEvent = () => {
       setLoading(false);
     }
   };
-
   // Handle navigation between steps
   const handleNextStep = async () => {
     if (step === 1) {

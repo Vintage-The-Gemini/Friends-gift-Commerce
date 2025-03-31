@@ -57,29 +57,29 @@ const eventSchema = new mongoose.Schema(
       required: true,
     },
     // Add a new field to track whether the initial contribution has been made
-initialContributionMade: {
-  type: Boolean,
-  default: false
-},
+    initialContributionMade: {
+      type: Boolean,
+      default: false,
+    },
 
-// Modify the status field to include "pending" status
-status: {
-  type: String,
-  enum: ["pending", "active", "completed", "cancelled"], // Added "pending" status
-  default: "pending", // Changed default from "active" to "pending"
-},
+    // Modify the status field to include "pending" status
+    status: {
+      type: String,
+      enum: ["pending", "active", "completed", "cancelled"], // Added "pending" status
+      default: "pending", // Changed default from "active" to "pending"
+    },
 
-// Add field to track who made the initial contribution
-initialContributor: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "User",
-},
+    // Add field to track who made the initial contribution
+    initialContributor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
 
-// Add field to track initial contribution amount
-initialContributionAmount: {
-  type: Number,
-  default: 0
-},
+    // Add field to track initial contribution amount
+    initialContributionAmount: {
+      type: Number,
+      default: 0,
+    },
     accessCode: {
       type: String,
       // For providing access to private events with a code
@@ -145,11 +145,6 @@ initialContributionAmount: {
         ref: "Order",
       },
     ],
-    status: {
-      type: String,
-      enum: ["active", "completed", "cancelled"],
-      default: "active",
-    },
   },
   {
     timestamps: true,

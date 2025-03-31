@@ -56,27 +56,21 @@ const Footer = () => {
             </p>
             <div className="flex space-x-4">
               <a
-                href="https://facebook.com"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="#"
                 className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
                 aria-label="Facebook"
               >
                 <Facebook className="w-5 h-5" />
               </a>
               <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="#"
                 className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
                 aria-label="Instagram"
               >
                 <Instagram className="w-5 h-5" />
               </a>
               <a
-                href="https://twitter.com"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="#"
                 className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
                 aria-label="Twitter"
               >
@@ -91,11 +85,10 @@ const Footer = () => {
             <ul className="space-y-3">
               <li>
                 <Link
-                  to="/about"
+                  to="/"
                   className="hover:text-white/80 transition-colors inline-flex items-center"
                 >
-                  <span>About Us</span>
-                  <ExternalLink className="w-3.5 h-3.5 ml-1 opacity-75" />
+                  <span>Home</span>
                 </Link>
               </li>
               <li>
@@ -122,14 +115,6 @@ const Footer = () => {
                   Create Account
                 </Link>
               </li>
-              <li>
-                <Link
-                  to="/help"
-                  className="hover:text-white/80 transition-colors"
-                >
-                  Help Center
-                </Link>
-              </li>
             </ul>
           </div>
 
@@ -154,10 +139,10 @@ const Footer = () => {
                 <ul className="space-y-3 py-2 pl-2">
                   <li>
                     <Link
-                      to="/about"
+                      to="/"
                       className="hover:text-white/80 transition-colors"
                     >
-                      About Us
+                      Home
                     </Link>
                   </li>
                   <li>
@@ -207,7 +192,7 @@ const Footer = () => {
                 <ul className="space-y-3 py-2 pl-2">
                   <li>
                     <Link
-                      to="/products/electronics"
+                      to="/products"
                       className="hover:text-white/80 transition-colors"
                     >
                       Electronics
@@ -215,7 +200,7 @@ const Footer = () => {
                   </li>
                   <li>
                     <Link
-                      to="/products/fashion"
+                      to="/products"
                       className="hover:text-white/80 transition-colors"
                     >
                       Fashion
@@ -223,7 +208,7 @@ const Footer = () => {
                   </li>
                   <li>
                     <Link
-                      to="/products/home-kitchen"
+                      to="/products"
                       className="hover:text-white/80 transition-colors"
                     >
                       Home & Kitchen
@@ -231,7 +216,7 @@ const Footer = () => {
                   </li>
                   <li>
                     <Link
-                      to="/products/beauty"
+                      to="/products"
                       className="hover:text-white/80 transition-colors"
                     >
                       Beauty
@@ -291,7 +276,7 @@ const Footer = () => {
             <ul className="space-y-3">
               <li>
                 <Link
-                  to="/products/electronics"
+                  to="/products"
                   className="hover:text-white/80 transition-colors"
                 >
                   Electronics
@@ -299,7 +284,7 @@ const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/products/fashion"
+                  to="/products"
                   className="hover:text-white/80 transition-colors"
                 >
                   Fashion
@@ -307,7 +292,7 @@ const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/products/home-kitchen"
+                  to="/products"
                   className="hover:text-white/80 transition-colors"
                 >
                   Home & Kitchen
@@ -315,7 +300,7 @@ const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/products/beauty"
+                  to="/products"
                   className="hover:text-white/80 transition-colors"
                 >
                   Beauty
@@ -416,22 +401,22 @@ const Footer = () => {
             </p>
             <div className="flex space-x-6">
               <Link
-                to="/privacy"
+                to="/"
                 className="text-white/80 hover:text-white transition-colors"
               >
                 Privacy Policy
               </Link>
               <Link
-                to="/terms"
+                to="/"
                 className="text-white/80 hover:text-white transition-colors"
               >
                 Terms of Service
               </Link>
               <Link
-                to="/help"
+                to="/"
                 className="text-white/80 hover:text-white transition-colors"
               >
-                Help Center
+                Contact Us
               </Link>
             </div>
           </div>

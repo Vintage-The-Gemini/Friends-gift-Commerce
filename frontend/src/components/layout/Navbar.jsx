@@ -141,7 +141,7 @@ const NavBar = () => {
     return user.name || user.phoneNumber || "User";
   };
 
-  // Seller Navigation Links
+  // Seller Navigation Links - Simplified
   const sellerLinks = [
     {
       path: "/seller/dashboard",
@@ -159,19 +159,9 @@ const NavBar = () => {
       label: "Orders",
     },
     {
-      path: "/seller/events",
-      icon: <Gift className="w-4 h-4 mr-2" />,
-      label: "Events",
-    },
-    {
-      path: "/seller/analytics",
-      icon: <DollarSign className="w-4 h-4 mr-2" />,
-      label: "Analytics",
-    },
-    {
       path: "/seller/profile",
       icon: <Store className="w-4 h-4 mr-2" />,
-      label: "Business Profile",
+      label: "Profile",
     },
     {
       path: "/seller/settings",
@@ -224,22 +214,13 @@ const NavBar = () => {
               </Link>
             )}
             {user && user.role === "seller" && (
-              <>
-                <Link
-                  to="/seller/products"
-                  className={getNavLinkClass("/seller/products")}
-                  onClick={closeMobileMenu}
-                >
-                  My Products
-                </Link>
-                <Link
-                  to="/seller/dashboard"
-                  className={getNavLinkClass("/seller/dashboard")}
-                  onClick={closeMobileMenu}
-                >
-                  Seller Dashboard
-                </Link>
-              </>
+              <Link
+                to="/seller/dashboard"
+                className={getNavLinkClass("/seller/dashboard")}
+                onClick={closeMobileMenu}
+              >
+                Seller Portal
+              </Link>
             )}
           </div>
 
@@ -361,15 +342,15 @@ const NavBar = () => {
                       {user.role === "seller" && (
                         <>
                           <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-100">
-                            Seller Account
+                            Seller Portal
                           </div>
                           <Link
                             to="/seller/dashboard"
                             className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center"
                             onClick={() => setProfileDropdownOpen(false)}
                           >
-                            <Store className="h-4 w-4 mr-2" />
-                            Seller Dashboard
+                            <BarChart className="h-4 w-4 mr-2" />
+                            Dashboard
                           </Link>
                           <Link
                             to="/seller/products"
@@ -377,35 +358,21 @@ const NavBar = () => {
                             onClick={() => setProfileDropdownOpen(false)}
                           >
                             <Package className="h-4 w-4 mr-2" />
-                            My Products
-                          </Link>
-                          <Link
-                            to="/seller/orders"
-                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center"
-                            onClick={() => setProfileDropdownOpen(false)}
-                          >
-                            <ShoppingCart className="h-4 w-4 mr-2" />
-                            Orders
+                            Products
                           </Link>
                           <div className="border-t border-gray-100 my-1"></div>
                         </>
                       )}
-                      <Link
-                        to="/events/my-events"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center"
-                        onClick={() => setProfileDropdownOpen(false)}
-                      >
-                        <Calendar className="h-4 w-4 mr-2" />
-                        My Events
-                      </Link>
-                      <Link
-                        to="/dashboard/contributions"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center"
-                        onClick={() => setProfileDropdownOpen(false)}
-                      >
-                        <DollarSign className="h-4 w-4 mr-2" />
-                        My Contributions
-                      </Link>
+                      {user.role === "buyer" && (
+                        <Link
+                          to="/events/create"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center"
+                          onClick={() => setProfileDropdownOpen(false)}
+                        >
+                          <Gift className="h-4 w-4 mr-2" />
+                          Create Event
+                        </Link>
+                      )}
                       <div className="border-t border-gray-100 my-1"></div>
                       <button
                         onClick={handleLogout}
@@ -510,6 +477,17 @@ const NavBar = () => {
                 <Calendar className="w-4 h-4 mr-2 inline-block" />
                 My Events
               </Link>
+              
+              {user.role === "buyer" && (
+                <Link
+                  to="/events/create"
+                  className={getNavLinkClass("/events/create")}
+                  onClick={closeMobileMenu}
+                >
+                  <Gift className="w-4 h-4 mr-2 inline-block" />
+                  Create Event
+                </Link>
+              )}
 
               <Link
                 to="/events/create"
@@ -527,10 +505,10 @@ const NavBar = () => {
             <>
               <div className="border-t border-gray-200 my-2 pt-2">
                 <div className="px-3 py-1 text-xs text-gray-500 font-semibold">
-                  SELLER ACCOUNT
+                  SELLER PORTAL
                 </div>
 
-                {sellerLinks.map((link) => (
+                {sellerLinks.slice(0, 3).map((link) => (
                   <Link
                     key={link.path}
                     to={link.path}

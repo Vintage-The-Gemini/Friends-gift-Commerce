@@ -158,7 +158,7 @@ const SignUp = () => {
                 : "bg-gray-100 text-gray-600"
             }`}
           >
-            As Seller
+            As Merchant
           </button>
         </div>
 

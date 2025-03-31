@@ -32,22 +32,28 @@ const handleError = (error, defaultMessage) => {
   }
 
   if (error.response?.status === 401) {
-    return { message: "Your session has expired. Please login again." };
+    return {
+      success: false,
+      message: "Your session has expired. Please login again.",
+    };
   }
 
   if (error.response?.status === 403) {
-    return { message: "You are not authorized to perform this action." };
+    return {
+      success: false,
+      message: "You are not authorized to perform this action.",
+    };
   }
 
   if (error.response?.status === 404) {
-    return { message: "The requested resource was not found." };
+    return { success: false, message: "The requested resource was not found." };
   }
 
   if (error.response?.status >= 500) {
-    return { message: "Server error. Please try again later." };
+    return { success: false, message: "Server error. Please try again later." };
   }
 
-  return { message: defaultMessage };
+  return { success: false, message: defaultMessage };
 };
 
 const authService = {
@@ -58,9 +64,9 @@ const authService = {
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("user", JSON.stringify(response.data.user));
       }
-      return response.data;
+      return { ...response.data, success: true };
     } catch (error) {
-      throw handleError(error, "Registration failed");
+      return handleError(error, "Registration failed");
     }
   },
 
@@ -71,40 +77,57 @@ const authService = {
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("user", JSON.stringify(response.data.user));
       }
-      return response.data;
+      return { ...response.data, success: true };
     } catch (error) {
-      throw handleError(error, "Login failed");
+      return handleError(error, "Login failed");
     }
   },
 
   adminLogin: async (credentials) => {
     try {
-      const response = await api.post("/admin/login", credentials);
+      // Use the full API URL to bypass any path resolution issues
+      const apiUrl =
+        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      console.log("Sending admin login request to:", `${apiUrl}/admin/login`);
+      console.log("With payload:", credentials);
+
+      const response = await axios.post(`${apiUrl}/admin/login`, credentials);
+      console.log("Admin login raw response:", response);
+
       if (response.data.token) {
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("user", JSON.stringify(response.data.user));
       }
-      return response.data;
+      return { ...response.data, success: true };
     } catch (error) {
-      throw handleError(error, "Admin login failed");
+      console.error("Admin login service error:", error);
+      return handleError(error, "Admin login failed");
     }
   },
 
-  logout: async () => {
+  logout: () => {
     try {
-      await api.post("/auth/logout");
+      // Try to call the backend logout endpoint
+      api.post("/auth/logout").catch((err) => {
+        console.warn("Backend logout failed:", err);
+      });
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
+      // Always clear local storage regardless of backend response
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      window.location.href = "/auth/signin";
     }
   },
 
   getCurrentUser: () => {
-    const user = localStorage.getItem("user");
-    return user ? JSON.parse(user) : null;
+    try {
+      const user = localStorage.getItem("user");
+      return user ? JSON.parse(user) : null;
+    } catch (error) {
+      console.error("Error getting current user:", error);
+      return null;
+    }
   },
 
   isAuthenticated: () => {

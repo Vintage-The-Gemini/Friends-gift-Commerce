@@ -89,7 +89,7 @@ const SignIn = () => {
                 : "bg-gray-100 text-gray-700"
             }`}
           >
-            As Seller
+            As Merchant
           </button>
         </div>
 

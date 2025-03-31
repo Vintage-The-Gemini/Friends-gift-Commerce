@@ -1,239 +1,124 @@
-// src/hooks/useAuth.jsx
+// src/hooks/useAuth.js
 import { createContext, useContext, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import api from "../services/api/axios.config";
+import authService from "../services/api/auth";
 
+// Create the authentication context
 const AuthContext = createContext();
 
+// Provider component that wraps your app and makes auth object available to any child component
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
-  // Load user from localStorage on initial render
+  // Function to initialize auth state from localStorage on app load
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const token = localStorage.getItem("token");
+    const initializeAuth = () => {
+      try {
+        // Check if user data exists in localStorage
+        const storedUser = authService.getCurrentUser();
+        if (storedUser) {
+          setUser(storedUser);
+        }
+      } catch (error) {
+        console.error("Auth initialization error:", error);
+        // Clear potentially corrupted auth data
+        authService.logout();
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    if (storedUser && token) {
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
+    initializeAuth();
   }, []);
 
-  // Register a new user
-  const register = async (userData) => {
-    try {
-      const response = await api.post("/auth/register", userData);
-
-      if (response.data.success) {
-        const { token, user } = response.data;
-
-        // If user registration was successful, store token and user data
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(user));
-
-        setUser(user);
-
-        // If user has email but it's not verified yet, don't redirect to dashboard
-        if (user.email && !user.isEmailVerified) {
-          return response.data;
-        }
-
-        // Redirect based on role
-        if (user.role === "seller") {
-          navigate("/seller/dashboard");
-        } else {
-          navigate("/");
-        }
-
-        return response.data;
-      }
-    } catch (error) {
-      console.error("Registration error:", error);
-      throw error.response?.data || { message: "Registration failed" };
-    }
-  };
-
-  // Login user
+  // Login function
   const login = async (credentials) => {
     try {
-      const response = await api.post("/auth/login", credentials);
-
-      if (response.data.success) {
-        const { token, user } = response.data;
-
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(user));
-
-        setUser(user);
-
-        // Redirect based on role
-        if (user.role === "seller") {
-          navigate("/seller/dashboard");
-        } else {
-          navigate("/");
-        }
-
-        return response.data;
+      const response = await authService.login(credentials);
+      if (response.success && response.user) {
+        setUser(response.user);
+        return response;
       }
+      throw new Error(response.message || "Login failed");
     } catch (error) {
       console.error("Login error:", error);
-      throw error.response?.data || { message: "Login failed" };
+      throw error;
     }
   };
 
-  // Google login
-  const loginWithGoogle = async (tokenId, role = "buyer") => {
+  // Admin login function
+  const adminLogin = async (credentials) => {
     try {
-      const response = await api.post("/auth/google-login", {
-        tokenId,
-        role,
-      });
-
-      if (response.data.success) {
-        const { token, user } = response.data;
-
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(user));
-
-        setUser(user);
-
-        // Redirect based on role
-        if (user.role === "seller") {
-          navigate("/seller/dashboard");
-        } else {
-          navigate("/");
-        }
-
-        return response.data;
+      const response = await authService.adminLogin(credentials);
+      if (response.success && response.user) {
+        setUser(response.user);
+        return response;
       }
+      throw new Error(response.message || "Admin login failed");
     } catch (error) {
-      console.error("Google login error:", error);
-      throw error.response?.data || { message: "Google login failed" };
+      console.error("Admin login error:", error);
+      throw error;
     }
   };
 
-  // Logout user
+  // Logout function
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setUser(null);
-    navigate("/auth/signin");
-  };
-
-  // Verify email
-  const verifyEmail = async (token) => {
     try {
-      const response = await api.get(`/auth/verify-email/${token}`);
-      return response.data;
+      authService.logout();
+      setUser(null);
     } catch (error) {
-      console.error("Email verification error:", error);
-      throw error.response?.data || { message: "Email verification failed" };
+      console.error("Logout error:", error);
     }
   };
 
-  // Resend verification email
-  const resendVerificationEmail = async (email) => {
+  // Register function
+  const register = async (userData) => {
     try {
-      const response = await api.post("/auth/resend-verification", {
-        email,
-      });
-      return response.data;
-    } catch (error) {
-      console.error("Resend verification email error:", error);
-      throw (
-        error.response?.data || {
-          message: "Failed to resend verification email",
-        }
-      );
-    }
-  };
-
-  // Request password reset
-  const forgotPassword = async (email) => {
-    try {
-      const response = await api.post("/auth/forgot-password", {
-        email,
-      });
-      return response.data;
-    } catch (error) {
-      console.error("Forgot password error:", error);
-      throw (
-        error.response?.data || {
-          message: "Failed to process password reset request",
-        }
-      );
-    }
-  };
-
-  // Reset password
-  const resetPassword = async (token, newPassword) => {
-    try {
-      const response = await api.post(`/auth/reset-password/${token}`, {
-        password: newPassword,
-      });
-      return response.data;
-    } catch (error) {
-      console.error("Reset password error:", error);
-      throw error.response?.data || { message: "Failed to reset password" };
-    }
-  };
-
-  // Update user profile
-  const updateProfile = async (userData) => {
-    try {
-      const response = await api.put("/users/profile", userData);
-
-      if (response.data.success) {
-        const updatedUser = response.data.data;
-        localStorage.setItem("user", JSON.stringify(updatedUser));
-        setUser(updatedUser);
-        return response.data;
+      const response = await authService.register(userData);
+      if (response.success && response.user) {
+        setUser(response.user);
+        return response;
       }
+      throw new Error(response.message || "Registration failed");
     } catch (error) {
-      console.error("Update profile error:", error);
-      throw error.response?.data || { message: "Failed to update profile" };
+      console.error("Registration error:", error);
+      throw error;
     }
   };
 
-  // Check authentication status
-  const isAuthenticated = () => {
-    return !!user && !!localStorage.getItem("token");
-  };
+  // Update user data
+  const updateUserData = (newUserData) => {
+    if (newUserData) {
+      // Update local state
+      setUser(newUserData);
 
-  // Check if user is a specific role
-  const hasRole = (roles) => {
-    if (!user) return false;
-
-    if (Array.isArray(roles)) {
-      return roles.includes(user.role);
+      // Update localStorage
+      localStorage.setItem("user", JSON.stringify(newUserData));
     }
-
-    return user.role === roles;
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        register,
-        login,
-        loginWithGoogle,
-        logout,
-        verifyEmail,
-        resendVerificationEmail,
-        forgotPassword,
-        resetPassword,
-        updateProfile,
-        isAuthenticated,
-        hasRole,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  // Value object that will be passed to consumers of this context
+  const value = {
+    user,
+    loading,
+    login,
+    adminLogin,
+    logout,
+    register,
+    updateUserData,
+    setUser, // Explicitly provide setUser function
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = () => useContext(AuthContext);
+// Custom hook that simplifies consumption of the AuthContext
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};
+
+export default useAuth;
