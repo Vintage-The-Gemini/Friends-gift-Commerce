@@ -56,17 +56,6 @@ const createTransporter = async () => {
         },
       });
 
-    case "yahoo":
-      return nodemailer.createTransport({
-        host: "smtp.mail.yahoo.com",
-        port: 465,
-        secure: true,
-        auth: {
-          user: process.env.EMAIL_USERNAME,
-          pass: process.env.EMAIL_PASSWORD,
-        },
-      });
-
     case "sendgrid":
       return nodemailer.createTransport({
         host: "smtp.sendgrid.net",
@@ -86,18 +75,6 @@ const createTransporter = async () => {
         auth: {
           user: process.env.MAILGUN_SMTP_LOGIN,
           pass: process.env.MAILGUN_SMTP_PASSWORD,
-        },
-      });
-
-    case "ses":
-      return nodemailer.createTransport({
-        host:
-          process.env.AWS_SES_ENDPOINT || "email-smtp.us-east-1.amazonaws.com",
-        port: 587,
-        secure: false,
-        auth: {
-          user: process.env.AWS_SES_ACCESS_KEY,
-          pass: process.env.AWS_SES_SECRET_KEY,
         },
       });
 

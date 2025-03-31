@@ -1,4 +1,4 @@
-// frontend/src/components/auth/GoogleAuth.jsx
+// src/components/auth/GoogleAuth.jsx
 import React, { useEffect, useRef } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { toast } from "react-toastify";
