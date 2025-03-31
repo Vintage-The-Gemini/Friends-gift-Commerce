@@ -37,5 +37,7 @@ router.post("/:id/invite", inviteUsers);
 router.post("/:id/respond", respondToInvitation);
 router.get("/:id/access", getPrivateEvent);
 router.get("/:id/contributions", getEventContributions);
+router.patch("/:id/status", updateEventStatus);
+
 
 module.exports = router;

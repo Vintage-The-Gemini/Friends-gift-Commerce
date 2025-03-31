@@ -10,6 +10,7 @@ const ENDPOINTS = {
   INVITE: (id) => `/events/${id}/invite`,
   RESPOND: (id) => `/events/${id}/respond`,
   CONTRIBUTIONS: (id) => `/events/${id}/contributions`,
+  STATUS: (id) => `/events/${id}/status`, // New endpoint for status updates
 };
 
 // Helper function to handle API errors consistently
@@ -388,6 +389,24 @@ export const eventService = {
       }
 
       return handleApiError(error, "Failed to access private event");
+    }
+  },
+
+  // Update event status
+  updateEventStatus: async (eventId, status) => {
+    try {
+      if (!eventId) {
+        throw new Error("Event ID is required");
+      }
+
+      if (!status) {
+        throw new Error("Status is required");
+      }
+
+      const response = await api.patch(ENDPOINTS.STATUS(eventId), { status });
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, "Failed to update event status");
     }
   },
 };

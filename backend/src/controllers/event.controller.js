@@ -1195,3 +1195,47 @@ exports.getEventContributions = async (req, res) => {
   }
 };
 module.exports = exports;
+
+exports.updateEventStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    // Validate input
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: "Status is required",
+      });
+    }
+
+    // Find the event
+    const event = await Event.findById(id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Event not found",
+      });
+    }
+
+    // Validate status transition
+    const validStatuses = ["active", "paused", "completed", "cancelled"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status value",
+      });
+    }
+
+    // Update status
+    event.status = status;
+    await event.save();
+
+    res.status(200).json({
+      success: true,
+      data: event,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
