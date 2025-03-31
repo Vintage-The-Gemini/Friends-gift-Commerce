@@ -26,7 +26,7 @@ if (process.env.NODE_ENV === "production") {
 // filepath: c:\Users\Admin\Desktop\desighn\Friends-gift-Commerce\backend\server.js
 app.use(
   cors({
-    origin: ["http://localhost:5173", "https://friendsgift.co.ke",p],
+    origin: ["http://localhost:5173", "https://friendsgift.co.ke",],
     credentials: true,
   })
 );

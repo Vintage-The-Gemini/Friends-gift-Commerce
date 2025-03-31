@@ -32,11 +32,10 @@ const CreateEventForm = () => {
     description: "",
     eventDate: "",
     endDate: "",
-    visibility: "public",
+    visibility: "private",  // Changed from "public" to "private"
     selectedProducts: [],
     image: "",
   });
-
   // Event types for the dropdown
   const eventTypes = [
     { value: "birthday", label: "Birthday" },
