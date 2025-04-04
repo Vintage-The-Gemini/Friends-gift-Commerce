@@ -1128,6 +1128,7 @@ exports.respondToInvitation = async (req, res) => {
   }
 };
 
+// This is the fixed getEventContributions method
 exports.getEventContributions = async (req, res) => {
   try {
     const { id } = req.params;
