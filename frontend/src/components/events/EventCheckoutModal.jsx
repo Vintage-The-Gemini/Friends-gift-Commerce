@@ -12,7 +12,11 @@ const EventCheckoutModal = ({ event, isOpen, onClose, onCheckoutComplete }) => {
   const [eligibility, setEligibility] = useState(null);
 
   useEffect(() => {
+    // Reset state when modal is opened/closed
     if (isOpen && event) {
+      setLoading(true);
+      setError(null);
+      setShowCheckout(false);
       checkEligibility();
     }
   }, [isOpen, event]);
@@ -21,8 +25,10 @@ const EventCheckoutModal = ({ event, isOpen, onClose, onCheckoutComplete }) => {
     try {
       setLoading(true);
       setError(null);
+      console.log("Checking eligibility for event:", event?._id);
 
       const response = await eventService.getEventCheckoutEligibility(event._id);
+      console.log("Eligibility response:", response);
 
       if (response.success) {
         setEligibility(response.data);
@@ -41,13 +47,27 @@ const EventCheckoutModal = ({ event, isOpen, onClose, onCheckoutComplete }) => {
     setShowCheckout(true);
   };
 
+  const handleCheckoutComplete = (data) => {
+    // This function passes the checkout data to the parent component
+    if (onCheckoutComplete) {
+      onCheckoutComplete(data);
+    }
+  };
+
+  const handleClose = () => {
+    // Proper cleanup before closing
+    setShowCheckout(false);
+    setError(null);
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+        <div className="p-6 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white z-10">
           <h2 className="text-xl font-semibold flex items-center">
             {showCheckout ? (
               <>
@@ -62,7 +82,7 @@ const EventCheckoutModal = ({ event, isOpen, onClose, onCheckoutComplete }) => {
             )}
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-500 hover:text-gray-700 p-1"
           >
             <X className="w-6 h-6" />
@@ -86,7 +106,7 @@ const EventCheckoutModal = ({ event, isOpen, onClose, onCheckoutComplete }) => {
           ) : showCheckout ? (
             <EventCheckout
               event={event}
-              onComplete={onCheckoutComplete}
+              onComplete={handleCheckoutComplete}
               onCancel={() => setShowCheckout(false)}
             />
           ) : (
@@ -203,6 +223,25 @@ const EventCheckoutModal = ({ event, isOpen, onClose, onCheckoutComplete }) => {
                         </ul>
                       </div>
                     )}
+                    
+                  {/* Force checkout for testing */}
+                  {!eligibility.isEligible && (
+                    <div className="mt-3 bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                      <p className="font-medium text-blue-700 mb-1">Developer Testing Mode</p>
+                      <p className="text-sm text-blue-600 mb-2">
+                        This event doesn't meet regular checkout criteria, but you can force checkout for testing purposes.
+                      </p>
+                      <button
+                        onClick={() => {
+                          // Override eligibility for testing
+                          setEligibility({...eligibility, isEligible: true});
+                        }}
+                        className="px-4 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                      >
+                        Force Eligibility For Testing
+                      </button>
+                    </div>
+                  )}
 
                   {/* Checkout summary */}
                   <div className="bg-gray-50 p-4 rounded-lg">
@@ -256,7 +295,7 @@ const EventCheckoutModal = ({ event, isOpen, onClose, onCheckoutComplete }) => {
                   {/* Action buttons */}
                   <div className="flex justify-between pt-4">
                     <button
-                      onClick={onClose}
+                      onClick={handleClose}
                       className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                     >
                       Cancel

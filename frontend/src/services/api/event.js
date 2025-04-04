@@ -420,15 +420,43 @@ export const eventService = {
       if (!checkoutData.eventId) {
         throw new Error("Event ID is required");
       }
-
+  
+      console.log("Sending checkout request with data:", JSON.stringify(checkoutData));
+      
       // Make sure this URL matches your backend route structure
-      const response = await api.post(
-        `${ENDPOINTS.BASE}/${checkoutData.eventId}/checkout`,
-        checkoutData
-      );
+      const url = `${ENDPOINTS.BASE}/${checkoutData.eventId}/checkout`;
+      console.log("Checkout endpoint URL:", url);
+      
+      const response = await api.post(url, checkoutData);
+      console.log("Checkout response received:", response.data);
+      
       return response.data;
     } catch (error) {
+      console.error("Checkout API error:", error);
       return handleApiError(error, "Failed to complete checkout");
+    }
+  },
+  
+  // Get event checkout eligibility with better error handling and logging
+  getEventCheckoutEligibility: async (eventId) => {
+    try {
+      if (!eventId) {
+        throw new Error("Event ID is required");
+      }
+  
+      console.log("Checking eligibility for event:", eventId);
+      
+      // Make sure this URL matches your backend route structure
+      const url = `${ENDPOINTS.BASE}/${eventId}/checkout-status`;
+      console.log("Eligibility check URL:", url);
+      
+      const response = await api.get(url);
+      console.log("Eligibility response:", response.data);
+      
+      return response.data;
+    } catch (error) {
+      console.error("Eligibility check API error:", error);
+      return handleApiError(error, "Failed to check event eligibility");
     }
   },
 

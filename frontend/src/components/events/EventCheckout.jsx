@@ -11,6 +11,7 @@ import {
   X,
   ArrowRight,
   Calendar,
+  AlertCircle
 } from "lucide-react";
 import { formatCurrency } from "../../utils/currency";
 import { eventService } from "../../services/api/event";
@@ -21,6 +22,7 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
   const [step, setStep] = useState(1); // Start with shipping info step
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [completedCheckout, setCompletedCheckout] = useState(false);
   const [shippingAddress, setShippingAddress] = useState({
     name: "",
     address: "",
@@ -60,6 +62,13 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
       setError("Phone number is required");
       return false;
     }
+    
+    // Basic Kenyan phone validation
+    if (!shippingAddress.phone.startsWith('+254') && !shippingAddress.phone.match(/^\+254[0-9]{9}$/)) {
+      setError("Please enter a valid Kenyan phone number (+254XXXXXXXXX)");
+      return false;
+    }
+    
     return true;
   };
 
@@ -96,6 +105,15 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
   const completeCheckout = async () => {
     try {
       setLoading(true);
+      setError("");
+
+      // Prevent double-submission
+      if (completedCheckout) {
+        console.log("Checkout already completed, preventing duplicate submission");
+        return;
+      }
+
+      console.log("Starting checkout process...");
 
       // Prepare checkout data
       const checkoutData = {
@@ -104,19 +122,34 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
         paymentMethod: "already_paid",
       };
 
+      console.log("Submitting checkout data:", JSON.stringify(checkoutData));
+
       // Call API to complete event and create order
       const response = await eventService.completeEventCheckout(checkoutData);
+      console.log("Checkout response received:", response);
 
       if (response.success) {
+        console.log("Checkout successful!");
+        // Mark as completed to prevent duplicate submission
+        setCompletedCheckout(true);
+        
         toast.success("Checkout completed successfully!");
         
         if (onComplete) {
+          console.log("Calling onComplete callback with data:", response.data);
           onComplete(response.data);
         }
 
-        navigate(`/orders/${response.data.order._id}`, {
-          state: { fromCheckout: true },
-        });
+        if (response.data && response.data.order && response.data.order._id) {
+          navigate(`/orders/${response.data.order._id}`, {
+            state: { fromCheckout: true },
+          });
+        } else {
+          // Fallback if order ID is not available
+          navigate("/dashboard", { 
+            state: { checkoutSuccess: true }
+          });
+        }
       } else {
         throw new Error(response.message || "Failed to complete checkout");
       }
@@ -124,7 +157,6 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
       console.error("Checkout error:", error);
       setError(error.message || "Failed to process checkout");
       toast.error(error.message || "Failed to process checkout");
-    } finally {
       setLoading(false);
     }
   };
@@ -257,6 +289,7 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
             placeholder="+254..."
             required
           />
+          <p className="mt-1 text-xs text-gray-500">Format: +254XXXXXXXXX</p>
         </div>
 
         <div>
@@ -301,6 +334,16 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
         </div>
         <h3 className="text-xl font-medium ml-3">Order Summary</h3>
       </div>
+
+      {error && (
+        <div className="p-4 bg-red-50 rounded-lg border border-red-200 flex items-start">
+          <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 mr-2 flex-shrink-0" />
+          <div>
+            <p className="font-medium text-red-700">Checkout Error</p>
+            <p className="text-red-600">{error}</p>
+          </div>
+        </div>
+      )}
 
       {orderSummary && (
         <div className="space-y-6">
@@ -374,9 +417,8 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
                 <p className="font-medium">{orderSummary.shippingAddress.name}</p>
                 <p>{orderSummary.shippingAddress.address}</p>
                 <p>
-                  {orderSummary.shippingAddress.city},{" "}
-                  {orderSummary.shippingAddress.state}{" "}
-                  {orderSummary.shippingAddress.postalCode}
+                  {orderSummary.shippingAddress.city}{orderSummary.shippingAddress.state ? `, ${orderSummary.shippingAddress.state}` : ''} 
+                  {orderSummary.shippingAddress.postalCode ? ` ${orderSummary.shippingAddress.postalCode}` : ''}
                 </p>
                 <p>{orderSummary.shippingAddress.country}</p>
                 <p>{orderSummary.shippingAddress.phone}</p>
@@ -409,22 +451,34 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              disabled={loading}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
               Back to Shipping
             </button>
             <button
               type="button"
               onClick={completeCheckout}
-              disabled={loading}
+              disabled={loading || completedCheckout}
               className="px-6 py-2 bg-[#5551FF] text-white rounded-lg hover:bg-[#4440FF] disabled:opacity-50 flex items-center"
             >
               {loading ? (
-                "Processing..."
+                <span className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </span>
+              ) : completedCheckout ? (
+                <span className="flex items-center">
+                  <Check className="w-4 h-4 mr-2" />
+                  Completed
+                </span>
               ) : (
-                <>
+                <span className="flex items-center">
                   Complete Checkout <Check className="w-4 h-4 ml-2" />
-                </>
+                </span>
               )}
             </button>
           </div>
@@ -481,14 +535,6 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
           </div>
         </div>
       </div>
-
-      {/* Error message */}
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center">
-          <X className="w-5 h-5 mr-2 flex-shrink-0" />
-          <p>{error}</p>
-        </div>
-      )}
 
       {/* Step Content */}
       {step === 1 ? renderShippingStep() : renderConfirmationStep()}
