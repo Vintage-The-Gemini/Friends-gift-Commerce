@@ -29,6 +29,7 @@ import CreateEvent from "./pages/events/CreateEvent";
 import EditEvent from "./pages/events/EditEvent";
 import EventDetails from "./pages/events/EventDetails";
 import MyEventsPage from "./pages/events/MyEventsPage";
+import CompletedEventsPage from "./pages/events/CompletedEventsPage";
 
 // Admin Pages
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -103,6 +104,16 @@ const router = createBrowserRouter(
               element: (
                 <ProtectedRoute allowedRoles={["buyer", "seller"]}>
                   <MyEventsPage />
+                </ProtectedRoute>
+              ),
+            },
+
+            // Completed Events Page (new)
+            {
+              path: "/events/completed",
+              element: (
+                <ProtectedRoute allowedRoles={["buyer", "seller"]}>
+                  <CompletedEventsPage />
                 </ProtectedRoute>
               ),
             },

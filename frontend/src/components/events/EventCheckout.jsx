@@ -1,4 +1,4 @@
-// src/components/events/EventCheckout.jsx
+// File: frontend/src/components/events/EventCheckout.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -11,18 +11,24 @@ import {
   X,
   ArrowRight,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from "lucide-react";
 import { formatCurrency } from "../../utils/currency";
 import { eventService } from "../../services/api/event";
 import { toast } from "react-toastify";
+import CheckoutProgressBar from "./CheckoutProgressBar";
+import CheckoutStatusIndicator from "./CheckoutStatusIndicator";
 
 const EventCheckout = ({ event, onComplete, onCancel }) => {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1); // Start with shipping info step
+  const [step, setStep] = useState(1); // 1: Shipping, 2: Confirmation
+  const [checkoutStep, setCheckoutStep] = useState(1); // 1: Eligibility, 2: Shipping, 3: Confirmation, 4: Processing, 5: Complete
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [completedCheckout, setCompletedCheckout] = useState(false);
+  const [processingTime, setProcessingTime] = useState(0);
+  const [checkoutStatus, setCheckoutStatus] = useState("initial"); // initial, processing, success, error
   const [shippingAddress, setShippingAddress] = useState({
     name: "",
     address: "",
@@ -41,8 +47,11 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
       setShippingAddress((prev) => ({
         ...prev,
         name: event.creator.name,
+        phone: event.creator.phoneNumber || "",
       }));
     }
+    
+    setCheckoutStep(2); // Start at Shipping step (after eligibility check)
   }, [event]);
 
   const validateShippingDetails = () => {
@@ -100,18 +109,38 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
 
     setOrderSummary(summary);
     setStep(2); // Move to confirmation step
+    setCheckoutStep(3); // Update progress bar to Confirmation
   };
 
   const completeCheckout = async () => {
     try {
       setLoading(true);
       setError("");
-
+      setCheckoutStep(4); // Move to Processing step
+      setCheckoutStatus("processing");
+      
       // Prevent double-submission
       if (completedCheckout) {
         console.log("Checkout already completed, preventing duplicate submission");
         return;
       }
+
+      // Start timing the processing
+      const startTime = Date.now();
+      let processingTimer = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        setProcessingTime(elapsed);
+      }, 1000);
+
+      // Set a timeout to prevent infinite loading
+      const checkoutTimeout = setTimeout(() => {
+        if (loading) {
+          setError("Checkout is taking longer than expected. Please check your orders page to verify completion.");
+          setLoading(false);
+          setCheckoutStatus("error");
+          clearInterval(processingTimer);
+        }
+      }, 30000); // 30 second timeout
 
       console.log("Starting checkout process...");
 
@@ -122,43 +151,62 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
         paymentMethod: "already_paid",
       };
 
-      console.log("Submitting checkout data:", JSON.stringify(checkoutData));
-
       // Call API to complete event and create order
       const response = await eventService.completeEventCheckout(checkoutData);
-      console.log("Checkout response received:", response);
+
+      // Clear the timeout and timer since we got a response
+      clearTimeout(checkoutTimeout);
+      clearInterval(processingTimer);
 
       if (response.success) {
-        console.log("Checkout successful!");
         // Mark as completed to prevent duplicate submission
         setCompletedCheckout(true);
+        setCheckoutStep(5); // Move to Complete step
+        setCheckoutStatus("success");
         
         toast.success("Checkout completed successfully!");
         
         if (onComplete) {
-          console.log("Calling onComplete callback with data:", response.data);
           onComplete(response.data);
         }
 
-        if (response.data && response.data.order && response.data.order._id) {
-          navigate(`/orders/${response.data.order._id}`, {
-            state: { fromCheckout: true },
-          });
-        } else {
-          // Fallback if order ID is not available
-          navigate("/dashboard", { 
-            state: { checkoutSuccess: true }
-          });
-        }
+        // Navigate to the appropriate page based on response - with a delay to show success state
+        setTimeout(() => {
+          if (response.data && response.data.order && response.data.order._id) {
+            navigate(`/orders/${response.data.order._id}`, {
+              state: { fromCheckout: true },
+            });
+          } else {
+            navigate("/events/completed", { 
+              state: { checkoutSuccess: true }
+            });
+          }
+        }, 2000); // 2 second delay to show success state
       } else {
         throw new Error(response.message || "Failed to complete checkout");
       }
     } catch (error) {
       console.error("Checkout error:", error);
-      setError(error.message || "Failed to process checkout");
-      toast.error(error.message || "Failed to process checkout");
+      
+      // Provide more specific error messages
+      let errorMessage = "Failed to process checkout";
+      if (error.response?.status === 500) {
+        errorMessage = "Server error during checkout. The process might still be completing in the background. Please check your completed events page.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
+      setCheckoutStatus("error");
+      toast.error(errorMessage);
       setLoading(false);
     }
+  };
+
+  const handleRetry = () => {
+    setCheckoutStatus("initial");
+    setError("");
+    setProcessingTime(0);
   };
 
   const renderShippingStep = () => (
@@ -317,9 +365,9 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
           </button>
           <button
             type="submit"
-            className="px-6 py-2 bg-[#5551FF] text-white rounded-lg hover:bg-[#4440FF]"
+            className="px-6 py-2 bg-[#5551FF] text-white rounded-lg hover:bg-[#4440FF] flex items-center"
           >
-            Continue to Review <ArrowRight className="w-4 h-4 ml-2 inline" />
+            Continue to Review <ArrowRight className="w-4 h-4 ml-2" />
           </button>
         </div>
       </form>
@@ -335,17 +383,17 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
         <h3 className="text-xl font-medium ml-3">Order Summary</h3>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-50 rounded-lg border border-red-200 flex items-start">
-          <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 mr-2 flex-shrink-0" />
-          <div>
-            <p className="font-medium text-red-700">Checkout Error</p>
-            <p className="text-red-600">{error}</p>
-          </div>
-        </div>
+      {/* Show status indicator when processing or error */}
+      {(checkoutStatus === "processing" || checkoutStatus === "error" || checkoutStatus === "success") && (
+        <CheckoutStatusIndicator 
+          status={checkoutStatus}
+          processingTime={processingTime}
+          error={error}
+          onRetry={handleRetry}
+        />
       )}
 
-      {orderSummary && (
+      {orderSummary && checkoutStatus === "initial" && (
         <div className="space-y-6">
           <div className="bg-gray-50 p-4 rounded-lg">
             <h4 className="font-medium mb-2">{orderSummary.title}</h4>
@@ -451,7 +499,7 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
             <button
               type="button"
               onClick={() => setStep(1)}
-              disabled={loading}
+              disabled={loading || checkoutStatus !== "initial"}
               className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
               Back to Shipping
@@ -459,15 +507,12 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
             <button
               type="button"
               onClick={completeCheckout}
-              disabled={loading || completedCheckout}
+              disabled={loading || completedCheckout || checkoutStatus !== "initial"}
               className="px-6 py-2 bg-[#5551FF] text-white rounded-lg hover:bg-[#4440FF] disabled:opacity-50 flex items-center"
             >
               {loading ? (
                 <span className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
+                  <RefreshCw className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" />
                   Processing...
                 </span>
               ) : completedCheckout ? (
@@ -491,49 +536,7 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
     <div className="bg-white rounded-lg shadow-md p-6">
       {/* Steps Progress */}
       <div className="mb-8">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center flex-1">
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                step > 1 ? "bg-green-500" : "bg-[#5551FF]"
-              } text-white`}
-            >
-              1
-            </div>
-            <span
-              className={`ml-2 ${
-                step === 1 ? "text-[#5551FF] font-medium" : "text-gray-500"
-              }`}
-            >
-              Shipping
-            </span>
-            <div className="flex-1 h-1 mx-2 bg-gray-200">
-              <div
-                className={`h-full bg-[#5551FF] transition-all duration-300`}
-                style={{
-                  width: step > 1 ? "100%" : "0%",
-                }}
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center">
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                step === 2 ? "bg-[#5551FF]" : "bg-gray-200"
-              } text-white`}
-            >
-              2
-            </div>
-            <span
-              className={`ml-2 ${
-                step === 2 ? "text-[#5551FF] font-medium" : "text-gray-500"
-              }`}
-            >
-              Confirm
-            </span>
-          </div>
-        </div>
+        <CheckoutProgressBar currentStep={checkoutStep} />
       </div>
 
       {/* Step Content */}
