@@ -424,10 +424,15 @@ export const eventService = {
       console.log("Sending checkout request with data:", JSON.stringify(checkoutData));
       
       // Make sure this URL matches your backend route structure
-      const url = `${ENDPOINTS.BASE}/${checkoutData.eventId}/checkout`;
+      const url = `/events/${checkoutData.eventId}/checkout`;
       console.log("Checkout endpoint URL:", url);
       
-      const response = await api.post(url, checkoutData);
+      const response = await api.post(url, {
+        shippingDetails: checkoutData.shippingDetails,
+        paymentMethod: checkoutData.paymentMethod || "already_paid",
+        phoneNumber: checkoutData.shippingDetails.phone
+      });
+      
       console.log("Checkout response received:", response.data);
       
       return response.data;
@@ -436,8 +441,9 @@ export const eventService = {
       return handleApiError(error, "Failed to complete checkout");
     }
   },
-  
-  // Get event checkout eligibility with better error handling and logging
+   
+
+  // Get event checkout eligibility
   getEventCheckoutEligibility: async (eventId) => {
     try {
       if (!eventId) {
@@ -447,7 +453,7 @@ export const eventService = {
       console.log("Checking eligibility for event:", eventId);
       
       // Make sure this URL matches your backend route structure
-      const url = `${ENDPOINTS.BASE}/${eventId}/checkout-status`;
+      const url = `/events/${eventId}/checkout-status`;
       console.log("Eligibility check URL:", url);
       
       const response = await api.get(url);
@@ -458,24 +464,8 @@ export const eventService = {
       console.error("Eligibility check API error:", error);
       return handleApiError(error, "Failed to check event eligibility");
     }
-  },
-
-  // Get event checkout eligibility
-  getEventCheckoutEligibility: async (eventId) => {
-    try {
-      if (!eventId) {
-        throw new Error("Event ID is required");
-      }
-
-      // Make sure this URL matches your backend route structure
-      const response = await api.get(
-        `${ENDPOINTS.BASE}/${eventId}/checkout-status`
-      );
-      return response.data;
-    } catch (error) {
-      return handleApiError(error, "Failed to check event eligibility");
-    }
-  },
+  }
 };
+
 
 export default eventService;

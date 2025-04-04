@@ -12,7 +12,8 @@ import {
   ArrowRight,
   Calendar,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Clock
 } from "lucide-react";
 import { formatCurrency } from "../../utils/currency";
 import { eventService } from "../../services/api/event";
@@ -39,6 +40,7 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
     notes: "",
   });
   const [orderSummary, setOrderSummary] = useState(null);
+  const [processingTimer, setProcessingTimer] = useState(null);
 
   useEffect(() => {
     // Pre-fill shipping details if available
@@ -49,6 +51,13 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
         phone: event.creator.phoneNumber || "",
       }));
     }
+    
+    // Cleanup function to clear any interval on unmount
+    return () => {
+      if (processingTimer) {
+        clearInterval(processingTimer);
+      }
+    };
   }, [event]);
 
   const validateShippingDetails = () => {
@@ -66,12 +75,6 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
     }
     if (!shippingAddress.phone.trim()) {
       setError("Phone number is required");
-      return false;
-    }
-    
-    // Basic Kenyan phone validation
-    if (!shippingAddress.phone.startsWith('+254') && !shippingAddress.phone.match(/^\+254[0-9]{9}$/)) {
-      setError("Please enter a valid Kenyan phone number (+254XXXXXXXXX)");
       return false;
     }
     
@@ -124,22 +127,14 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
 
       // Start timing the processing
       const startTime = Date.now();
-      let processingTimer = setInterval(() => {
+      const timer = setInterval(() => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
         setProcessingTime(elapsed);
       }, 1000);
+      
+      setProcessingTimer(timer);
 
-      // Set a timeout to prevent infinite loading
-      const checkoutTimeout = setTimeout(() => {
-        if (loading) {
-          setError("Checkout is taking longer than expected. Please check your orders page to verify completion.");
-          setLoading(false);
-          setCheckoutStatus("error");
-          clearInterval(processingTimer);
-        }
-      }, 30000); // 30 second timeout
-
-      console.log("Starting checkout process...");
+      console.log("Starting checkout process for event:", event._id);
 
       // Prepare checkout data
       const checkoutData = {
@@ -148,12 +143,16 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
         paymentMethod: "already_paid",
       };
 
+      console.log("Sending checkout data:", JSON.stringify(checkoutData));
+
       // Call API to complete event and create order
       const response = await eventService.completeEventCheckout(checkoutData);
+      
+      // Clear the timer
+      clearInterval(timer);
+      setProcessingTimer(null);
 
-      // Clear the timeout and timer since we got a response
-      clearTimeout(checkoutTimeout);
-      clearInterval(processingTimer);
+      console.log("Checkout response:", response);
 
       if (response.success) {
         // Mark as completed to prevent duplicate submission
@@ -185,17 +184,16 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
     } catch (error) {
       console.error("Checkout error:", error);
       
-      // Provide more specific error messages
-      let errorMessage = "Failed to process checkout";
-      if (error.response?.status === 500) {
-        errorMessage = "Server error during checkout. The process might still be completing in the background. Please check your completed events page.";
-      } else if (error.message) {
-        errorMessage = error.message;
+      // Clear the timer if it's still running
+      if (processingTimer) {
+        clearInterval(processingTimer);
+        setProcessingTimer(null);
       }
       
-      setError(errorMessage);
+      setError(error.message || "Failed to process checkout");
       setCheckoutStatus("error");
-      toast.error(errorMessage);
+      toast.error(error.message || "Failed to process checkout");
+    } finally {
       setLoading(false);
     }
   };
@@ -351,6 +349,12 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
             placeholder="Special delivery instructions, landmarks, etc."
           />
         </div>
+
+        {error && (
+          <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+            {error}
+          </div>
+        )}
 
         <div className="flex justify-between pt-4">
           <button
@@ -573,7 +577,7 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
   );
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="bg-white rounded-lg shadow-sm p-6">
       {/* Steps Progress */}
       <div className="mb-8">
         <CheckoutProgressBar currentStep={checkoutStep} />
@@ -581,6 +585,16 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
 
       {/* Step Content */}
       {step === 1 ? renderShippingStep() : renderConfirmationStep()}
+
+      {/* Debugging information */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-8 pt-4 border-t border-gray-200">
+          <p className="text-xs text-gray-500">Debug Info:</p>
+          <p className="text-xs text-gray-500">Event ID: {event?._id}</p>
+          <p className="text-xs text-gray-500">Status: {checkoutStatus}</p>
+          <p className="text-xs text-gray-500">Processing Time: {processingTime}s</p>
+        </div>
+      )}
     </div>
   );
 };
