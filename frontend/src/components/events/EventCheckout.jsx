@@ -124,75 +124,45 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
         console.log("Checkout already completed, preventing duplicate submission");
         return;
       }
-
+  
       // Start timing the processing
       const startTime = Date.now();
-      const timer = setInterval(() => {
+      let processingTimer = setInterval(() => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
         setProcessingTime(elapsed);
       }, 1000);
-      
-      setProcessingTimer(timer);
-
-      console.log("Starting checkout process for event:", event._id);
-
+  
+      console.log("Starting checkout process...");
+  
       // Prepare checkout data
       const checkoutData = {
         eventId: event._id,
         shippingDetails: shippingAddress,
         paymentMethod: "already_paid",
       };
-
-      console.log("Sending checkout data:", JSON.stringify(checkoutData));
-
+  
       // Call API to complete event and create order
       const response = await eventService.completeEventCheckout(checkoutData);
-      
-      // Clear the timer
-      clearInterval(timer);
-      setProcessingTimer(null);
-
-      console.log("Checkout response:", response);
-
+  
+      // Clear the timer since we got a response
+      clearInterval(processingTimer);
+  
       if (response.success) {
         // Mark as completed to prevent duplicate submission
         setCompletedCheckout(true);
         setCheckoutStep(5); // Move to Complete step
         setCheckoutStatus("success");
         
-        toast.success("Checkout completed successfully!");
-        
         if (onComplete) {
           onComplete(response.data);
         }
-
-        // Navigate to the appropriate page based on response - with a delay to show success state
-        setTimeout(() => {
-          if (response.data && response.data.order && response.data.order._id) {
-            navigate(`/orders/${response.data.order._id}`, {
-              state: { fromCheckout: true },
-            });
-          } else {
-            navigate("/events/completed", { 
-              state: { checkoutSuccess: true }
-            });
-          }
-        }, 2000); // 2 second delay to show success state
       } else {
         throw new Error(response.message || "Failed to complete checkout");
       }
     } catch (error) {
       console.error("Checkout error:", error);
-      
-      // Clear the timer if it's still running
-      if (processingTimer) {
-        clearInterval(processingTimer);
-        setProcessingTimer(null);
-      }
-      
       setError(error.message || "Failed to process checkout");
       setCheckoutStatus("error");
-      toast.error(error.message || "Failed to process checkout");
     } finally {
       setLoading(false);
     }

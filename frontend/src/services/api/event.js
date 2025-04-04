@@ -417,28 +417,30 @@ export const eventService = {
 
   completeEventCheckout: async (checkoutData) => {
     try {
+      // Make sure eventId is passed correctly
       if (!checkoutData.eventId) {
         throw new Error("Event ID is required");
       }
-  
-      console.log("Sending checkout request with data:", JSON.stringify(checkoutData));
       
-      // Make sure this URL matches your backend route structure
+      // Ensure we're using the correct URL format
       const url = `/events/${checkoutData.eventId}/checkout`;
       console.log("Checkout endpoint URL:", url);
       
-      const response = await api.post(url, {
-        shippingDetails: checkoutData.shippingDetails,
-        paymentMethod: checkoutData.paymentMethod || "already_paid",
-        phoneNumber: checkoutData.shippingDetails.phone
-      });
+      // Log the data being sent
+      console.log("Sending checkout data:", JSON.stringify(checkoutData));
       
-      console.log("Checkout response received:", response.data);
+      // Make the API call with proper error handling
+      const response = await api.post(url, checkoutData);
+      console.log("Checkout response:", response.data);
       
       return response.data;
     } catch (error) {
       console.error("Checkout API error:", error);
-      return handleApiError(error, "Failed to complete checkout");
+      // Improve error handling to provide more context
+      const errorMessage = error.response?.data?.message || 
+                           error.message || 
+                           "Failed to complete checkout";
+      throw new Error(errorMessage);
     }
   },
    
