@@ -1,124 +1,96 @@
 // src/components/products/CompactProductCard.jsx
 import React from "react";
 import { Link } from "react-router-dom";
-import { Heart, Gift, Eye } from "lucide-react";
+import { Heart, Gift, Clock, Star, AlertCircle } from "lucide-react";
 import { formatCurrency } from "../../utils/currency";
 
-/**
- * CompactProductCard - A condensed version of the product card for grid displays
- *
- * @param {Object} product - The product object containing all product details
- * @param {Function} onAddToEvent - Function to handle adding product to an event
- * @param {Function} onToggleWishlist - Optional function to handle wishlist toggle
- * @param {Boolean} inWishlist - Optional flag indicating if product is in user's wishlist
- */
-const CompactProductCard = ({
-  product,
-  onAddToEvent,
-  onToggleWishlist,
-  inWishlist = false,
-}) => {
+const CompactProductCard = ({ product, onAddToEvent, showActions = true }) => {
   if (!product) return null;
 
-  // Handle add to event button click
-  const handleAddToEvent = (e) => {
-    e.preventDefault(); // Prevent navigation to product details
-    e.stopPropagation(); // Prevent event bubbling
-    if (onAddToEvent) {
-      onAddToEvent(product);
-    }
-  };
-
-  // Handle wishlist toggle
-  const handleWishlistToggle = (e) => {
-    e.preventDefault(); // Prevent navigation to product details
-    e.stopPropagation(); // Prevent event bubbling
-    if (onToggleWishlist) {
-      onToggleWishlist(product._id);
-    }
-  };
-
   return (
-    <div className="group relative bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-200">
       {/* Product Image */}
-      <Link to={`/products/${product._id}`} className="block">
-        <div className="relative aspect-square overflow-hidden">
-          <img
-            src={product.images?.[0]?.url || "/api/placeholder/300/300"}
-            alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-
-          {/* Out of stock overlay */}
-          {product.stock <= 0 && (
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-              <span className="text-white text-sm font-medium px-2 py-1 bg-red-500 rounded">
-                Out of Stock
-              </span>
+      <Link to={`/products/${product._id}`}>
+        <div className="relative h-40 overflow-hidden bg-gray-100">
+          {product.images && product.images.length > 0 ? (
+            <img
+              src={product.images[0].url}
+              alt={product.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <Gift className="h-10 w-10 text-gray-300" />
             </div>
           )}
-
-          {/* Quick action buttons */}
-          <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            {onToggleWishlist && (
-              <button
-                onClick={handleWishlistToggle}
-                className={`p-1.5 rounded-full ${
-                  inWishlist ? "bg-red-100" : "bg-white"
-                } shadow hover:shadow-md transition-shadow`}
-                aria-label={
-                  inWishlist ? "Remove from wishlist" : "Add to wishlist"
-                }
-              >
-                <Heart
-                  className={`w-4 h-4 ${
-                    inWishlist ? "text-red-500 fill-red-500" : "text-gray-600"
-                  }`}
-                />
-              </button>
-            )}
-            <Link
-              to={`/products/${product._id}`}
-              className="p-1.5 rounded-full bg-white shadow hover:shadow-md transition-shadow"
-              aria-label="View details"
-            >
-              <Eye className="w-4 h-4 text-gray-600" />
-            </Link>
-          </div>
+          
+          {/* Stock Status Indicator */}
+          {product.stock <= 0 && (
+            <div className="absolute top-0 left-0 right-0 bg-red-500 text-white text-xs font-medium text-center py-1">
+              Out of Stock
+            </div>
+          )}
+          {product.stock > 0 && product.stock <= 5 && (
+            <div className="absolute top-0 left-0 right-0 bg-amber-500 text-white text-xs font-medium text-center py-1">
+              Only {product.stock} left
+            </div>
+          )}
         </div>
       </Link>
-
-      {/* Product Details */}
+      
+      {/* Product Info */}
       <div className="p-3">
-        <Link to={`/products/${product._id}`} className="block">
-          <h3 className="font-medium text-gray-900 mb-1 line-clamp-1">
+        <Link to={`/products/${product._id}`}>
+          <h3 className="font-medium text-gray-900 text-sm mb-1 truncate">
             {product.name}
           </h3>
-          <div className="flex justify-between items-center mb-2">
-            <span className="font-bold text-gray-900">
-              {formatCurrency(product.price)}
-            </span>
-            {product.marketPrice && product.marketPrice > product.price && (
-              <span className="text-xs text-gray-500 line-through">
-                {formatCurrency(product.marketPrice)}
-              </span>
-            )}
-          </div>
         </Link>
-
-        {/* Add to Event Button */}
-        <button
-          onClick={handleAddToEvent}
-          disabled={product.stock <= 0}
-          className={`w-full py-1.5 px-3 text-xs font-medium rounded flex items-center justify-center transition-colors ${
-            product.stock > 0
-              ? "bg-indigo-600 text-white hover:bg-indigo-700"
-              : "bg-gray-200 text-gray-500 cursor-not-allowed"
-          }`}
-        >
-          <Gift className="w-3 h-3 mr-1" />
-          Add to Event
-        </button>
+        
+        {/* Price */}
+        <div className="flex justify-between items-center mb-2">
+          <div className="font-semibold text-indigo-700">
+            {formatCurrency(product.price || product.sellingPrice)}
+          </div>
+          {product.marketPrice && product.marketPrice > (product.price || product.sellingPrice) && (
+            <div className="text-xs text-gray-500 line-through">
+              {formatCurrency(product.marketPrice)}
+            </div>
+          )}
+        </div>
+        
+        {/* Ratings and Add to Event */}
+        <div className="flex justify-between items-center">
+          <div className="flex items-center text-xs">
+            <div className="flex text-amber-400">
+              {[...Array(5)].map((_, i) => (
+                <Star
+                  key={i}
+                  className={`w-3 h-3 ${
+                    i < (product.rating || 4) ? "fill-current" : "text-gray-300"
+                  }`}
+                />
+              ))}
+            </div>
+            <span className="text-gray-500 ml-1">
+              ({product.reviews?.length || 0})
+            </span>
+          </div>
+          
+          {showActions && (
+            <button
+              onClick={() => onAddToEvent && onAddToEvent(product)}
+              disabled={product.stock <= 0}
+              className={`text-xs px-2 py-1 rounded flex items-center ${
+                product.stock <= 0
+                  ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  : "bg-indigo-600 text-white hover:bg-indigo-700"
+              }`}
+            >
+              <Gift className="w-3 h-3 mr-1" />
+              {product.stock <= 0 ? "Sold Out" : "Add to Event"}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

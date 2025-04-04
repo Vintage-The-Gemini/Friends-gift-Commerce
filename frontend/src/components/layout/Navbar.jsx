@@ -177,7 +177,7 @@ const NavBar = () => {
           {/* Logo */}
           <div className="flex-shrink-0">
             <Link to="/" onClick={closeMobileMenu}>
-              <img src={Logo} alt="FriendsGift Logo" className="h-25 w-20" />
+              <img src={Logo} alt="FriendsGift Logo" className="h-8 w-28.5" />
             </Link>
           </div>
 
@@ -195,7 +195,7 @@ const NavBar = () => {
               className={getNavLinkClass("/events")}
               onClick={closeMobileMenu}
             >
-              Public Events
+              Events
             </Link>
             <Link
               to="/products"
@@ -457,7 +457,7 @@ const NavBar = () => {
             className={getNavLinkClass("/events")}
             onClick={closeMobileMenu}
           >
-            Public Events
+            Events
           </Link>
           <Link
             to="/products"
@@ -477,7 +477,7 @@ const NavBar = () => {
                 <Calendar className="w-4 h-4 mr-2 inline-block" />
                 My Events
               </Link>
-              
+
               {user.role === "buyer" && (
                 <Link
                   to="/events/create"

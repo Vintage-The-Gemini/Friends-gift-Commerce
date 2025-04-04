@@ -420,22 +420,29 @@ export const eventService = {
       if (!checkoutData.eventId) {
         throw new Error("Event ID is required");
       }
-  
-      const response = await api.post(`/events/${checkoutData.eventId}/checkout`, checkoutData);
+
+      // Make sure this URL matches your backend route structure
+      const response = await api.post(
+        `${ENDPOINTS.BASE}/${checkoutData.eventId}/checkout`,
+        checkoutData
+      );
       return response.data;
     } catch (error) {
       return handleApiError(error, "Failed to complete checkout");
     }
   },
-  
+
   // Get event checkout eligibility
   getEventCheckoutEligibility: async (eventId) => {
     try {
       if (!eventId) {
         throw new Error("Event ID is required");
       }
-  
-      const response = await api.get(`/events/${eventId}/checkout-status`);
+
+      // Make sure this URL matches your backend route structure
+      const response = await api.get(
+        `${ENDPOINTS.BASE}/${eventId}/checkout-status`
+      );
       return response.data;
     } catch (error) {
       return handleApiError(error, "Failed to check event eligibility");

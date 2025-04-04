@@ -28,6 +28,7 @@ import {
 import { eventService } from "../../services/api/event";
 import { contributionService } from "../../services/api/contribution";
 import ContributionModal from "../../components/events/ContributionModal";
+import EventCheckoutModal from "../../components/events/EventCheckoutModal";
 import { formatCurrency } from "../../utils/currency";
 import { toast } from "react-toastify";
 
@@ -45,13 +46,11 @@ const EventDetails = () => {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [showContributeModal, setShowContributeModal] = useState(false);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [contributions, setContributions] = useState([]);
   const [accessInput, setAccessInput] = useState("");
   const [verifyingAccess, setVerifyingAccess] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-
-  // ==== CREATE OPERATION IS NAVIGATING TO CREATE PAGE ====
-  // We'll implement this in a separate component
 
   // ==== READ OPERATION ====
   const fetchEventDetails = async () => {
@@ -156,6 +155,17 @@ const EventDetails = () => {
     }
   };
 
+  // Handle checkout completion
+  const handleCheckoutComplete = (data) => {
+    toast.success("Event checkout completed successfully!");
+    // Navigate to the created order page if there's an order
+    if (data && data.order && data.order._id) {
+      navigate(`/orders/${data.order._id}`);
+    }
+    setShowCheckoutModal(false);
+    fetchEventDetails(); // Refresh event data
+  };
+
   // Handle contribution
   const handleContribute = async (contributionData) => {
     try {
@@ -247,6 +257,15 @@ const EventDetails = () => {
     (typeof event.creator === "string"
       ? event.creator === user._id
       : event.creator._id === user._id);
+
+  // Debug information for troubleshooting
+  console.log("Event owner check:", {
+    isLoggedIn: !!user,
+    eventCreatorId: event?.creator?._id || event?.creator,
+    currentUserId: user?._id,
+    isOwner,
+    eventStatus: event?.status
+  });
 
   // Render loading state
   if (loading) {
@@ -499,10 +518,21 @@ const EventDetails = () => {
             )}
 
             {/* Action Buttons */}
-            <div className="flex gap-4">
+            <div className="flex gap-4 flex-wrap">
               {user ? (
                 isOwner ? (
                   <div className="flex gap-2 flex-wrap">
+                    {/* Checkout button for owner when event is active */}
+                    {event.status === "active" && (
+                      <button
+                        onClick={() => setShowCheckoutModal(true)}
+                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                      >
+                        <ShoppingBag className="w-4 h-4 mr-2" />
+                        Checkout Event
+                      </button>
+                    )}
+                    
                     <Link
                       to={`/events/edit/${event._id}`}
                       className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -553,6 +583,14 @@ const EventDetails = () => {
                 <Share2 className="w-5 h-5" />
               </button>
             </div>
+            
+            {/* Test Button for Debugging */}
+            <button 
+              onClick={() => setShowCheckoutModal(true)}
+              className="mt-4 bg-red-600 text-white px-6 py-3 rounded-lg font-bold"
+            >
+              TEST CHECKOUT BUTTON
+            </button>
           </div>
         </div>
 
@@ -666,6 +704,16 @@ const EventDetails = () => {
               setSelectedProduct(null);
             }}
             onContribute={handleContribute}
+          />
+        )}
+
+        {/* Checkout Modal */}
+        {showCheckoutModal && (
+          <EventCheckoutModal
+            event={event}
+            isOpen={showCheckoutModal}
+            onClose={() => setShowCheckoutModal(false)}
+            onCheckoutComplete={handleCheckoutComplete}
           />
         )}
       </div>

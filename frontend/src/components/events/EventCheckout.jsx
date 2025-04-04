@@ -18,7 +18,7 @@ import { toast } from "react-toastify";
 
 const EventCheckout = ({ event, onComplete, onCancel }) => {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(1); // Start with shipping info step
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [shippingAddress, setShippingAddress] = useState({
@@ -31,9 +31,6 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
     phone: "",
     notes: "",
   });
-  const [paymentMethod, setPaymentMethod] = useState("mpesa");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [termsAccepted, setTermsAccepted] = useState(false);
   const [orderSummary, setOrderSummary] = useState(null);
 
   useEffect(() => {
@@ -46,58 +43,41 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
     }
   }, [event]);
 
-  const handleShippingSubmit = (e) => {
-    e.preventDefault();
-
-    // Validate shipping details
+  const validateShippingDetails = () => {
     if (!shippingAddress.name.trim()) {
       setError("Name is required");
-      return;
+      return false;
     }
     if (!shippingAddress.address.trim()) {
       setError("Address is required");
-      return;
+      return false;
     }
     if (!shippingAddress.city.trim()) {
       setError("City is required");
-      return;
+      return false;
     }
     if (!shippingAddress.phone.trim()) {
       setError("Phone number is required");
-      return;
+      return false;
     }
-
-    // Clear errors and proceed to payment step
-    setError("");
-    setStep(2);
+    return true;
   };
 
-  const handlePaymentSubmit = (e) => {
+  const handleShippingSubmit = (e) => {
     e.preventDefault();
-
-    // Validate payment details
-    if (paymentMethod === "mpesa" && !phoneNumber.match(/^\+254[0-9]{9}$/)) {
-      setError("Please enter a valid Kenyan phone number (+254XXXXXXXXX)");
-      return;
-    }
-
-    if (!termsAccepted) {
-      setError("Please accept the terms and conditions");
-      return;
-    }
-
-    // Clear errors and proceed to confirmation step
     setError("");
-    setStep(3);
 
-    // Generate order summary
+    if (!validateShippingDetails()) {
+      return;
+    }
+
+    // Prepare order summary with shipping details
     const summary = {
       eventId: event._id,
       title: event.title,
       totalAmount: event.currentAmount,
       shippingAddress,
-      paymentMethod,
-      phoneNumber: paymentMethod === "mpesa" ? phoneNumber : "",
+      paymentMethod: "already_paid", // For completed events
       products: event.products.map((item) => ({
         name: item.product.name,
         quantity: item.quantity,
@@ -110,6 +90,7 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
     };
 
     setOrderSummary(summary);
+    setStep(2); // Move to confirmation step
   };
 
   const completeCheckout = async () => {
@@ -120,27 +101,19 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
       const checkoutData = {
         eventId: event._id,
         shippingDetails: shippingAddress,
-        paymentMethod,
-        phoneNumber: paymentMethod === "mpesa" ? phoneNumber : null,
+        paymentMethod: "already_paid",
       };
 
       // Call API to complete event and create order
       const response = await eventService.completeEventCheckout(checkoutData);
 
       if (response.success) {
-        toast.success("Event completed successfully!");
-
-        // Update event status to completed if not already
-        if (event.status !== "completed") {
-          await eventService.updateEventStatus(event._id, "completed");
-        }
-
-        // Call onComplete callback if provided
+        toast.success("Checkout completed successfully!");
+        
         if (onComplete) {
           onComplete(response.data);
         }
 
-        // Navigate to order confirmation page
         navigate(`/orders/${response.data.order._id}`, {
           state: { fromCheckout: true },
         });
@@ -151,7 +124,6 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
       console.error("Checkout error:", error);
       setError(error.message || "Failed to process checkout");
       toast.error(error.message || "Failed to process checkout");
-      setStep(2); // Go back to payment step on error
     } finally {
       setLoading(false);
     }
@@ -159,12 +131,15 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
 
   const renderShippingStep = () => (
     <div className="space-y-6">
-      <h3 className="text-lg font-medium">Shipping Details</h3>
+      <h3 className="text-lg font-medium">Shipping & Contact Information</h3>
+      <p className="text-sm text-gray-600">
+        Please provide your shipping details where the products will be delivered.
+      </p>
 
       <form onSubmit={handleShippingSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Full Name
+            Full Name <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
@@ -179,7 +154,7 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Address
+            Address <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
@@ -198,7 +173,7 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              City
+              City <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -247,10 +222,9 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Country
+              Country <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
+            <select
               value={shippingAddress.country}
               onChange={(e) =>
                 setShippingAddress({
@@ -260,13 +234,18 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
               }
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#5551FF]"
               required
-            />
+            >
+              <option value="Kenya">Kenya</option>
+              <option value="Uganda">Uganda</option>
+              <option value="Tanzania">Tanzania</option>
+              <option value="Rwanda">Rwanda</option>
+            </select>
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Phone Number
+            Phone Number <span className="text-red-500">*</span>
           </label>
           <input
             type="tel"
@@ -307,140 +286,7 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
             type="submit"
             className="px-6 py-2 bg-[#5551FF] text-white rounded-lg hover:bg-[#4440FF]"
           >
-            Continue to Payment <ArrowRight className="w-4 h-4 ml-2 inline" />
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-
-  const renderPaymentStep = () => (
-    <div className="space-y-6">
-      <h3 className="text-lg font-medium">Payment Details</h3>
-
-      <form onSubmit={handlePaymentSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Payment Method
-          </label>
-          <div className="grid grid-cols-2 gap-4">
-            <button
-              type="button"
-              onClick={() => setPaymentMethod("mpesa")}
-              className={`flex items-center justify-center p-3 border rounded-lg ${
-                paymentMethod === "mpesa"
-                  ? "border-[#5551FF] bg-[#5551FF]/10 text-[#5551FF]"
-                  : "hover:border-gray-300"
-              }`}
-            >
-              <Phone className="w-5 h-5 mr-2" />
-              M-PESA
-            </button>
-            <button
-              type="button"
-              onClick={() => setPaymentMethod("card")}
-              className={`flex items-center justify-center p-3 border rounded-lg ${
-                paymentMethod === "card"
-                  ? "border-[#5551FF] bg-[#5551FF]/10 text-[#5551FF]"
-                  : "hover:border-gray-300"
-              }`}
-            >
-              <CreditCard className="w-5 h-5 mr-2" />
-              Card
-            </button>
-          </div>
-        </div>
-
-        {paymentMethod === "mpesa" && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              M-PESA Phone Number
-            </label>
-            <input
-              type="tel"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#5551FF]"
-              placeholder="+254..."
-              required
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Enter phone number in format: +254XXXXXXXXX
-            </p>
-          </div>
-        )}
-
-        {paymentMethod === "card" && (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Card Number
-              </label>
-              <input
-                type="text"
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#5551FF]"
-                placeholder="XXXX XXXX XXXX XXXX"
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Expiry Date
-                </label>
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#5551FF]"
-                  placeholder="MM/YY"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  CVC
-                </label>
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#5551FF]"
-                  placeholder="123"
-                  required
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="pt-4">
-          <div className="flex items-center mb-4">
-            <input
-              id="terms"
-              type="checkbox"
-              checked={termsAccepted}
-              onChange={(e) => setTermsAccepted(e.target.checked)}
-              className="h-4 w-4 text-[#5551FF] focus:ring-[#5551FF] border-gray-300 rounded"
-            />
-            <label htmlFor="terms" className="ml-2 block text-sm text-gray-700">
-              I accept the{" "}
-              <a href="/terms" className="text-[#5551FF] hover:text-[#4440FF]">
-                terms and conditions
-              </a>
-            </label>
-          </div>
-        </div>
-
-        <div className="flex justify-between pt-4">
-          <button
-            type="button"
-            onClick={() => setStep(1)}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-          >
-            Back
-          </button>
-          <button
-            type="submit"
-            className="px-6 py-2 bg-[#5551FF] text-white rounded-lg hover:bg-[#4440FF]"
-          >
-            Review Order <ArrowRight className="w-4 h-4 ml-2 inline" />
+            Continue to Review <ArrowRight className="w-4 h-4 ml-2 inline" />
           </button>
         </div>
       </form>
@@ -525,9 +371,7 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
             <div>
               <h4 className="font-medium mb-2">Shipping Address</h4>
               <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="font-medium">
-                  {orderSummary.shippingAddress.name}
-                </p>
+                <p className="font-medium">{orderSummary.shippingAddress.name}</p>
                 <p>{orderSummary.shippingAddress.address}</p>
                 <p>
                   {orderSummary.shippingAddress.city},{" "}
@@ -546,26 +390,16 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
             </div>
 
             <div>
-              <h4 className="font-medium mb-2">Payment Method</h4>
+              <h4 className="font-medium mb-2">Payment Information</h4>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="flex items-center">
-                  {orderSummary.paymentMethod === "mpesa" ? (
-                    <>
-                      <Phone className="w-5 h-5 mr-2 text-green-600" />
-                      <div>
-                        <p className="font-medium">M-PESA</p>
-                        <p className="text-sm">{orderSummary.phoneNumber}</p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="w-5 h-5 mr-2 text-blue-600" />
-                      <div>
-                        <p className="font-medium">Card Payment</p>
-                        <p className="text-sm">**** **** **** 1234</p>
-                      </div>
-                    </>
-                  )}
+                  <CheckCircle className="w-5 h-5 mr-2 text-green-600" />
+                  <div>
+                    <p className="font-medium">Payment Already Completed</p>
+                    <p className="text-sm text-gray-600">
+                      All contributions have been collected for this event.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -574,10 +408,10 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
           <div className="flex justify-between pt-4">
             <button
               type="button"
-              onClick={() => setStep(2)}
+              onClick={() => setStep(1)}
               className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
             >
-              Back
+              Back to Shipping
             </button>
             <button
               type="button"
@@ -629,14 +463,10 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
             </div>
           </div>
 
-          <div className="flex items-center flex-1">
+          <div className="flex items-center">
             <div
               className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                step > 2
-                  ? "bg-green-500"
-                  : step === 2
-                  ? "bg-[#5551FF]"
-                  : "bg-gray-200"
+                step === 2 ? "bg-[#5551FF]" : "bg-gray-200"
               } text-white`}
             >
               2
@@ -644,31 +474,6 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
             <span
               className={`ml-2 ${
                 step === 2 ? "text-[#5551FF] font-medium" : "text-gray-500"
-              }`}
-            >
-              Payment
-            </span>
-            <div className="flex-1 h-1 mx-2 bg-gray-200">
-              <div
-                className={`h-full bg-[#5551FF] transition-all duration-300`}
-                style={{
-                  width: step > 2 ? "100%" : "0%",
-                }}
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center">
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                step === 3 ? "bg-[#5551FF]" : "bg-gray-200"
-              } text-white`}
-            >
-              3
-            </div>
-            <span
-              className={`ml-2 ${
-                step === 3 ? "text-[#5551FF] font-medium" : "text-gray-500"
               }`}
             >
               Confirm
@@ -686,9 +491,7 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
       )}
 
       {/* Step Content */}
-      {step === 1 && renderShippingStep()}
-      {step === 2 && renderPaymentStep()}
-      {step === 3 && renderConfirmationStep()}
+      {step === 1 ? renderShippingStep() : renderConfirmationStep()}
     </div>
   );
 };

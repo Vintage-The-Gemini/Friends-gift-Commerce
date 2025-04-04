@@ -22,9 +22,7 @@ const EventCheckoutModal = ({ event, isOpen, onClose, onCheckoutComplete }) => {
       setLoading(true);
       setError(null);
 
-      const response = await eventService.getEventCheckoutEligibility(
-        event._id
-      );
+      const response = await eventService.getEventCheckoutEligibility(event._id);
 
       if (response.success) {
         setEligibility(response.data);

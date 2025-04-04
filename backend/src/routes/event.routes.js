@@ -1,4 +1,4 @@
-// Updated backend/src/routes/event.routes.js with proper imports
+// backend/src/routes/event.routes.js
 
 const express = require("express");
 const router = express.Router();
@@ -16,9 +16,8 @@ const {
   getEventContributions,
   getPrivateEvent,
   updateEventStatus,
-  // Add the new functions
-  getEventCheckoutEligibility,
-  completeEventCheckout,
+  getEventCheckoutEligibility,   // Make sure this is imported 
+  completeEventCheckout          // Make sure this is imported
 } = require("../controllers/event.controller");
 
 // Public routes
@@ -34,7 +33,7 @@ router.get("/my-events", getUserEvents);
 // Event creation - no ID parameter
 router.post("/", upload.single("image"), createEvent);
 
-// Checkout routes
+// Checkout routes - make sure these handlers exist in your controller
 router.get("/:id/checkout-status", protect, getEventCheckoutEligibility);
 router.post("/:id/checkout", protect, completeEventCheckout);
 
@@ -50,11 +49,5 @@ router.get("/:id/contributions", getEventContributions);
 // Status update route - support both PATCH and PUT methods
 router.patch("/:id/status", updateEventStatus);
 router.put("/:id/status", updateEventStatus); // Adding PUT method for better compatibility
-
-// Log all registered routes for debugging
-console.log(
-  "Event routes registered:",
-  router.stack.map((r) => r.route?.path).filter(Boolean)
-);
 
 module.exports = router;

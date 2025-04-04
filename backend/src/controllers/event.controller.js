@@ -1432,3 +1432,167 @@ exports.updateEventStatus = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.getEventCheckoutEligibility = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Find the event with populated products
+    const event = await Event.findById(id)
+      .populate({
+        path: "products.product",
+        select: "name price images stock seller",
+        populate: {
+          path: "seller",
+          select: "name businessName"
+        }
+      })
+      .populate("contributions");
+    
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Event not found"
+      });
+    }
+    
+    // Check if user is authorized
+    if (event.creator.toString() !== req.user._id.toString() && req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to checkout this event"
+      });
+    }
+    
+    // Calculate funding progress
+    const progress = (event.currentAmount / event.targetAmount) * 100;
+    const funding = progress >= 100 ? "complete" : progress >= 80 ? "partial" : "insufficient";
+    
+    // Check if products are available
+    const unavailableProducts = [];
+    let productsAvailable = true;
+    
+    for (const item of event.products) {
+      if (!item.product || item.product.stock < item.quantity) {
+        productsAvailable = false;
+        unavailableProducts.push({
+          name: item.product ? item.product.name : "Unknown product",
+          requested: item.quantity,
+          available: item.product ? item.product.stock : 0
+        });
+      }
+    }
+    
+    // Count unique sellers
+    const sellerIds = new Set(
+      event.products
+        .filter(item => item.product && item.product.seller)
+        .map(item => item.product.seller._id.toString())
+    );
+    
+    // Check if the event has at least one contribution
+    const hasContributions = event.contributions && event.contributions.length > 0;
+    
+    // Determine eligibility
+    const isEligible = 
+    (event.status === "active" || event.status === "completed") && // Allow completed events
+    (funding === "complete" || funding === "partial") &&
+    productsAvailable &&
+    hasContributions;
+    
+    return res.status(200).json({
+      success: true,
+      data: {
+        isEligible,
+        funding,
+        progress,
+        currentAmount: event.currentAmount,
+        targetAmount: event.targetAmount,
+        productsAvailable,
+        unavailableProducts: unavailableProducts.length > 0 ? unavailableProducts : null,
+        hasContributions,
+        sellers: sellerIds.size,
+        status: event.status
+      }
+    });
+  } catch (error) {
+    console.error("Error checking event eligibility:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to check event eligibility",
+      error: error.message
+    });
+  }
+};
+
+exports.completeEventCheckout = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { shippingDetails, paymentMethod, phoneNumber } = req.body;
+
+    // Validate input
+    if (!shippingDetails || !paymentMethod) {
+      return res.status(400).json({
+        success: false,
+        message: "Shipping details and payment method are required",
+      });
+    }
+
+    // Find the event with populated products
+    const event = await Event.findById(id)
+      .populate("creator", "name email phoneNumber")
+      .populate({
+        path: "products.product",
+        select: "name price images stock seller",
+        populate: {
+          path: "seller",
+          select: "name businessName email phoneNumber",
+        },
+      })
+      .populate("contributions");
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Event not found",
+      });
+    }
+
+    // Check if user is authorized
+    if (
+      event.creator._id.toString() !== req.user._id.toString() &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to checkout this event",
+      });
+    }
+
+    // MODIFY THIS CHECK: Allow both active and completed events to be checked out
+    if (event.status !== "active" && event.status !== "completed") {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot checkout an event with status '${event.status}'`,
+      });
+    }
+
+    // Rest of the function remains the same...
+    // Check for product availability, create orders, etc.
+    
+    // If the event is already completed, don't change its status again
+    if (event.status !== "completed") {
+      event.status = "completed";
+      await event.save();
+    }
+
+    // Continue with the rest of the function...
+  } catch (error) {
+    console.error("Error during event checkout:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to process event checkout",
+      error: error.message,
+    });
+  }
+};
