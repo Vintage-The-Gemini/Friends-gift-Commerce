@@ -1,4 +1,4 @@
-// File: frontend/src/components/events/EventCheckout.jsx
+// src/components/events/EventCheckout.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -18,12 +18,11 @@ import { formatCurrency } from "../../utils/currency";
 import { eventService } from "../../services/api/event";
 import { toast } from "react-toastify";
 import CheckoutProgressBar from "./CheckoutProgressBar";
-import CheckoutStatusIndicator from "./CheckoutStatusIndicator";
 
 const EventCheckout = ({ event, onComplete, onCancel }) => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1); // 1: Shipping, 2: Confirmation
-  const [checkoutStep, setCheckoutStep] = useState(1); // 1: Eligibility, 2: Shipping, 3: Confirmation, 4: Processing, 5: Complete
+  const [checkoutStep, setCheckoutStep] = useState(2); // 1: Eligibility, 2: Shipping, 3: Confirmation, 4: Processing, 5: Complete
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [completedCheckout, setCompletedCheckout] = useState(false);
@@ -50,8 +49,6 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
         phone: event.creator.phoneNumber || "",
       }));
     }
-    
-    setCheckoutStep(2); // Start at Shipping step (after eligibility check)
   }, [event]);
 
   const validateShippingDetails = () => {
@@ -383,14 +380,56 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
         <h3 className="text-xl font-medium ml-3">Order Summary</h3>
       </div>
 
-      {/* Show status indicator when processing or error */}
-      {(checkoutStatus === "processing" || checkoutStatus === "error" || checkoutStatus === "success") && (
-        <CheckoutStatusIndicator 
-          status={checkoutStatus}
-          processingTime={processingTime}
-          error={error}
-          onRetry={handleRetry}
-        />
+      {/* Status indicator components */}
+      {checkoutStatus === "processing" && (
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 flex items-start">
+          <div className="mr-3 mt-0.5">
+            <div className="relative">
+              <Clock className="w-5 h-5 text-blue-500" />
+              <RefreshCw className="w-3 h-3 text-blue-600 absolute top-1 left-1 animate-spin" />
+            </div>
+          </div>
+          <div>
+            <div className="font-medium text-blue-700">Processing Checkout</div>
+            <div className="text-sm text-blue-600">
+              This may take a few moments. Please wait...
+            </div>
+            <div className="text-xs text-blue-500 mt-1">
+              Processing time: {Math.floor(processingTime / 60)}:
+              {String(processingTime % 60).padStart(2, "0")}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {checkoutStatus === "error" && (
+        <div className="bg-red-50 p-4 rounded-lg border border-red-200 flex items-start">
+          <AlertCircle className="w-5 h-5 text-red-500 mr-3 mt-0.5 flex-shrink-0" />
+          <div>
+            <div className="font-medium text-red-700">Checkout Error</div>
+            <div className="text-sm text-red-600">
+              {error || "An error occurred while processing your checkout."}
+            </div>
+            <button
+              onClick={handleRetry}
+              className="mt-2 px-3 py-1 bg-red-600 text-white text-sm rounded-md hover:bg-red-700"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      )}
+
+      {checkoutStatus === "success" && (
+        <div className="bg-green-50 p-4 rounded-lg border border-green-200 flex items-start">
+          <CheckCircle className="w-5 h-5 text-green-500 mr-3 mt-0.5 flex-shrink-0" />
+          <div>
+            <div className="font-medium text-green-700">Checkout Successful</div>
+            <div className="text-sm text-green-600">
+              Your order has been placed successfully!
+            </div>
+          </div>
+        </div>
       )}
 
       {orderSummary && checkoutStatus === "initial" && (
@@ -465,8 +504,9 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
                 <p className="font-medium">{orderSummary.shippingAddress.name}</p>
                 <p>{orderSummary.shippingAddress.address}</p>
                 <p>
-                  {orderSummary.shippingAddress.city}{orderSummary.shippingAddress.state ? `, ${orderSummary.shippingAddress.state}` : ''} 
-                  {orderSummary.shippingAddress.postalCode ? ` ${orderSummary.shippingAddress.postalCode}` : ''}
+                  {orderSummary.shippingAddress.city}
+                  {orderSummary.shippingAddress.state && `, ${orderSummary.shippingAddress.state}`}
+                  {orderSummary.shippingAddress.postalCode && ` ${orderSummary.shippingAddress.postalCode}`}
                 </p>
                 <p>{orderSummary.shippingAddress.country}</p>
                 <p>{orderSummary.shippingAddress.phone}</p>
