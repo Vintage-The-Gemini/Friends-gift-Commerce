@@ -1,5 +1,5 @@
 // src/pages/public/ProductsPage.jsx
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Search,
@@ -11,6 +11,8 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronLeft,
+  Loader2,
+  Star,
 } from "lucide-react";
 import { productService } from "../../services/api/product";
 import { categoryService } from "../../services/api/category";
@@ -18,6 +20,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { toast } from "react-toastify";
 import CompactProductCard from "../../components/products/CompactProductCard";
 import { debounce } from "lodash";
+import { formatCurrency } from "../../utils/currency";
 
 const ProductsPage = () => {
   const navigate = useNavigate();
@@ -27,6 +30,7 @@ const ProductsPage = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [viewMode, setViewMode] = useState("grid");
   const [pagination, setPagination] = useState({
     page: parseInt(searchParams.get("page")) || 1,
@@ -38,21 +42,33 @@ const ProductsPage = () => {
     search: searchParams.get("search") || "",
     minPrice: searchParams.get("minPrice") || "",
     maxPrice: searchParams.get("maxPrice") || "",
+    rating: searchParams.get("rating") || "",
   });
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [sortOption, setSortOption] = useState(
     searchParams.get("sort") || "newest"
   );
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
 
   // Fetch categories on mount
   useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await categoryService.getAllCategories();
+        if (response.success) {
+          setCategories(response.data);
+        }
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+        toast.error("Failed to load categories");
+      }
+    };
+
     fetchCategories();
   }, []);
 
   // Fetch products when filters or sort option changes
   useEffect(() => {
-    fetchProducts(true);
-    // Update URL params
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
       if (value) params.append(key, value);
@@ -60,23 +76,39 @@ const ProductsPage = () => {
     params.append("page", pagination.page.toString());
     params.append("sort", sortOption);
     setSearchParams(params);
+
+    if (!initialLoad) {
+      fetchProducts(true);
+    } else {
+      setInitialLoad(false);
+    }
   }, [filters, sortOption]);
 
   // Fetch products when page changes
   useEffect(() => {
-    fetchProducts(false);
+    if (!initialLoad) {
+      fetchProducts(false);
+    }
   }, [pagination.page]);
 
-  const fetchCategories = async () => {
-    try {
-      const response = await categoryService.getAllCategories();
-      if (response.success) {
-        setCategories(response.data);
+  // Infinite scroll handler
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop !==
+          document.documentElement.offsetHeight ||
+        isFetchingMore ||
+        pagination.page >= pagination.totalPages
+      ) {
+        return;
       }
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-    }
-  };
+      setIsFetchingMore(true);
+      setPagination((prev) => ({ ...prev, page: prev.page + 1 }));
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [isFetchingMore, pagination.page, pagination.totalPages]);
 
   // Debounced search handler
   const debouncedSearch = useCallback(
@@ -89,11 +121,11 @@ const ProductsPage = () => {
 
   const fetchProducts = async (resetPage = false) => {
     try {
-      setLoading(true);
+      resetPage ? setLoading(true) : setIsFetchingMore(true);
 
       const options = {
         page: resetPage ? 1 : pagination.page,
-        limit: 24, // Show more products per page with the compact cards
+        limit: 24,
         sort: getSortValue(),
       };
 
@@ -102,26 +134,21 @@ const ProductsPage = () => {
       if (response.success) {
         if (resetPage) {
           setProducts(response.data);
-          setPagination((prev) => ({
-            ...prev,
-            page: 1,
-            totalPages: response.pagination.totalPages,
-            total: response.pagination.total,
-          }));
         } else {
           setProducts((prev) => [...prev, ...response.data]);
-          setPagination((prev) => ({
-            ...prev,
-            totalPages: response.pagination.totalPages,
-            total: response.pagination.total,
-          }));
         }
+        setPagination({
+          page: response.pagination.page,
+          totalPages: response.pagination.totalPages,
+          total: response.pagination.total,
+        });
       }
     } catch (error) {
       console.error("Error fetching products:", error);
       toast.error("Failed to load products");
     } finally {
       setLoading(false);
+      setIsFetchingMore(false);
     }
   };
 
@@ -139,6 +166,8 @@ const ProductsPage = () => {
         return "name";
       case "name_desc":
         return "-name";
+      case "rating_desc":
+        return "-averageRating";
       default:
         return "-createdAt";
     }
@@ -147,7 +176,7 @@ const ProductsPage = () => {
   const handleAddToEvent = (product) => {
     if (!user) {
       toast.info("Please sign in to add products to your event");
-      navigate("/auth/signin");
+      navigate("/auth/signin", { state: { from: window.location.pathname } });
       return;
     }
 
@@ -162,6 +191,7 @@ const ProductsPage = () => {
       search: "",
       minPrice: "",
       maxPrice: "",
+      rating: "",
     });
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
@@ -188,13 +218,19 @@ const ProductsPage = () => {
     debouncedSearch(e.target.value);
   };
 
+  const hasActiveFilters = useMemo(() => {
+    return Object.values(filters).some((v) => v);
+  }, [filters]);
+
+  const ratingOptions = [5, 4, 3, 2, 1];
+
   return (
     <div className="bg-gray-50 min-h-screen py-6">
-      <div className="max-w-7xl mx-auto px-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Discover Products
+            Discover Gifts
           </h1>
           <p className="text-gray-600">
             Find perfect gifts for your special occasions
@@ -204,11 +240,11 @@ const ProductsPage = () => {
         {/* Main Content Layout */}
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Sidebar - Desktop */}
-          <div className="hidden lg:block w-64 flex-shrink-0">
+          <div className="hidden lg:block w-72 flex-shrink-0">
             <div className="bg-white rounded-lg shadow-sm p-5 sticky top-20">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="font-semibold text-gray-900">Filters</h3>
-                {Object.values(filters).some((v) => v) && (
+                {hasActiveFilters && (
                   <button
                     onClick={handleClearFilters}
                     className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
@@ -269,7 +305,7 @@ const ProductsPage = () => {
               </div>
 
               {/* Price Range */}
-              <div>
+              <div className="mb-6">
                 <h4 className="text-sm font-medium text-gray-700 mb-3">
                   Price Range
                 </h4>
@@ -312,6 +348,47 @@ const ProductsPage = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Rating Filter */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-3">
+                  Customer Rating
+                </h4>
+                <div className="space-y-2">
+                  {ratingOptions.map((rating) => (
+                    <div key={rating} className="flex items-center">
+                      <input
+                        id={`rating-${rating}`}
+                        type="radio"
+                        checked={filters.rating === String(rating)}
+                        onChange={() =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            rating: String(rating),
+                          }))
+                        }
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <label
+                        htmlFor={`rating-${rating}`}
+                        className="ml-2 text-sm text-gray-700 flex items-center"
+                      >
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-4 h-4 ${
+                              i < rating
+                                ? "text-yellow-400 fill-yellow-400"
+                                : "text-gray-300"
+                            }`}
+                          />
+                        ))}
+                        {rating < 5 && <span className="ml-1">& Up</span>}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -339,9 +416,12 @@ const ProductsPage = () => {
                       className="appearance-none pl-3 pr-8 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     >
                       <option value="newest">Newest First</option>
+                      <option value="oldest">Oldest First</option>
                       <option value="price_asc">Price: Low to High</option>
                       <option value="price_desc">Price: High to Low</option>
                       <option value="name_asc">Name: A to Z</option>
+                      <option value="name_desc">Name: Z to A</option>
+                      <option value="rating_desc">Highest Rated</option>
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                       <ChevronDown className="w-4 h-4" />
@@ -350,13 +430,75 @@ const ProductsPage = () => {
 
                   <button
                     onClick={() => setShowMobileFilters(true)}
-                    className="lg:hidden px-3 py-2 border rounded-lg flex items-center"
+                    className="lg:hidden px-3 py-2 border rounded-lg flex items-center text-sm"
                   >
                     <Filter className="w-4 h-4 mr-2" />
                     Filters
                   </button>
                 </div>
               </div>
+
+              {/* Active filters - mobile */}
+              {hasActiveFilters && (
+                <div className="mt-4 flex flex-wrap gap-2 lg:hidden">
+                  {filters.category && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                      Category:{" "}
+                      {
+                        categories.find((c) => c._id === filters.category)
+                          ?.name
+                      }
+                      <button
+                        onClick={() =>
+                          setFilters((prev) => ({ ...prev, category: "" }))
+                        }
+                        className="ml-1.5 inline-flex text-indigo-600 focus:outline-none"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  )}
+                  {filters.minPrice && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Min: {formatCurrency(filters.minPrice)}
+                      <button
+                        onClick={() =>
+                          setFilters((prev) => ({ ...prev, minPrice: "" }))
+                        }
+                        className="ml-1.5 inline-flex text-green-600 focus:outline-none"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  )}
+                  {filters.maxPrice && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Max: {formatCurrency(filters.maxPrice)}
+                      <button
+                        onClick={() =>
+                          setFilters((prev) => ({ ...prev, maxPrice: "" }))
+                        }
+                        className="ml-1.5 inline-flex text-green-600 focus:outline-none"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  )}
+                  {filters.rating && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      Rating: {filters.rating}+
+                      <button
+                        onClick={() =>
+                          setFilters((prev) => ({ ...prev, rating: "" }))
+                        }
+                        className="ml-1.5 inline-flex text-yellow-600 focus:outline-none"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Mobile Filters Modal */}
@@ -384,7 +526,6 @@ const ProductsPage = () => {
                             checked={filters.category === ""}
                             onChange={() => {
                               setFilters((prev) => ({ ...prev, category: "" }));
-                              setShowMobileFilters(false);
                             }}
                             className="h-4 w-4 text-indigo-600 focus:ring-indigo-500"
                           />
@@ -410,7 +551,6 @@ const ProductsPage = () => {
                                   ...prev,
                                   category: category._id,
                                 }));
-                                setShowMobileFilters(false);
                               }}
                               className="h-4 w-4 text-indigo-600 focus:ring-indigo-500"
                             />
@@ -462,6 +602,47 @@ const ProductsPage = () => {
                       </div>
                     </div>
 
+                    {/* Rating Filter */}
+                    <div className="mb-6">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">
+                        Customer Rating
+                      </h4>
+                      <div className="space-y-2">
+                        {ratingOptions.map((rating) => (
+                          <div key={`mobile-rating-${rating}`} className="flex items-center">
+                            <input
+                              id={`mobile-rating-${rating}`}
+                              type="radio"
+                              checked={filters.rating === String(rating)}
+                              onChange={() =>
+                                setFilters((prev) => ({
+                                  ...prev,
+                                  rating: String(rating),
+                                }))
+                              }
+                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <label
+                              htmlFor={`mobile-rating-${rating}`}
+                              className="ml-2 text-sm text-gray-700 flex items-center"
+                            >
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`w-4 h-4 ${
+                                    i < rating
+                                      ? "text-yellow-400 fill-yellow-400"
+                                      : "text-gray-300"
+                                  }`}
+                                />
+                              ))}
+                              {rating < 5 && <span className="ml-1">& Up</span>}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
                     <div className="flex gap-2">
                       <button
                         onClick={handleClearFilters}
@@ -484,7 +665,7 @@ const ProductsPage = () => {
             {/* Products Display */}
             {loading && products.length === 0 ? (
               <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                <Loader2 className="animate-spin h-12 w-12 text-indigo-600" />
               </div>
             ) : products.length === 0 ? (
               <div className="text-center py-16 bg-white rounded-lg shadow-sm">
@@ -513,6 +694,15 @@ const ProductsPage = () => {
                   <p className="text-sm text-gray-500">
                     Showing {products.length} of {pagination.total} products
                   </p>
+                  {hasActiveFilters && (
+                    <button
+                      onClick={handleClearFilters}
+                      className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
+                    >
+                      <Trash2 className="w-3 h-3 mr-1" />
+                      Clear filters
+                    </button>
+                  )}
                 </div>
 
                 {/* Product Grid */}
@@ -526,13 +716,20 @@ const ProductsPage = () => {
                   ))}
                 </div>
 
-                {/* Pagination */}
+                {/* Loading more indicator */}
+                {isFetchingMore && (
+                  <div className="flex justify-center my-8">
+                    <Loader2 className="animate-spin h-8 w-8 text-indigo-600" />
+                  </div>
+                )}
+
+                {/* Pagination - fallback for non-JS users */}
                 <div className="mt-8 flex justify-center">
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handlePrevPage}
                       disabled={pagination.page === 1}
-                      className="p-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="p-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                     >
                       <ChevronLeft className="w-5 h-5" />
                     </button>
@@ -544,7 +741,7 @@ const ProductsPage = () => {
                     <button
                       onClick={handleNextPage}
                       disabled={pagination.page >= pagination.totalPages}
-                      className="p-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="p-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                     >
                       <ChevronRight className="w-5 h-5" />
                     </button>

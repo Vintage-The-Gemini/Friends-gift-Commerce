@@ -147,15 +147,15 @@ const ProductCard = ({
           </p>
         </Link>
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mt-2">
           <span className="text-lg font-bold text-indigo-700">
             {formatCurrency(price)}
           </span>
 
-          <div className="flex gap-2">
+          <div className="flex items-center gap-1.5">
             <Link
               to={`/products/${_id}`}
-              className="p-2 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition-colors"
+              className="p-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition-colors"
               aria-label="View details"
             >
               <Eye className="w-4 h-4" />
@@ -164,15 +164,15 @@ const ProductCard = ({
             <button
               onClick={handleAddToEvent}
               disabled={!isInStock}
-              className={`px-3 py-1.5 rounded-full flex items-center ${
+              className={`min-w-[80px] px-3 py-1.5 rounded-lg flex items-center justify-center ${
                 isInStock
                   ? "bg-indigo-600 text-white hover:bg-indigo-700"
                   : "bg-gray-200 text-gray-400 cursor-not-allowed"
               } transition-colors`}
               aria-label={isInStock ? "Add to event" : "Out of stock"}
             >
-              <Gift className="w-4 h-4 mr-1.5" />
-              <span className="text-sm font-medium">Add</span>
+              <Gift className="w-3.5 h-3.5 mr-1" />
+              <span className="text-xs font-medium whitespace-nowrap">Add to Event</span>
             </button>
           </div>
         </div>

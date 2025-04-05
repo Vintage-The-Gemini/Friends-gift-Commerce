@@ -1,29 +1,22 @@
-// src/pages/public/ShopPage.jsx
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Search,
   Filter,
-  Grid,
-  List,
   Trash2,
   X,
   ChevronDown,
-  ChevronRight,
-  ChevronLeft,
+  ArrowUpDown,
   ShoppingBag,
-  Gift,
-  Star,
-  Heart,
-  Clock,
-  AlertCircle,
+  Heart
 } from "lucide-react";
+import { debounce } from "lodash";
+
+import ResponsiveProductGrid from "../../components/products/ResponsiveProductGrid";
 import { productService } from "../../services/api/product";
 import { categoryService } from "../../services/api/category";
 import { useAuth } from "../../hooks/useAuth";
 import { toast } from "react-toastify";
-import CompactProductCard from "../../components/products/CompactProductCard";
-import { debounce } from "lodash";
 import { formatCurrency } from "../../utils/currency";
 
 const ShopPage = () => {
@@ -35,7 +28,6 @@ const ShopPage = () => {
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState("grid");
   const [pagination, setPagination] = useState({
     page: parseInt(searchParams.get("page")) || 1,
     totalPages: 1,
@@ -113,7 +105,7 @@ const ShopPage = () => {
 
       const options = {
         page: resetPage ? 1 : pagination.page,
-        limit: 24, // Show more products per page with the compact cards
+        limit: 24,
         sort: getSortValue(),
       };
 
@@ -164,48 +156,15 @@ const ShopPage = () => {
     }
   };
 
-  const handleAddToEvent = (product) => {
+  const handleAddToCart = (product) => {
     if (!user) {
-      toast.info("Please sign in to add products to your event");
+      toast.info("Please sign in to add products to your cart");
       navigate("/auth/signin");
       return;
     }
 
-    navigate("/events/create", {
-      state: { selectedProduct: product },
-    });
-  };
-
-  const handleClearFilters = () => {
-    setFilters({
-      category: "",
-      search: "",
-      minPrice: "",
-      maxPrice: "",
-    });
-    setPagination((prev) => ({ ...prev, page: 1 }));
-  };
-
-  const handlePrevPage = () => {
-    if (pagination.page > 1) {
-      setPagination((prev) => ({
-        ...prev,
-        page: prev.page - 1,
-      }));
-    }
-  };
-
-  const handleNextPage = () => {
-    if (pagination.page < pagination.totalPages) {
-      setPagination((prev) => ({
-        ...prev,
-        page: prev.page + 1,
-      }));
-    }
-  };
-
-  const handleSearchChange = (e) => {
-    debouncedSearch(e.target.value);
+    // Implement add to cart functionality
+    toast.success(`${product.name} added to cart`);
   };
 
   const handleToggleWishlist = (productId) => {
@@ -219,6 +178,24 @@ const ShopPage = () => {
     toast.success("Wishlist updated");
   };
 
+  const handleProductClick = (product) => {
+    navigate(`/products/${product._id}`);
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      category: "",
+      search: "",
+      minPrice: "",
+      maxPrice: "",
+    });
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  const handleSearchChange = (e) => {
+    debouncedSearch(e.target.value);
+  };
+
   return (
     <div className="bg-gray-50 min-h-screen py-6">
       <div className="max-w-7xl mx-auto px-4">
@@ -228,7 +205,7 @@ const ShopPage = () => {
             Shop for Gifts
           </h1>
           <p className="text-gray-600">
-            Find and purchase perfect gifts for your special occasions
+            Find perfect gifts for your special occasions
           </p>
         </div>
 
@@ -239,13 +216,6 @@ const ShopPage = () => {
               <h2 className="text-xl font-semibold text-gray-900">
                 Featured Gifts
               </h2>
-              <Link
-                to="/products?featured=true"
-                className="text-indigo-600 hover:text-indigo-800 flex items-center text-sm font-medium"
-              >
-                View all featured
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Link>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {featuredProducts.map((product) => (
@@ -253,18 +223,22 @@ const ShopPage = () => {
                   key={product._id}
                   className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow"
                 >
-                  <div className="relative">
-                    <Link to={`/products/${product._id}`}>
-                      <img
-                        src={
-                          product.images?.[0]?.url || "/api/placeholder/300/300"
-                        }
-                        alt={product.name}
-                        className="h-48 w-full object-cover"
-                      />
-                    </Link>
+                  <div 
+                    className="relative cursor-pointer"
+                    onClick={() => handleProductClick(product)}
+                  >
+                    <img
+                      src={
+                        product.images?.[0]?.url || "/api/placeholder/300/300"
+                      }
+                      alt={product.name}
+                      className="h-48 w-full object-cover"
+                    />
                     <button
-                      onClick={() => handleToggleWishlist(product._id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleWishlist(product._id);
+                      }}
                       className="absolute top-2 right-2 p-1.5 bg-white rounded-full shadow-sm hover:bg-gray-100"
                     >
                       <Heart className="w-4 h-4 text-gray-500 hover:text-red-500" />
@@ -276,38 +250,22 @@ const ShopPage = () => {
                     )}
                   </div>
                   <div className="p-4">
-                    <Link to={`/products/${product._id}`}>
-                      <h3 className="text-gray-900 font-medium mb-1 truncate">
-                        {product.name}
-                      </h3>
-                    </Link>
-                    <div className="flex items-center mb-2">
-                      <div className="flex text-amber-400">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-3 h-3 ${
-                              i < (product.rating || 0)
-                                ? "fill-current"
-                                : "text-gray-300"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-xs text-gray-500 ml-1">
-                        ({product.reviews?.length || 0})
-                      </span>
-                    </div>
+                    <h3 
+                      className="font-medium text-gray-900 mb-2 cursor-pointer"
+                      onClick={() => handleProductClick(product)}
+                    >
+                      {product.name}
+                    </h3>
                     <div className="flex justify-between items-center">
                       <div className="text-indigo-700 font-bold">
                         {formatCurrency(product.price || product.sellingPrice)}
                       </div>
                       <button
-                        onClick={() => handleAddToEvent(product)}
+                        onClick={() => handleAddToCart(product)}
                         className="text-xs bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700 flex items-center"
                       >
-                        <Gift className="w-3 h-3 mr-1" />
-                        Add to Event
+                        <ShoppingBag className="w-3 h-3 mr-1" />
+                        Add to Cart
                       </button>
                     </div>
                   </div>
@@ -425,41 +383,6 @@ const ShopPage = () => {
                       }
                       className="w-full p-2 text-sm border rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     />
-                  </div>
-                </div>
-              </div>
-
-              {/* Special offers */}
-              <div className="mt-6">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">
-                  Special Offers
-                </h4>
-                <div className="space-y-2">
-                  <div className="flex items-center">
-                    <input
-                      id="on-sale"
-                      type="checkbox"
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <label
-                      htmlFor="on-sale"
-                      className="ml-2 text-sm text-gray-700"
-                    >
-                      On Sale
-                    </label>
-                  </div>
-                  <div className="flex items-center">
-                    <input
-                      id="free-shipping"
-                      type="checkbox"
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <label
-                      htmlFor="free-shipping"
-                      className="ml-2 text-sm text-gray-700"
-                    >
-                      Free Shipping
-                    </label>
                   </div>
                 </div>
               </div>
@@ -636,41 +559,6 @@ const ShopPage = () => {
                       </div>
                     </div>
 
-                    {/* Special Offers - Mobile */}
-                    <div className="mb-6">
-                      <h4 className="text-sm font-medium text-gray-700 mb-3">
-                        Special Offers
-                      </h4>
-                      <div className="space-y-2">
-                        <div className="flex items-center">
-                          <input
-                            id="mobile-on-sale"
-                            type="checkbox"
-                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500"
-                          />
-                          <label
-                            htmlFor="mobile-on-sale"
-                            className="ml-2 text-sm text-gray-700"
-                          >
-                            On Sale
-                          </label>
-                        </div>
-                        <div className="flex items-center">
-                          <input
-                            id="mobile-free-shipping"
-                            type="checkbox"
-                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500"
-                          />
-                          <label
-                            htmlFor="mobile-free-shipping"
-                            className="ml-2 text-sm text-gray-700"
-                          >
-                            Free Shipping
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-
                     <div className="flex gap-2">
                       <button
                         onClick={handleClearFilters}
@@ -690,245 +578,14 @@ const ShopPage = () => {
               </div>
             )}
 
-            {/* Products Display */}
-            {loading && products.length === 0 ? (
-              <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-              </div>
-            ) : products.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-lg shadow-sm">
-                <div className="inline-flex justify-center items-center w-16 h-16 rounded-full bg-gray-100 mb-4">
-                  <Search className="h-8 w-8 text-gray-400" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No products found
-                </h3>
-                <p className="text-gray-500 mb-6">
-                  Try adjusting your search or filters to find what you're
-                  looking for.
-                </p>
-                <button
-                  onClick={handleClearFilters}
-                  className="inline-flex items-center text-indigo-600 hover:text-indigo-800 font-medium"
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Clear all filters
-                </button>
-              </div>
-            ) : (
-              <>
-                {/* Product Results Count */}
-                <div className="flex justify-between items-center mb-4">
-                  <p className="text-sm text-gray-500">
-                    Showing {products.length} of {pagination.total} products
-                  </p>
-                </div>
-
-                {/* Product Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                  {products.map((product) => (
-                    <div
-                      key={product._id}
-                      className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow relative"
-                    >
-                      <Link to={`/products/${product._id}`}>
-                        <div className="h-40 bg-gray-100 relative overflow-hidden">
-                          {product.images && product.images.length > 0 ? (
-                            <img
-                              src={product.images[0].url}
-                              alt={product.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex items-center justify-center h-full">
-                              <ShoppingBag className="h-10 w-10 text-gray-300" />
-                            </div>
-                          )}
-                          {product.stock <= 5 && product.stock > 0 && (
-                            <div className="absolute bottom-0 left-0 right-0 bg-amber-500 text-white text-xs text-center py-1">
-                              Only {product.stock} left in stock
-                            </div>
-                          )}
-                          {product.stock === 0 && (
-                            <div className="absolute bottom-0 left-0 right-0 bg-red-500 text-white text-xs text-center py-1">
-                              Out of stock
-                            </div>
-                          )}
-                        </div>
-                      </Link>
-
-                      <button
-                        onClick={() => handleToggleWishlist(product._id)}
-                        className="absolute top-2 right-2 p-1.5 bg-white rounded-full shadow-sm hover:bg-gray-100"
-                        aria-label="Add to wishlist"
-                      >
-                        <Heart className="w-4 h-4 text-gray-500 hover:text-red-500" />
-                      </button>
-
-                      <div className="p-3">
-                        <Link to={`/products/${product._id}`}>
-                          <h3 className="text-sm font-medium text-gray-900 mb-1 truncate">
-                            {product.name}
-                          </h3>
-                        </Link>
-
-                        <div className="flex justify-between items-center mb-2">
-                          <div className="text-indigo-700 font-semibold">
-                            {formatCurrency(product.price)}
-                          </div>
-                          {product.marketPrice &&
-                            product.marketPrice > product.price && (
-                              <div className="text-xs text-gray-500 line-through">
-                                {formatCurrency(product.marketPrice)}
-                              </div>
-                            )}
-                        </div>
-
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center text-amber-400 text-xs">
-                            {[...Array(5)].map((_, i) => (
-                              <Star
-                                key={i}
-                                className={`w-3 h-3 ${
-                                  i < (product.rating || 4)
-                                    ? "fill-current"
-                                    : "text-gray-300"
-                                }`}
-                              />
-                            ))}
-                            <span className="text-xs text-gray-500 ml-1">
-                              ({product.reviews?.length || 0})
-                            </span>
-                          </div>
-
-                          <button
-                            onClick={() => handleAddToEvent(product)}
-                            disabled={product.stock === 0}
-                            className={`text-xs px-2 py-1 rounded flex items-center ${
-                              product.stock === 0
-                                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                                : "bg-indigo-600 text-white hover:bg-indigo-700"
-                            }`}
-                          >
-                            <Gift className="w-3 h-3 mr-1" />
-                            {product.stock === 0 ? "Sold Out" : "Add to Event"}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Pagination */}
-                <div className="mt-8 flex justify-center">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handlePrevPage}
-                      disabled={pagination.page === 1}
-                      className="p-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                    >
-                      <ChevronLeft className="w-5 h-5" />
-                    </button>
-
-                    {/* Display page numbers */}
-                    <div className="flex space-x-1">
-                      {[...Array(Math.min(5, pagination.totalPages))].map(
-                        (_, index) => {
-                          // Calculate page number with logic for showing pages around current page
-                          let pageNumber;
-                          if (pagination.totalPages <= 5) {
-                            pageNumber = index + 1;
-                          } else if (pagination.page <= 3) {
-                            pageNumber = index + 1;
-                          } else if (
-                            pagination.page >=
-                            pagination.totalPages - 2
-                          ) {
-                            pageNumber = pagination.totalPages - 4 + index;
-                          } else {
-                            pageNumber = pagination.page - 2 + index;
-                          }
-
-                          // Only display the page button if it's valid
-                          if (
-                            pageNumber > 0 &&
-                            pageNumber <= pagination.totalPages
-                          ) {
-                            return (
-                              <button
-                                key={pageNumber}
-                                onClick={() =>
-                                  setPagination((prev) => ({
-                                    ...prev,
-                                    page: pageNumber,
-                                  }))
-                                }
-                                className={`px-3 py-1 border rounded-lg ${
-                                  pagination.page === pageNumber
-                                    ? "bg-indigo-600 text-white"
-                                    : "text-gray-700 hover:bg-gray-100"
-                                }`}
-                              >
-                                {pageNumber}
-                              </button>
-                            );
-                          }
-                          return null;
-                        }
-                      )}
-                    </div>
-
-                    <button
-                      onClick={handleNextPage}
-                      disabled={pagination.page >= pagination.totalPages}
-                      className="p-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                    >
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Recently Viewed Section (optional) - simulated for UI purposes */}
-            <div className="mt-12 bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                Recently Viewed
-              </h2>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
-                {products.slice(0, 4).map((product) => (
-                  <div
-                    key={`recent-${product._id}`}
-                    className="border rounded-lg overflow-hidden hover:shadow-sm transition-shadow"
-                  >
-                    <Link to={`/products/${product._id}`}>
-                      <div className="h-24 bg-gray-100">
-                        {product.images && product.images.length > 0 ? (
-                          <img
-                            src={product.images[0].url}
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center h-full">
-                            <ShoppingBag className="h-8 w-8 text-gray-300" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-2">
-                        <p className="text-xs font-medium text-gray-900 truncate">
-                          {product.name}
-                        </p>
-                        <p className="text-xs text-indigo-700">
-                          {formatCurrency(product.price)}
-                        </p>
-                      </div>
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* Products Grid */}
+            <ResponsiveProductGrid 
+              products={products}
+              loading={loading}
+              onAddToCart={handleAddToCart}
+              onToggleWishlist={handleToggleWishlist}
+              onProductClick={handleProductClick}
+            />
           </div>
         </div>
       </div>
