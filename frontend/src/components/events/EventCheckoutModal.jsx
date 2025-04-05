@@ -1,4 +1,3 @@
-// src/components/events/EventCheckoutModal.jsx
 import React, { useState, useEffect } from "react";
 import { X, ArrowRight, AlertCircle, Check, ShoppingBag } from "lucide-react";
 import { eventService } from "../../services/api/event";
@@ -49,8 +48,12 @@ const EventCheckoutModal = ({ event, isOpen, onClose, onCheckoutComplete }) => {
 
   const handleCheckoutComplete = (data) => {
     // This function passes the checkout data to the parent component
+    // But ensures we're just indicating success rather than passing potentially invalid order data
     if (onCheckoutComplete) {
-      onCheckoutComplete(data);
+      onCheckoutComplete({ 
+        success: true,
+        eventId: event._id
+      });
     }
   };
 

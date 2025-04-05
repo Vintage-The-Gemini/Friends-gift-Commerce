@@ -51,6 +51,7 @@ const EventDetails = () => {
   const [accessInput, setAccessInput] = useState("");
   const [verifyingAccess, setVerifyingAccess] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [checkoutEligibility, setCheckoutEligibility] = useState(null);
 
   // ==== READ OPERATION ====
   const fetchEventDetails = async () => {
@@ -83,6 +84,13 @@ const EventDetails = () => {
         } catch (err) {
           console.warn("Failed to fetch contributions:", err);
         }
+
+        // Check checkout eligibility if owner
+        if (user && (typeof response.data.creator === "string" 
+            ? response.data.creator === user._id 
+            : response.data.creator._id === user._id)) {
+          checkCheckoutEligibility();
+        }
       } else {
         throw new Error(response.message || "Failed to load event details");
       }
@@ -104,12 +112,23 @@ const EventDetails = () => {
     }
   };
 
+  const checkCheckoutEligibility = async () => {
+    try {
+      const response = await eventService.getEventCheckoutEligibility(id);
+      if (response.success) {
+        setCheckoutEligibility(response.data);
+      }
+    } catch (error) {
+      console.error("Error checking checkout eligibility:", error);
+      toast.error("Failed to check checkout eligibility");
+    }
+  };
+
   useEffect(() => {
     fetchEventDetails();
   }, [id, accessCode]);
 
   // ==== UPDATE OPERATION ====
-  // We'll navigate to edit page, but include direct update capability
   const handleUpdateStatus = async (newStatus) => {
     try {
       const response = await eventService.updateEventStatus(id, newStatus);
@@ -156,14 +175,28 @@ const EventDetails = () => {
   };
 
   // Handle checkout completion
-  const handleCheckoutComplete = (data) => {
-    toast.success("Event checkout completed successfully!");
-    // Navigate to the created order page if there's an order
-    if (data && data.order && data.order._id) {
-      navigate(`/orders/${data.order._id}`);
+  const handleCheckoutComplete = async (data) => {
+    try {
+      const response = await eventService.completeEventCheckout({
+        eventId: id,
+        ...data
+      });
+
+      if (response.success) {
+        toast.success("Event checkout completed successfully!");
+        fetchEventDetails(); // Refresh event data
+        if (response.data?.order?._id) {
+          navigate(`/orders/${response.data.order._id}`);
+        }
+      } else {
+        throw new Error(response.message || "Checkout failed");
+      }
+    } catch (error) {
+      console.error("Checkout error:", error);
+      toast.error(error.message || "Failed to complete checkout");
+    } finally {
+      setShowCheckoutModal(false);
     }
-    setShowCheckoutModal(false);
-    fetchEventDetails(); // Refresh event data
   };
 
   // Handle contribution
@@ -583,14 +616,6 @@ const EventDetails = () => {
                 <Share2 className="w-5 h-5" />
               </button>
             </div>
-            
-            {/* Test Button for Debugging */}
-            <button 
-              onClick={() => setShowCheckoutModal(true)}
-              className="mt-4 bg-red-600 text-white px-6 py-3 rounded-lg font-bold"
-            >
-              TEST CHECKOUT BUTTON
-            </button>
           </div>
         </div>
 
@@ -714,6 +739,7 @@ const EventDetails = () => {
             isOpen={showCheckoutModal}
             onClose={() => setShowCheckoutModal(false)}
             onCheckoutComplete={handleCheckoutComplete}
+            eligibility={checkoutEligibility}
           />
         )}
       </div>

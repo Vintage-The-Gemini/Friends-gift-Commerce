@@ -1,18 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Check,
   ShoppingBag,
-  Truck,
-  CreditCard,
-  Phone,
-  CheckCircle,
-  X,
+  Check,
   ArrowRight,
   Calendar,
   AlertCircle,
-  RefreshCw,
-  Clock
+  RefreshCw
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/currency';
 import { eventService } from '../../services/api/event';
@@ -22,7 +16,7 @@ import CheckoutStatusIndicator from './CheckoutStatusIndicator';
 
 const EventCheckout = ({ event, onComplete, onCancel }) => {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1); // 1: Shipping, 2: Confirmation
+  const [step, setStep] = useState(1);
   const [checkoutStep, setCheckoutStep] = useState(2); // 1: Eligibility, 2: Shipping, 3: Confirmation, 4: Processing, 5: Complete
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -142,10 +136,9 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
         paymentMethod: "already_paid",
       };
   
-      // Simulate a successful checkout after a brief delay
-      // This is a temporary solution until the backend is fixed
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
+      // Call the actual API
+      const response = await eventService.completeEventCheckout(checkoutData);
+  
       // Clear the timer
       clearInterval(timer);
       setProcessingTimer(null);
@@ -155,17 +148,14 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
       setCheckoutStep(5); // Move to Complete step
       setCheckoutStatus("success");
       
-      // Create a simulated successful response
-      const simulatedResponse = {
-        event: {
-          _id: event._id,
-          title: event.title,
-          status: "completed"
-        }
-      };
+      // Wait a moment for the UI to show success
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
+      // Call the onComplete callback with proper navigation data
       if (onComplete) {
-        onComplete(simulatedResponse);
+        // Instead of using the response data which might contain an invalid order ID
+        // We'll indicate that checkout was successful and let the parent handle navigation
+        onComplete({ success: true });
       }
     } catch (error) {
       console.error("Checkout error:", error);
@@ -361,13 +351,6 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
 
   const renderConfirmationStep = () => (
     <div className="space-y-6">
-      <div className="flex items-center justify-center py-4">
-        <div className="bg-green-100 rounded-full p-2">
-          <CheckCircle className="w-8 h-8 text-green-600" />
-        </div>
-        <h3 className="text-xl font-medium ml-3">Order Summary</h3>
-      </div>
-
       {/* Checkout Status Indicator */}
       {checkoutStatus === "processing" && (
         <CheckoutStatusIndicator 
@@ -479,7 +462,7 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
               <h4 className="font-medium mb-2">Payment Information</h4>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="flex items-center">
-                  <CheckCircle className="w-5 h-5 mr-2 text-green-600" />
+                  <Check className="w-5 h-5 mr-2 text-green-600" />
                   <div>
                     <p className="font-medium">Payment Already Completed</p>
                     <p className="text-sm text-gray-600">
@@ -537,16 +520,6 @@ const EventCheckout = ({ event, onComplete, onCancel }) => {
 
       {/* Step Content */}
       {step === 1 ? renderShippingStep() : renderConfirmationStep()}
-
-      {/* Debugging information */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mt-8 pt-4 border-t border-gray-200">
-          <p className="text-xs text-gray-500">Debug Info:</p>
-          <p className="text-xs text-gray-500">Event ID: {event?._id}</p>
-          <p className="text-xs text-gray-500">Status: {checkoutStatus}</p>
-          <p className="text-xs text-gray-500">Processing Time: {processingTime}s</p>
-        </div>
-      )}
     </div>
   );
 };

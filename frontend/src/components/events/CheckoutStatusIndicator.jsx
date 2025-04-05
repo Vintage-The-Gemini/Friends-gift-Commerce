@@ -1,4 +1,3 @@
-// File: frontend/src/components/events/CheckoutStatusIndicator.jsx
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, Clock, AlertCircle, RefreshCw } from 'lucide-react';
 

@@ -1,4 +1,3 @@
-// File: frontend/src/pages/events/CompletedEventsPage.jsx
 import React, { useState, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";

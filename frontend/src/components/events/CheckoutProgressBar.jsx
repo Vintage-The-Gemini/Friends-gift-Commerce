@@ -1,4 +1,3 @@
-// File: frontend/src/components/events/CheckoutProgressBar.jsx
 import React from "react";
 import { Check } from "lucide-react";
 
