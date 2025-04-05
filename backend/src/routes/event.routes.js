@@ -16,8 +16,9 @@ const {
   getEventContributions,
   getPrivateEvent,
   updateEventStatus,
-  getEventCheckoutEligibility,   // Make sure this is imported 
-  completeEventCheckout          // Make sure this is imported
+  getEventCheckoutEligibility,
+  completeEventCheckout,
+  debugCheckout // Add this import
 } = require("../controllers/event.controller");
 
 // Public routes
@@ -36,6 +37,7 @@ router.post("/", upload.single("image"), createEvent);
 // Checkout routes - make sure these handlers exist in your controller
 router.get("/:id/checkout-status", protect, getEventCheckoutEligibility);
 router.post("/:id/checkout", protect, completeEventCheckout);
+router.get("/:id/debug-checkout", protect, debugCheckout); // Add this debug route
 
 // Parameterized routes - must come AFTER specific routes
 router.get("/:id", getEvent);
