@@ -87,6 +87,7 @@ exports.protect = async (req, res, next) => {
 };
 
 // Grant access to specific roles
+// Change from:
 exports.authorize = (...roles) => {
   return (req, res, next) => {
     console.log("Authorize middleware - User role:", req.user.role);
@@ -105,4 +106,26 @@ exports.authorize = (...roles) => {
   };
 };
 
+// Change to:
+exports.authorize = (...roles) => {
+  return (req, res, next) => {
+    console.log("Authorize middleware - User role:", req.user.role);
+    console.log("Authorize middleware - Allowed roles:", roles);
+    
+    // Flatten the roles array if needed
+    const flatRoles = roles.flat();
+    console.log("Flattened roles:", flatRoles);
+    
+    if (!flatRoles.includes(req.user.role)) {
+      console.log("Role not authorized:", req.user.role);
+      return res.status(403).json({
+        success: false,
+        message: `Role ${req.user.role} is not authorized to access this route`,
+      });
+    }
+    
+    console.log("Role authorized:", req.user.role);
+    next();
+  };
+};
 
