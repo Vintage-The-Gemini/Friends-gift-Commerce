@@ -111,7 +111,7 @@ const AdminDashboard = () => {
   // Generate activities array from various data sources
   const generateActivities = (statsData, pendingProductsData) => {
     const activitiesList = [];
-
+  
     // Add recent user registrations
     if (statsData?.recentUsers?.length) {
       statsData.recentUsers.slice(0, 3).forEach((user) => {
@@ -123,7 +123,7 @@ const AdminDashboard = () => {
         });
       });
     }
-
+  
     // Add recent orders
     if (statsData?.recentOrders?.length) {
       statsData.recentOrders.slice(0, 3).forEach((order) => {
@@ -138,7 +138,7 @@ const AdminDashboard = () => {
         });
       });
     }
-
+  
     // Add pending product approvals
     if (pendingProductsData?.length) {
       pendingProductsData.slice(0, 3).forEach((product) => {
@@ -151,12 +151,13 @@ const AdminDashboard = () => {
         });
       });
     }
-
+  
     // Sort activities by date (newest first)
     activitiesList.sort((a, b) => new Date(b.time) - new Date(a.time));
-
+  
     setActivities(activitiesList);
   };
+  
 
   const refreshDashboard = async () => {
     try {

@@ -115,31 +115,37 @@ exports.approveProduct = async (req, res) => {
       });
     }
 
+    // Get margin percentage from request
+    const marginPercentage = parseFloat(req.body.marginPercentage) || 0;
+    
+    // Calculate the selling price with margin
+    let sellingPrice = product.price;
+    if (marginPercentage > 0) {
+      // Store original price as base price
+      product.basePrice = product.price;
+      
+      // Calculate new price with margin
+      const marginAmount = (product.price * marginPercentage) / 100;
+      sellingPrice = product.price + marginAmount;
+      
+      // Update the product price to include margin
+      product.price = sellingPrice;
+      
+      // Store the margin percentage for reference
+      product.marginPercentage = marginPercentage;
+    }
+
     // Update product status
     product.approvalStatus = "approved";
     product.reviewedBy = req.user._id;
     product.reviewedAt = Date.now();
-    product.reviewNotes = req.body.notes || "Product approved by admin";
-    product.isActive = true; // Activate the product
+    product.reviewNotes = req.body.notes || "Product approved";
+    product.isActive = true; // Activate the product when approved
 
     await product.save();
 
-    // Notify seller about approval
-    try {
-      // Send notification to seller
-      await sendNotification({
-        userId: product.seller,
-        title: "Product Approved",
-        message: `Your product "${product.name}" has been approved and is now live.`,
-        type: "product_approval",
-        referenceId: product._id,
-      });
-
-      // You could also implement email notifications here
-    } catch (notificationError) {
-      console.error("Error sending notification:", notificationError);
-      // Continue processing even if notification fails
-    }
+    // Send notification to seller (implementation depends on your notification system)
+    // For example: notificationService.notifySeller(product.seller, 'product_approved', product._id);
 
     res.json({
       success: true,
@@ -150,7 +156,7 @@ exports.approveProduct = async (req, res) => {
     console.error("Error approving product:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to approve product",
+      message: "Error approving product",
       error: error.message,
     });
   }

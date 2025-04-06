@@ -29,6 +29,10 @@ const productSchema = new mongoose.Schema(
       required: [true, "Product price is required"],
       min: [0, "Price cannot be negative"],
     },
+    marginPercentage: {
+      type: Number,
+      default: 0, // Default no margin
+    },
     category: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",

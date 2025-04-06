@@ -32,14 +32,33 @@ const AdminApprovalsList = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showMarginModal, setShowMarginModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const [marginPercentage, setMarginPercentage] = useState(0);
+  const [calculatedPrice, setCalculatedPrice] = useState(null);
 
   useEffect(() => {
     fetchPendingProducts();
     fetchCategories();
     fetchSellers();
   }, [page]);
+
+  // Effect to calculate price when margin changes
+  useEffect(() => {
+    if (selectedProduct && marginPercentage) {
+      setCalculatedPrice(calculatePriceWithMargin(selectedProduct.price, marginPercentage));
+    } else {
+      setCalculatedPrice(null);
+    }
+  }, [marginPercentage, selectedProduct]);
+
+  // Function to calculate price with margin
+  const calculatePriceWithMargin = (basePrice, margin) => {
+    const marginAmount = (basePrice * margin) / 100;
+    return basePrice + marginAmount;
+  };
 
   const fetchPendingProducts = async () => {
     try {
@@ -107,23 +126,42 @@ const AdminApprovalsList = () => {
   };
 
   const handleApprove = async (productId) => {
+    // Select the product and show margin modal
+    const product = pendingProducts.find(p => p._id === productId);
+    if (product) {
+      setSelectedProduct(product);
+      setMarginPercentage(0); // Reset margin
+      setShowMarginModal(true);
+    }
+  };
+
+  const submitApprovalWithMargin = async () => {
     try {
+      setActionLoading(true);
+
       const response = await api.put(
-        `/admin/approvals/products/${productId}/approve`
+        `/admin/approvals/products/${selectedProduct._id}/approve`,
+        {
+          notes: "Product approved by admin",
+          marginPercentage: marginPercentage
+        }
       );
 
       if (response.data.success) {
         toast.success("Product approved successfully");
         // Remove the approved product from the list
         setPendingProducts(
-          pendingProducts.filter((product) => product._id !== productId)
+          pendingProducts.filter((product) => product._id !== selectedProduct._id)
         );
+        setShowMarginModal(false);
       } else {
         throw new Error(response.data.message || "Failed to approve product");
       }
     } catch (error) {
       console.error("Error approving product:", error);
       toast.error(error.message || "Failed to approve product");
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -140,6 +178,8 @@ const AdminApprovalsList = () => {
     }
 
     try {
+      setActionLoading(true);
+
       const response = await api.put(
         `/admin/approvals/products/${selectedProduct._id}/reject`,
         {
@@ -162,6 +202,8 @@ const AdminApprovalsList = () => {
     } catch (error) {
       console.error("Error rejecting product:", error);
       toast.error(error.message || "Failed to reject product");
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -494,6 +536,95 @@ const AdminApprovalsList = () => {
                 className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
                 Reject Product
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Margin Modal */}
+      {showMarginModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold mb-4">Set Product Margin</h2>
+            <p className="text-gray-600 mb-4">
+              Add a margin percentage to <span className="font-medium">{selectedProduct.name}</span> before approval.
+            </p>
+            
+            {/* Product details */}
+            <div className="mb-4 bg-gray-50 p-3 rounded-lg flex items-start">
+              <div className="w-16 h-16 bg-gray-200 rounded overflow-hidden flex-shrink-0 mr-3">
+                {selectedProduct.images && selectedProduct.images.length > 0 ? (
+                  <img
+                    src={selectedProduct.images[0].url}
+                    alt={selectedProduct.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <ShoppingBag className="w-full h-full p-4 text-gray-400" />
+                )}
+              </div>
+              <div>
+                <h3 className="font-medium">{selectedProduct.name}</h3>
+                <p className="text-gray-600 text-sm">Base Price: {formatCurrency(selectedProduct.price)}</p>
+                {selectedProduct.seller && (
+                  <p className="text-gray-500 text-xs">
+                    Seller: {selectedProduct.seller.businessName || selectedProduct.seller.name}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Margin Input */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Margin Percentage (%)
+              </label>
+              <div className="flex items-center">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={marginPercentage}
+                  onChange={(e) => setMarginPercentage(parseFloat(e.target.value) || 0)}
+                  className="w-1/3 px-3 py-2 border rounded-lg"
+                />
+                <span className="ml-2 text-gray-500">%</span>
+              </div>
+              
+              {calculatedPrice !== null && (
+                <div className="mt-3 p-2 bg-green-50 text-green-700 rounded-lg">
+                  <p>Final Price with {marginPercentage}% margin: <strong>{formatCurrency(calculatedPrice)}</strong></p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowMarginModal(false)}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitApprovalWithMargin}
+                disabled={actionLoading}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center"
+              >
+                {actionLoading ? (
+                  <div className="flex items-center">
+                    <svg className="animate-spin h-4 w-4 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Approving...
+                  </div>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4 mr-2" />
+                    Approve with Margin
+                  </>
+                )}
               </button>
             </div>
           </div>

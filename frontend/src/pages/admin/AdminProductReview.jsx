@@ -1,6 +1,6 @@
 // frontend/src/pages/admin/AdminProductReview.jsx
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ChevronLeft,
@@ -32,10 +32,26 @@ const AdminProductReview = () => {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [marginPercentage, setMarginPercentage] = useState(0);
+  const [calculatedPrice, setCalculatedPrice] = useState(null);
 
   useEffect(() => {
     fetchProductDetails();
   }, [id]);
+
+  // Calculate price with margin when margin percentage changes
+  useEffect(() => {
+    if (product && marginPercentage) {
+      setCalculatedPrice(calculatePriceWithMargin(product.price, marginPercentage));
+    } else {
+      setCalculatedPrice(null);
+    }
+  }, [marginPercentage, product]);
+
+  const calculatePriceWithMargin = (basePrice, margin) => {
+    const marginAmount = (basePrice * margin) / 100;
+    return basePrice + marginAmount;
+  };
 
   const fetchProductDetails = async () => {
     try {
@@ -68,6 +84,7 @@ const AdminProductReview = () => {
         `/admin/approvals/products/${id}/approve`,
         {
           notes: approvalNotes || "Product approved by admin",
+          marginPercentage: marginPercentage
         }
       );
 
@@ -344,7 +361,7 @@ const AdminProductReview = () => {
             </div>
           </div>
         </div>
-        // frontend/src/pages/admin/AdminProductReview.jsx (continued)
+
         {/* Approval/Rejection actions */}
         <div className="mt-6 bg-gray-50 p-6 rounded-lg">
           <h2 className="text-lg font-semibold mb-4">Review Decision</h2>
@@ -380,6 +397,37 @@ const AdminProductReview = () => {
               Are you sure you want to approve "{product.name}"? This will make
               the product visible to all users.
             </p>
+
+            {/* Margin Input */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Margin Percentage (%)
+              </label>
+              <div className="flex items-center">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={marginPercentage}
+                  onChange={(e) => setMarginPercentage(parseFloat(e.target.value) || 0)}
+                  className="w-1/3 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                />
+                <span className="ml-2 text-gray-500">%</span>
+              </div>
+              
+              {calculatedPrice !== null && (
+                <div className="mt-2 text-sm">
+                  <span className="text-gray-600">Original Price: </span>
+                  <span className="font-medium">{formatCurrency(product.price)}</span>
+                  <span className="mx-2">→</span>
+                  <span className="text-gray-600">Selling Price: </span>
+                  <span className="font-medium text-green-600">{formatCurrency(calculatedPrice)}</span>
+                  <span className="ml-2 text-xs text-gray-500">
+                    (+{formatCurrency(calculatedPrice - product.price)})
+                  </span>
+                </div>
+              )}
+            </div>
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
