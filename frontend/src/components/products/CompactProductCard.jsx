@@ -1,7 +1,7 @@
 // src/components/products/CompactProductCard.jsx
 import React from "react";
 import { Link } from "react-router-dom";
-import { Heart, Gift, Clock, Star, AlertCircle } from "lucide-react";
+import { Heart, Gift, Clock, AlertCircle } from "lucide-react";
 import { formatCurrency } from "../../utils/currency";
 
 const CompactProductCard = ({ product, onAddToEvent, showActions = true }) => {
@@ -23,7 +23,7 @@ const CompactProductCard = ({ product, onAddToEvent, showActions = true }) => {
               <Gift className="h-10 w-10 text-gray-300" />
             </div>
           )}
-          
+
           {/* Stock Status Indicator */}
           {product.stock <= 0 && (
             <div className="absolute top-0 left-0 right-0 bg-red-500 text-white text-xs font-medium text-center py-1">
@@ -37,7 +37,7 @@ const CompactProductCard = ({ product, onAddToEvent, showActions = true }) => {
           )}
         </div>
       </Link>
-      
+
       {/* Product Info */}
       <div className="p-3">
         <Link to={`/products/${product._id}`}>
@@ -45,7 +45,7 @@ const CompactProductCard = ({ product, onAddToEvent, showActions = true }) => {
             {product.name}
           </h3>
         </Link>
-        
+
         {/* Price */}
         <div className="flex justify-between items-center mb-2">
           <div className="font-semibold text-indigo-700">
@@ -57,25 +57,9 @@ const CompactProductCard = ({ product, onAddToEvent, showActions = true }) => {
             </div>
           )}
         </div>
-        
-        {/* Ratings and Add to Event */}
-        <div className="flex justify-between items-center">
-          <div className="flex items-center text-xs">
-            <div className="flex text-amber-400">
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  className={`w-3 h-3 ${
-                    i < (product.rating || 4) ? "fill-current" : "text-gray-300"
-                  }`}
-                />
-              ))}
-            </div>
-            <span className="text-gray-500 ml-1">
-              ({product.reviews?.length || 0})
-            </span>
-          </div>
-          
+
+        {/* Add to Event Button */}
+        <div className="flex justify-end items-center">
           {showActions && (
             <button
               onClick={() => onAddToEvent && onAddToEvent(product)}

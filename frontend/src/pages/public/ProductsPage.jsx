@@ -350,45 +350,7 @@ const ProductsPage = () => {
               </div>
 
               {/* Rating Filter */}
-              <div>
-                <h4 className="text-base font-semibold text-gray-900 mb-4">
-                  Customer Rating
-                </h4>
-                <div className="space-y-3">
-                  {ratingOptions.map((rating) => (
-                    <div key={rating} className="flex items-center">
-                      <input
-                        id={`rating-${rating}`}
-                        type="radio"
-                        checked={filters.rating === String(rating)}
-                        onChange={() =>
-                          setFilters((prev) => ({
-                            ...prev,
-                            rating: String(rating),
-                          }))
-                        }
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                      />
-                      <label
-                        htmlFor={`rating-${rating}`}
-                        className="ml-3 text-sm text-gray-700 flex items-center"
-                      >
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-4 h-4 ${
-                              i < rating
-                                ? "text-yellow-400 fill-yellow-400"
-                                : "text-gray-300"
-                            }`}
-                          />
-                        ))}
-                        {rating < 5 && <span className="ml-2 text-gray-600">& Up</span>}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
+             
             </div>
           </div>
 
