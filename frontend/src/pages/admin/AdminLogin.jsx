@@ -15,38 +15,61 @@ const AdminLogin = () => {
     password: "",
   });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+  // In frontend/src/pages/admin/AdminLogin.jsx - update the handleSubmit function
 
-    try {
-      // Use the auth hook's adminLogin function instead of direct axios
-      const response = await adminLogin({
-        phoneNumber: formData.phoneNumber,
-        password: formData.password,
-        role: "admin", // Explicitly set role as admin
-      });
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError("");
 
-      console.log("Admin login response:", response);
+  try {
+    // Use the auth hook's adminLogin function instead of direct axios
+    const response = await adminLogin({
+      phoneNumber: formData.phoneNumber,
+      password: formData.password,
+      role: "admin", // Explicitly set role as admin
+    });
 
-      if (response.success) {
-        // Navigate to admin dashboard
-        navigate("/admin/dashboard");
-      } else {
-        throw new Error(response.message || "Login failed");
+    console.log("Admin login response:", response);
+
+    if (response.success) {
+      // Double-check that we have the user in localStorage before navigating
+      const storedUser = localStorage.getItem("user");
+      const storedToken = localStorage.getItem("token");
+      
+      console.log("Stored user after login:", storedUser);
+      console.log("Token exists:", !!storedToken);
+      
+      if (storedUser && storedToken) {
+        // Log stored user info to verify role
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          console.log("Stored user role:", parsedUser.role);
+          
+          if (parsedUser.role !== "admin") {
+            console.warn("User does not have admin role!");
+          }
+        } catch (e) {
+          console.error("Error parsing stored user:", e);
+        }
       }
-    } catch (err) {
-      console.error("Admin login error:", err);
-      setError(
-        err.response?.data?.message ||
-          err.message ||
-          "Invalid admin credentials"
-      );
-    } finally {
-      setLoading(false);
+      
+      // Navigate to admin dashboard
+      navigate("/admin/dashboard");
+    } else {
+      throw new Error(response.message || "Login failed");
     }
-  };
+  } catch (err) {
+    console.error("Admin login error:", err);
+    setError(
+      err.response?.data?.message ||
+        err.message ||
+        "Invalid admin credentials"
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">

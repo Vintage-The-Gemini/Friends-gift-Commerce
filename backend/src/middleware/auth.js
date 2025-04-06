@@ -25,6 +25,9 @@ exports.protect = async (req, res, next) => {
   try {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Log the decoded token to debug role issues
+    console.log("Decoded token:", decoded);
 
     // Get user from database
     req.user = await User.findById(decoded.id).select("-password");
@@ -37,6 +40,9 @@ exports.protect = async (req, res, next) => {
       });
     }
 
+    // Log the user role for debugging
+    console.log("User role from database:", req.user.role);
+
     // Check if user is active
     if (!req.user.isActive) {
       return res.status(401).json({
@@ -47,11 +53,31 @@ exports.protect = async (req, res, next) => {
 
     next();
   } catch (error) {
+    console.error("Token verification error:", error);
     return res.status(401).json({
       success: false,
       message: "Not authorized to access this route",
     });
   }
+};
+
+// Grant access to specific roles
+exports.authorize = (...roles) => {
+  return (req, res, next) => {
+    console.log("Authorize middleware - User role:", req.user.role);
+    console.log("Authorize middleware - Allowed roles:", roles);
+    
+    if (!roles.includes(req.user.role)) {
+      console.log("Role not authorized:", req.user.role);
+      return res.status(403).json({
+        success: false,
+        message: `Role ${req.user.role} is not authorized to access this route`,
+      });
+    }
+    
+    console.log("Role authorized:", req.user.role);
+    next();
+  };
 };
 
 // Grant access to specific roles

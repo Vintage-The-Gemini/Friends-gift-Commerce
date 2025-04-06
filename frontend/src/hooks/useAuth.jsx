@@ -3,6 +3,8 @@ import { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import authService from "../services/api/auth";
 import { toast } from "react-toastify";
+import api from "../services/api/axios.config"; // Import the api object
+
 
 const AuthContext = createContext();
 
@@ -304,24 +306,37 @@ export const AuthProvider = ({ children }) => {
   // Admin login
   const adminLogin = async (credentials) => {
     try {
-      setLoading(true);
-      setError(null);
+      const response = await api.post("/admin/login", credentials);
       
-      const response = await authService.adminLogin(credentials);
-      
-      if (response.success) {
-        setUser(response.user);
-        navigate("/admin/dashboard");
-        toast.success("Admin login successful");
-        return response;
-      } else {
-        throw new Error(response.message || "Admin login failed");
+      if (response.data.success) {
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("user", JSON.stringify({
+          ...response.data.user,
+          role: "admin" // Explicitly ensure the role is set to admin
+        }));
+        
+        setUser({
+          ...response.data.user,
+          role: "admin"
+        });
+        
+        return {
+          success: true,
+          user: response.data.user
+        };
       }
+      
+      return {
+        success: false,
+        message: response.data.message || "Login failed"
+      };
+      
     } catch (error) {
-      setError(error.message || "Admin login failed");
-      throw error;
-    } finally {
-      setLoading(false);
+      console.error("Admin login error:", error);
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || "Login failed"
+      };
     }
   };
 

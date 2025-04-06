@@ -15,7 +15,9 @@ const generateToken = (id) => {
     expiresIn: "30d",
   });
 };
-// In adminLogin function in admin.controller.js
+
+
+
 exports.adminLogin = async (req, res) => {
   try {
     console.log("=== ADMIN LOGIN ATTEMPT ===");
@@ -96,7 +98,8 @@ exports.adminLogin = async (req, res) => {
 
     // Generate token
     console.log("Login successful, generating token");
-    const token = jwt.sign({ id: admin._id }, process.env.JWT_SECRET, {
+    // IMPORTANT: Make sure role is included in the token payload
+    const token = jwt.sign({ id: admin._id, role: admin.role }, process.env.JWT_SECRET, {
       expiresIn: "30d",
     });
 
@@ -121,6 +124,10 @@ exports.adminLogin = async (req, res) => {
     });
   }
 };
+
+
+
+
 // @desc    Get dashboard stats
 // @route   GET /api/admin/dashboard/stats
 // @access  Admin only

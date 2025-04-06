@@ -1,4 +1,4 @@
-// src/services/api/axios.config.js
+// frontend/src/services/api/axios.config.js
 import axios from "axios";
 
 // Error types
@@ -10,7 +10,6 @@ const ErrorTypes = {
 };
 
 // We need to fix the double API issue by removing /api from the baseURL
-// filepath: c:\Users\Admin\Desktop\desighn\Friends-gift-Commerce\frontend\src\services\api\axios.config.js
 const api = axios.create({
   baseURL:
     import.meta.env.VITE_API_URL ||
@@ -27,6 +26,10 @@ api.interceptors.request.use(
     const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      // Log token being used for debugging
+      console.log(`Adding Authorization token to ${config.url}`);
+    } else {
+      console.warn(`No token found for request to ${config.url}`);
     }
 
     // Remove any duplicated /api prefix in the URL to prevent the double /api/api issue
@@ -39,6 +42,17 @@ api.interceptors.request.use(
 
     // Log ALL requests in development for debugging
     console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+    
+    // Log user info from localStorage for debugging auth issues
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        console.log(`Request as user role: ${user.role}`);
+      } catch (e) {
+        console.warn("Could not parse user from localStorage");
+      }
+    }
 
     return config;
   },
@@ -52,6 +66,7 @@ api.interceptors.request.use(
 const errorHandlers = {
   [ErrorTypes.UNAUTHORIZED]: async (error) => {
     // Don't try to refresh, just clear tokens and redirect
+    console.error("[Unauthorized Error]:", error.config.url);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     window.location.href = "/auth/signin";
@@ -60,6 +75,26 @@ const errorHandlers = {
 
   [ErrorTypes.FORBIDDEN]: (error) => {
     console.error("[Access Forbidden]:", error.config.url);
+    // Log more details about the request that was forbidden
+    console.error("Request details:", {
+      url: error.config.url,
+      method: error.config.method,
+      headers: error.config.headers,
+      data: error.config.data,
+      responseMessage: error.response?.data?.message
+    });
+    // Try to get user info from localStorage
+    try {
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        console.error("User role from localStorage:", user.role);
+      } else {
+        console.error("No user in localStorage");
+      }
+    } catch (e) {
+      console.error("Error parsing user from localStorage:", e);
+    }
     throw new Error("You do not have permission to access this resource");
   },
 
@@ -77,10 +112,9 @@ const errorHandlers = {
 };
 
 // Response interceptor with improved error handling
-// filepath: c:\Users\Admin\Desktop\desighn\Friends-gift-Commerce\frontend\src\services\api\axios.config.js
 api.interceptors.response.use(
   (response) => {
-    console.log("[API Response]:", response);
+    console.log("[API Response]:", response.config.url, response.status);
     return response;
   },
   async (error) => {
@@ -117,6 +151,7 @@ api.interceptors.response.use(
     throw new Error(errorMessage);
   }
 );
+
 // Add request/response timing in production
 if (process.env.NODE_ENV === "production") {
   api.interceptors.request.use((config) => {
