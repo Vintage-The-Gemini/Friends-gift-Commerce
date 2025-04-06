@@ -106,12 +106,7 @@ const CompactProductCard = ({
           )}
         </div>
         
-        {/* Seller name if available */}
-        {product.seller && (
-          <div className="text-xs text-gray-500 mb-3 truncate">
-            {product.seller.businessName || product.seller.name}
-          </div>
-        )}
+     
         
         {/* Add to Event button */}
         {showAddToEvent && (
