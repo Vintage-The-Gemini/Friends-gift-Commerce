@@ -304,42 +304,30 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Admin login
-  const adminLogin = async (credentials) => {
+  const adminLogin = async (adminData) => {
     try {
-      const response = await api.post("/admin/login", credentials);
+      const response = await api.post("/admin/login", adminData);
       
       if (response.data.success) {
+        // Ensure token and user data are properly stored
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("user", JSON.stringify({
           ...response.data.user,
-          role: "admin" // Explicitly ensure the role is set to admin
+          role: "admin" // Explicitly set role to admin
         }));
         
-        setUser({
-          ...response.data.user,
-          role: "admin"
-        });
-        
-        return {
-          success: true,
-          user: response.data.user
-        };
+        return { success: true };
       }
       
-      return {
-        success: false,
-        message: response.data.message || "Login failed"
-      };
-      
+      return { success: false, message: "Login failed" };
     } catch (error) {
       console.error("Admin login error:", error);
-      return {
-        success: false,
-        message: error.response?.data?.message || error.message || "Login failed"
+      return { 
+        success: false, 
+        message: error.response?.data?.message || "Login failed" 
       };
     }
   };
-
   // Check if user has admin privileges
   const isAdmin = () => {
     return user?.role === "admin";

@@ -3,60 +3,85 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/user");
 
 // Protect routes
+// In backend/src/middleware/auth.js - replace or enhance the protect middleware
 exports.protect = async (req, res, next) => {
+  console.log("=== PROTECT MIDDLEWARE START ===");
+  console.log("Request URL:", req.originalUrl);
+  
   let token;
 
-  // Check if token exists in headers
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
-  ) {
+  // Check headers for token
+  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
     token = req.headers.authorization.split(" ")[1];
+    console.log("Token found in Authorization header");
+  } else {
+    console.log("No token found in Authorization header");
   }
 
-  // If no token found, return error
   if (!token) {
+    console.log("No token available - authentication failed");
     return res.status(401).json({
       success: false,
-      message: "Not authorized to access this route",
+      message: "Not authorized to access this route - no token provided"
     });
   }
 
   try {
+    // Debug raw token
+    console.log("Raw token:", token);
+    
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("Decoded token:", JSON.stringify(decoded, null, 2));
     
-    // Log the decoded token to debug role issues
-    console.log("Decoded token:", decoded);
-
-    // Get user from database
-    req.user = await User.findById(decoded.id).select("-password");
-
-    // Check if user exists
-    if (!req.user) {
+    // Find user
+    const user = await User.findById(decoded.id).select("-password");
+    console.log("User from database:", user ? {
+      id: user._id,
+      name: user.name,
+      role: user.role,
+      isActive: user.isActive
+    } : "No user found");
+    
+    if (!user) {
+      console.log("User not found in database");
       return res.status(401).json({
         success: false,
-        message: "User no longer exists",
+        message: "User no longer exists"
       });
     }
-
-    // Log the user role for debugging
-    console.log("User role from database:", req.user.role);
-
+    
+    // Check token role vs database role
+    if (decoded.role) {
+      console.log(`Token role: ${decoded.role}, Database role: ${user.role}`);
+      
+      if (decoded.role !== user.role) {
+        console.log("WARNING: Role mismatch between token and database!");
+      }
+    } else {
+      console.log("Token does not contain role information");
+    }
+    
     // Check if user is active
-    if (!req.user.isActive) {
+    if (!user.isActive) {
+      console.log("User account is not active");
       return res.status(401).json({
         success: false,
-        message: "Your account has been deactivated",
+        message: "Your account has been deactivated"
       });
     }
-
+    
+    // Set user in request
+    req.user = user;
+    console.log("Authentication successful, proceeding to next middleware");
+    console.log("=== PROTECT MIDDLEWARE END ===");
     next();
   } catch (error) {
-    console.error("Token verification error:", error);
+    console.log("Token verification error:", error.message);
+    console.log("=== PROTECT MIDDLEWARE END WITH ERROR ===");
     return res.status(401).json({
       success: false,
-      message: "Not authorized to access this route",
+      message: "Not authorized to access this route - invalid token"
     });
   }
 };
@@ -80,15 +105,4 @@ exports.authorize = (...roles) => {
   };
 };
 
-// Grant access to specific roles
-exports.authorize = (...roles) => {
-  return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: `Role ${req.user.role} is not authorized to access this route`,
-      });
-    }
-    next();
-  };
-};
+

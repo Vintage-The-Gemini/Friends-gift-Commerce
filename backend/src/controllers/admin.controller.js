@@ -99,9 +99,17 @@ exports.adminLogin = async (req, res) => {
     // Generate token
     console.log("Login successful, generating token");
     // IMPORTANT: Make sure role is included in the token payload
-    const token = jwt.sign({ id: admin._id, role: admin.role }, process.env.JWT_SECRET, {
-      expiresIn: "30d",
-    });
+    const token = jwt.sign(
+      { 
+        id: admin._id, 
+        role: admin.role  // Make sure role is included here
+      }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: "30d" }
+    );
+
+
+
 
     console.log("Admin login successful:", admin._id);
 

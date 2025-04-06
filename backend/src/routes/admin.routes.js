@@ -11,16 +11,18 @@ const orderController = require("../controllers/admin.order.controller");
 // Public admin route - no authentication required
 router.post("/login", adminController.adminLogin);
 
-// Debug route to check authentication
-router.get("/check-auth", protect, authorize(["admin"]), (req, res) => {
+router.get("/check-auth", protect, (req, res) => {
   res.json({
     success: true,
-    message: "Admin authentication successful",
+    message: "Authentication check successful",
     user: {
       id: req.user._id,
       name: req.user.name,
       role: req.user.role,
       isActive: req.user.isActive
+    },
+    headers: {
+      authorization: req.headers.authorization ? "Present (not shown)" : "Missing"
     }
   });
 });
