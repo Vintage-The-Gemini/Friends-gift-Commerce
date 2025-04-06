@@ -216,35 +216,39 @@ exports.googleLogin = async (req, res) => {
     });
 
     const { email, name, picture, email_verified } = ticket.getPayload();
+    console.log("Google payload:", { email, name, email_verified });
 
     // Check if user exists
     let user = await User.findOne({ email });
 
     if (!user) {
       // Create new user with Google data
-      user = await User.create({
-        name,
-        email,
-        password: crypto.randomBytes(16).toString("hex"), // Random password
-        role,
-        authProvider: "google",
-        isEmailVerified: email_verified,
-        profilePicture: picture,
-        isActive: true,
-      });
-    } else {
-      // If user exists but hasn't used Google before, update their info
-      if (user.authProvider !== "google") {
-        user.authProvider = "google";
-        user.isEmailVerified = email_verified || user.isEmailVerified;
-        user.profilePicture = picture || user.profilePicture;
-        await user.save();
+      try {
+        user = await User.create({
+          name,
+          email,
+          password: crypto.randomBytes(16).toString("hex"), // Random password
+          role,
+          authProvider: "google",
+          isEmailVerified: email_verified,
+          profilePicture: picture,
+          isActive: true,
+        });
+      } catch (createError) {
+        console.error("User creation error:", createError);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to create user account",
+          error: createError.message,
+        });
       }
+    } else {
+      // Update existing user with Google info
+      user.authProvider = "google";
+      user.isEmailVerified = email_verified || user.isEmailVerified;
+      user.profilePicture = picture || user.profilePicture;
+      await user.save();
     }
-
-    // Update last login
-    user.lastLogin = Date.now();
-    await user.save();
 
     // Generate token
     const token = generateToken(user._id);
@@ -263,9 +267,9 @@ exports.googleLogin = async (req, res) => {
     });
   } catch (error) {
     console.error("Google login error:", error);
-    res.status(500).json({
+    res.status(401).json({
       success: false,
-      message: "Google authentication failed",
+      message: "Failed to verify Google token",
       error: error.message,
     });
   }
@@ -488,6 +492,64 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
+// Change password (for logged-in users)
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password and new password are required",
+      });
+    }
+    
+    // Get user from database (req.user comes from the auth middleware)
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+    
+    // Check if current password matches
+    const isMatch = await user.matchPassword(currentPassword);
+    
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: "Current password is incorrect",
+      });
+    }
+    
+    // Validate new password
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "New password must be at least 8 characters long",
+      });
+    }
+    
+    // Update password
+    user.password = newPassword;
+    await user.save();
+    
+    res.json({
+      success: true,
+      message: "Password changed successfully",
+    });
+  } catch (error) {
+    console.error("Change password error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to change password",
+      error: error.message,
+    });
+  }
+};
+
 // Get current user
 exports.getCurrentUser = async (req, res) => {
   try {
@@ -511,6 +573,83 @@ exports.getCurrentUser = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch user data",
+      error: error.message,
+    });
+  }
+};
+
+// Update profile
+exports.updateProfile = async (req, res) => {
+  try {
+    const { name, phoneNumber, email, businessName } = req.body;
+    
+    // Find user by ID
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+    
+    // Check if email is being changed and if it's already in use
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: "Email is already in use",
+        });
+      }
+      
+      // If email is changed, set it as unverified
+      user.email = email;
+      user.isEmailVerified = false;
+      
+      // Generate new verification token
+      const verificationToken = user.generateVerificationToken();
+      
+      // Send verification email
+      await sendVerificationEmail(user, verificationToken);
+    }
+    
+    // Check if phone number is being changed and if it's already in use
+    if (phoneNumber && phoneNumber !== user.phoneNumber) {
+      const existingUser = await User.findOne({ phoneNumber });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: "Phone number is already in use",
+        });
+      }
+      user.phoneNumber = phoneNumber;
+    }
+    
+    // Update other fields
+    if (name) user.name = name;
+    if (user.role === 'seller' && businessName) user.businessName = businessName;
+    
+    await user.save();
+    
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      data: {
+        id: user._id,
+        name: user.name,
+        phoneNumber: user.phoneNumber,
+        email: user.email,
+        role: user.role,
+        businessName: user.businessName,
+        isEmailVerified: user.isEmailVerified,
+      },
+    });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update profile",
       error: error.message,
     });
   }

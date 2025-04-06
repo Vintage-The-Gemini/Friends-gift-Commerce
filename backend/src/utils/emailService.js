@@ -1,9 +1,6 @@
 // backend/src/utils/emailService.js
 const nodemailer = require("nodemailer");
 
-// Global transporter variable
-let transporter;
-
 // Create email transporter based on provider configuration
 const createTransporter = async () => {
   // If we're in development environment and no specific provider is set, use Ethereal for testing
@@ -67,17 +64,6 @@ const createTransporter = async () => {
         },
       });
 
-    case "mailgun":
-      return nodemailer.createTransport({
-        host: process.env.MAILGUN_SMTP_SERVER || "smtp.mailgun.org",
-        port: parseInt(process.env.MAILGUN_SMTP_PORT || "587"),
-        secure: false,
-        auth: {
-          user: process.env.MAILGUN_SMTP_LOGIN,
-          pass: process.env.MAILGUN_SMTP_PASSWORD,
-        },
-      });
-
     case "custom":
     default:
       // For any custom SMTP server
@@ -94,29 +80,17 @@ const createTransporter = async () => {
 };
 
 // Initialize the transporter
+let transporter;
 const initTransporter = async () => {
-  try {
-    transporter = await createTransporter();
-    console.log("Email transporter initialized successfully");
-    return transporter;
-  } catch (error) {
-    console.error("Failed to initialize email transporter:", error);
-    throw error;
-  }
-};
-
-// Get transporter (initialize if needed)
-const getTransporter = async () => {
-  if (!transporter) {
-    return await initTransporter();
-  }
-  return transporter;
+  transporter = await createTransporter();
 };
 
 // Send email function
 const sendEmail = async (options) => {
   try {
-    const emailTransporter = await getTransporter();
+    if (!transporter) {
+      await initTransporter();
+    }
 
     const fromEmail = process.env.EMAIL_FROM || process.env.EMAIL_USERNAME;
     const fromName = process.env.EMAIL_FROM_NAME || "Friends Gift";
@@ -132,7 +106,7 @@ const sendEmail = async (options) => {
       attachments: options.attachments,
     };
 
-    const info = await emailTransporter.sendMail(mailOptions);
+    const info = await transporter.sendMail(mailOptions);
 
     // If using Ethereal in development, log the preview URL
     if (process.env.NODE_ENV !== "production" && info.messageId) {
@@ -197,37 +171,6 @@ const getPasswordResetEmailTemplate = (name, resetUrl) => {
   `;
 };
 
-// Welcome Email Template
-const getWelcomeEmailTemplate = (name) => {
-  return `
-  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-    <div style="background-color: #5551FF; padding: 20px; text-align: center; color: white;">
-      <h1>Friends Gift</h1>
-    </div>
-    <div style="padding: 20px; border: 1px solid #eee; background-color: #fff;">
-      <h2>Welcome to Friends Gift, ${name}!</h2>
-      <p>Thank you for joining our platform. We're excited to have you with us!</p>
-      <p>With Friends Gift, you can:</p>
-      <ul style="margin-bottom: 20px;">
-        <li>Create gift events for special occasions</li>
-        <li>Share your events with friends and family</li>
-        <li>Discover unique products from our sellers</li>
-        <li>Manage contributions and make gifting collaborative</li>
-      </ul>
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="${
-          process.env.FRONTEND_URL
-        }" style="background-color: #5551FF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Explore Friends Gift</a>
-      </div>
-      <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
-    </div>
-    <div style="padding: 20px; text-align: center; color: #777; font-size: 12px;">
-      <p>&copy; ${new Date().getFullYear()} Friends Gift. All rights reserved.</p>
-    </div>
-  </div>
-  `;
-};
-
 // Send verification email
 const sendVerificationEmail = async (user, verificationToken) => {
   try {
@@ -264,22 +207,6 @@ const sendPasswordResetEmail = async (user, resetToken) => {
   }
 };
 
-// Send welcome email
-const sendWelcomeEmail = async (user) => {
-  try {
-    await sendEmail({
-      to: user.email,
-      subject: "Welcome to Friends Gift!",
-      html: getWelcomeEmailTemplate(user.name),
-    });
-
-    return true;
-  } catch (error) {
-    console.error("Failed to send welcome email:", error);
-    return false;
-  }
-};
-
 // Initialize on module load
 initTransporter().catch((err) => {
   console.error("Failed to initialize email service:", err);
@@ -289,6 +216,5 @@ module.exports = {
   sendEmail,
   sendVerificationEmail,
   sendPasswordResetEmail,
-  sendWelcomeEmail,
-  getTransporter,
+  getTransporter: () => transporter,
 };

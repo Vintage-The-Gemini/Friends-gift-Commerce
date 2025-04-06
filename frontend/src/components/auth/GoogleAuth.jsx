@@ -1,4 +1,3 @@
-// src/components/auth/GoogleAuth.jsx
 import React, { useEffect, useRef } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { toast } from "react-toastify";
@@ -6,16 +5,41 @@ import { toast } from "react-toastify";
 const GoogleAuth = ({ buttonText = "Sign in with Google", role = "buyer" }) => {
   const { loginWithGoogle } = useAuth();
   const googleButtonRef = useRef(null);
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   useEffect(() => {
-    // Define the callback function for Google Sign In
+    // Debug client ID
+    console.log("[GoogleAuth] Client ID:", clientId);
+    console.log("[GoogleAuth] Current origin:", window.location.origin);
+
+    // Define callback with enhanced debugging
     window.handleGoogleSignIn = async (response) => {
+      console.log("[GoogleAuth] Raw Google response:", response);
+      
       try {
-        await loginWithGoogle(response.credential, role);
+        if (!response) {
+          console.error("[GoogleAuth] No response from Google");
+          toast.error("Google sign-in failed: No response received");
+          return;
+        }
+        
+        if (!response.credential) {
+          console.error("[GoogleAuth] No credential in response:", response);
+          toast.error("Google sign-in failed: No credential received");
+          return;
+        }
+        
+        console.log("[GoogleAuth] Credential received, sending to backend");
+        
+        // Calling loginWithGoogle with debug info
+        const result = await loginWithGoogle(response.credential, role);
+        console.log("[GoogleAuth] Login result:", result);
+        
         toast.success("Google sign-in successful");
       } catch (error) {
-        console.error("Google sign-in error:", error);
-        toast.error(error.message || "Google sign-in failed");
+        console.error("[GoogleAuth] Error during login:", error);
+        console.error("[GoogleAuth] Error stack:", error.stack);
+        toast.error(`Google sign-in failed: ${error.message || "Unknown error"}`);
       }
     };
 
@@ -24,46 +48,58 @@ const GoogleAuth = ({ buttonText = "Sign in with Google", role = "buyer" }) => {
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;
     script.defer = true;
-    document.body.appendChild(script);
-
-    // Initialize Google Sign-In when script loads
+    
     script.onload = () => {
-      if (window.google) {
+      console.log("[GoogleAuth] Google API script loaded");
+      
+      if (!window.google) {
+        console.error("[GoogleAuth] window.google not available after script load");
+        return;
+      }
+      
+      try {
+        console.log("[GoogleAuth] Initializing Google Sign-In");
         window.google.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          client_id: clientId,
           callback: window.handleGoogleSignIn,
+          cancel_on_tap_outside: true,
         });
-
-        // Render the button
+        
+        console.log("[GoogleAuth] Rendering Google button");
         window.google.accounts.id.renderButton(googleButtonRef.current, {
+          type: "standard",
           theme: "outline",
           size: "large",
-          text: "continue_with",
-          width: "100%",
+          text: "signin_with",
+          width: 250,
         });
+        
+        console.log("[GoogleAuth] Google button rendered");
+      } catch (error) {
+        console.error("[GoogleAuth] Error initializing Google Sign-In:", error);
       }
     };
+    
+    script.onerror = (error) => {
+      console.error("[GoogleAuth] Failed to load Google API script:", error);
+    };
+    
+    document.body.appendChild(script);
+    console.log("[GoogleAuth] Google API script added to DOM");
 
     // Cleanup
     return () => {
-      // Remove the script tag if it exists
-      const scriptTag = document.querySelector(
-        'script[src="https://accounts.google.com/gsi/client"]'
-      );
-      if (scriptTag) {
-        document.body.removeChild(scriptTag);
+      console.log("[GoogleAuth] Cleaning up Google Auth component");
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
       }
       delete window.handleGoogleSignIn;
     };
-  }, [loginWithGoogle, role]);
+  }, [clientId, loginWithGoogle, role]);
 
   return (
-    <div className="w-full flex justify-center">
-      <div
-        id="google-signin-button"
-        ref={googleButtonRef}
-        className="w-full"
-      ></div>
+    <div className="flex justify-center my-4">
+      <div ref={googleButtonRef}></div>
     </div>
   );
 };

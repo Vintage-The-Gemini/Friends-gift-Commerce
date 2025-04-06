@@ -83,6 +83,136 @@ const authService = {
     }
   },
 
+ // In auth.js or authService.js
+googleLogin: async (credential, role) => {
+  try {
+    console.log("[AuthService] Sending Google login request:", { 
+      tokenLength: credential ? credential.length : 0,
+      role 
+    });
+    
+    // Debug request
+    console.log("[AuthService] API URL:", API_URL);
+    console.log("[AuthService] Full endpoint:", `${API_URL}/auth/google-login`);
+    
+    const response = await api.post("/auth/google-login", { 
+      tokenId: credential,
+      role 
+    });
+    
+    console.log("[AuthService] Google login response:", response.data);
+    
+    if (response.data.token) {
+      localStorage.setItem("token", response.data.token);
+      localStorage.setItem("user", JSON.stringify(response.data.user));
+      console.log("[AuthService] Token and user saved to localStorage");
+    }
+    
+    return { ...response.data, success: true };
+  } catch (error) {
+    console.error("[AuthService] Google login error:", error);
+    
+    if (error.response) {
+      console.error("[AuthService] Response status:", error.response.status);
+      console.error("[AuthService] Response data:", error.response.data);
+    } else if (error.request) {
+      console.error("[AuthService] No response received:", error.request);
+    } else {
+      console.error("[AuthService] Error setting up request:", error.message);
+    }
+    
+    return handleError(error, "Google login failed");
+  }
+},
+
+  verifyToken: async () => {
+    try {
+      const response = await api.get("/auth/me");
+      return { ...response.data, success: true };
+    } catch (error) {
+      // If token verification fails, clear local storage
+      if (error.response?.status === 401) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      }
+      return handleError(error, "Token verification failed");
+    }
+  },
+
+  logout: () => {
+    try {
+      // Try to call the backend logout endpoint
+      api.post("/auth/logout").catch((err) => {
+        console.warn("Backend logout failed:", err);
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      // Always clear local storage regardless of backend response
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+    }
+  },
+
+  updateProfile: async (userData) => {
+    try {
+      const response = await api.put("/auth/profile", userData);
+      return { ...response.data, success: true };
+    } catch (error) {
+      return handleError(error, "Failed to update profile");
+    }
+  },
+
+  verifyEmail: async (token) => {
+    try {
+      const response = await api.get(`/auth/verify-email/${token}`);
+      return { ...response.data, success: true };
+    } catch (error) {
+      return handleError(error, "Email verification failed");
+    }
+  },
+
+  resendVerificationEmail: async (email) => {
+    try {
+      const response = await api.post("/auth/resend-verification", { email });
+      return { ...response.data, success: true };
+    } catch (error) {
+      return handleError(error, "Failed to resend verification email");
+    }
+  },
+
+  forgotPassword: async (email) => {
+    try {
+      const response = await api.post("/auth/forgot-password", { email });
+      return { ...response.data, success: true };
+    } catch (error) {
+      return handleError(error, "Failed to send password reset email");
+    }
+  },
+
+  resetPassword: async (token, password) => {
+    try {
+      const response = await api.post(`/auth/reset-password/${token}`, { 
+        password 
+      });
+      return { ...response.data, success: true };
+    } catch (error) {
+      return handleError(error, "Failed to reset password");
+    }
+  },
+
+  changePassword: async (currentPassword, newPassword) => {
+    try {
+      const response = await api.post("/auth/change-password", {
+        currentPassword,
+        newPassword,
+      });
+      return { ...response.data, success: true };
+    } catch (error) {
+      return handleError(error, "Failed to change password");
+    }
+  },
+
   adminLogin: async (credentials) => {
     try {
       // Use the full API URL to bypass any path resolution issues
@@ -102,21 +232,6 @@ const authService = {
     } catch (error) {
       console.error("Admin login service error:", error);
       return handleError(error, "Admin login failed");
-    }
-  },
-
-  logout: () => {
-    try {
-      // Try to call the backend logout endpoint
-      api.post("/auth/logout").catch((err) => {
-        console.warn("Backend logout failed:", err);
-      });
-    } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      // Always clear local storage regardless of backend response
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
     }
   },
 
