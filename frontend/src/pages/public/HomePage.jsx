@@ -11,6 +11,7 @@ import {
   ArrowRight,
   Star,
   Clock,
+  ShoppingBag,
 } from "lucide-react";
 import { eventService } from "../../services/api/event";
 import { useAuth } from "../../hooks/useAuth";
@@ -84,18 +85,18 @@ const HomePage = () => {
 
                 <div className="flex flex-wrap gap-4 justify-center lg:justify-start">
                   <Link
-                    to={user ? "/events/create" : "/auth/signin"}
+                    to="/products"
                     className="inline-flex items-center px-6 py-3 bg-white text-purple-700 rounded-full font-semibold hover:bg-amber-300 hover:text-purple-800 transition-all shadow-md"
                   >
-                    <Gift className="w-5 h-5 mr-2" />
-                    {user ? "Create Event" : "Get Started"}
+                    <ShoppingBag className="w-5 h-5 mr-2" />
+                    Explore Gifts
                   </Link>
 
                   <Link
-                    to="/events"
+                    to={user ? "/events/create" : "/auth/signin"}
                     className="inline-flex items-center px-6 py-3 bg-purple-800/30 backdrop-blur-sm text-white border border-white/20 rounded-full font-semibold hover:bg-purple-800/50 transition-all"
                   >
-                    Explore Events
+                    {user ? "Create Event" : "Get Started"}
                     <ChevronRight className="w-5 h-5 ml-1" />
                   </Link>
                 </div>

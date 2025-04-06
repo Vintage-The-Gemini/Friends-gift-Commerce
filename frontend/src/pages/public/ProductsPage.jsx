@@ -1,18 +1,16 @@
 // src/pages/public/ProductsPage.jsx
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Search,
   Filter,
   Grid,
-  List,
-  Trash2,
   X,
   ChevronDown,
   ChevronRight,
   ChevronLeft,
-  Loader2,
   Star,
+  ShoppingBag
 } from "lucide-react";
 import { productService } from "../../services/api/product";
 import { categoryService } from "../../services/api/category";
@@ -29,28 +27,27 @@ const ProductsPage = () => {
 
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [initialLoad, setInitialLoad] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState("grid");
   const [pagination, setPagination] = useState({
     page: parseInt(searchParams.get("page")) || 1,
     totalPages: 1,
     total: 0,
   });
+  
   const [filters, setFilters] = useState({
     category: searchParams.get("category") || "",
     search: searchParams.get("search") || "",
     minPrice: searchParams.get("minPrice") || "",
     maxPrice: searchParams.get("maxPrice") || "",
-    rating: searchParams.get("rating") || "",
   });
+  
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [sortOption, setSortOption] = useState(
     searchParams.get("sort") || "newest"
   );
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
 
-  // Fetch categories on mount
+  // Fetch categories on mount - just once
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -60,14 +57,14 @@ const ProductsPage = () => {
         }
       } catch (error) {
         console.error("Error fetching categories:", error);
-        toast.error("Failed to load categories");
       }
     };
 
     fetchCategories();
+    fetchProducts(true);
   }, []);
 
-  // Fetch products when filters or sort option changes
+  // Fetch products when filters or sort changes
   useEffect(() => {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
@@ -76,52 +73,29 @@ const ProductsPage = () => {
     params.append("page", pagination.page.toString());
     params.append("sort", sortOption);
     setSearchParams(params);
-
-    if (!initialLoad) {
-      fetchProducts(true);
-    } else {
-      setInitialLoad(false);
-    }
+    
+    fetchProducts(true);
   }, [filters, sortOption]);
 
-  // Fetch products when page changes
+  // Fetch products when page changes 
   useEffect(() => {
-    if (!initialLoad) {
+    if (pagination.page > 1) {
       fetchProducts(false);
     }
   }, [pagination.page]);
-
-  // Infinite scroll handler
-  useEffect(() => {
-    const handleScroll = () => {
-      if (
-        window.innerHeight + document.documentElement.scrollTop !==
-          document.documentElement.offsetHeight ||
-        isFetchingMore ||
-        pagination.page >= pagination.totalPages
-      ) {
-        return;
-      }
-      setIsFetchingMore(true);
-      setPagination((prev) => ({ ...prev, page: prev.page + 1 }));
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [isFetchingMore, pagination.page, pagination.totalPages]);
 
   // Debounced search handler
   const debouncedSearch = useCallback(
     debounce((value) => {
       setFilters((prev) => ({ ...prev, search: value }));
       setPagination((prev) => ({ ...prev, page: 1 }));
-    }, 500),
+    }, 300),
     []
   );
 
   const fetchProducts = async (resetPage = false) => {
     try {
-      resetPage ? setLoading(true) : setIsFetchingMore(true);
+      setLoading(true);
 
       const options = {
         page: resetPage ? 1 : pagination.page,
@@ -148,7 +122,6 @@ const ProductsPage = () => {
       toast.error("Failed to load products");
     } finally {
       setLoading(false);
-      setIsFetchingMore(false);
     }
   };
 
@@ -166,8 +139,6 @@ const ProductsPage = () => {
         return "name";
       case "name_desc":
         return "-name";
-      case "rating_desc":
-        return "-averageRating";
       default:
         return "-createdAt";
     }
@@ -191,7 +162,6 @@ const ProductsPage = () => {
       search: "",
       minPrice: "",
       maxPrice: "",
-      rating: "",
     });
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
@@ -218,21 +188,17 @@ const ProductsPage = () => {
     debouncedSearch(e.target.value);
   };
 
-  const hasActiveFilters = useMemo(() => {
-    return Object.values(filters).some((v) => v);
-  }, [filters]);
-
-  const ratingOptions = [5, 4, 3, 2, 1];
+  const hasActiveFilters = Object.values(filters).some((v) => v);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-6">
+    <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Page Header */}
-        <div className="mb-8 text-center lg:text-left">
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">
+        <div className="mb-10 text-center">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
             Discover Perfect Gifts
           </h1>
-          <p className="text-lg text-gray-600 max-w-3xl mx-auto lg:mx-0">
+          <p className="text-lg text-gray-600 max-w-3xl mx-auto">
             Browse our curated collection to find the ideal gift for any occasion
           </p>
         </div>
@@ -240,16 +206,15 @@ const ProductsPage = () => {
         {/* Main Content Layout */}
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Sidebar - Desktop */}
-          <div className="hidden lg:block w-80 flex-shrink-0">
-            <div className="bg-white rounded-xl shadow-md p-6 sticky top-6">
+          <div className="hidden lg:block w-64 flex-shrink-0">
+            <div className="bg-white rounded-xl shadow-sm p-6 sticky top-6">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="font-bold text-lg text-gray-900">Filters</h3>
                 {hasActiveFilters && (
                   <button
                     onClick={handleClearFilters}
-                    className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center font-medium"
+                    className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
                   >
-                    <Trash2 className="w-4 h-4 mr-1" />
                     Clear all
                   </button>
                 )}
@@ -307,7 +272,7 @@ const ProductsPage = () => {
               {/* Price Range */}
               <div className="mb-8">
                 <h4 className="text-base font-semibold text-gray-900 mb-4">
-                  Price Range ($)
+                  Price Range
                 </h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -348,16 +313,13 @@ const ProductsPage = () => {
                   </div>
                 </div>
               </div>
-
-              {/* Rating Filter */}
-             
             </div>
           </div>
 
           {/* Main Content */}
           <div className="flex-1">
             {/* Search and Controls */}
-            <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+            <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
               <div className="flex flex-col md:flex-row gap-4 items-center">
                 <div className="flex-1 relative w-full">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -365,7 +327,7 @@ const ProductsPage = () => {
                   </div>
                   <input
                     type="text"
-                    placeholder="Search products by name, category, or keyword..."
+                    placeholder="Search products..."
                     defaultValue={filters.search}
                     onChange={handleSearchChange}
                     className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
@@ -385,7 +347,6 @@ const ProductsPage = () => {
                       <option value="price_desc">Price: High to Low</option>
                       <option value="name_asc">Name: A to Z</option>
                       <option value="name_desc">Name: Z to A</option>
-                      <option value="rating_desc">Highest Rated</option>
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                       <ChevronDown className="h-5 w-5" />
@@ -410,7 +371,7 @@ const ProductsPage = () => {
                       Category:{" "}
                       {
                         categories.find((c) => c._id === filters.category)
-                          ?.name
+                          ?.name || "Selected"
                       }
                       <button
                         onClick={() =>
@@ -443,19 +404,6 @@ const ProductsPage = () => {
                           setFilters((prev) => ({ ...prev, maxPrice: "" }))
                         }
                         className="ml-2 inline-flex text-green-600 focus:outline-none"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </span>
-                  )}
-                  {filters.rating && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
-                      Rating: {filters.rating}+
-                      <button
-                        onClick={() =>
-                          setFilters((prev) => ({ ...prev, rating: "" }))
-                        }
-                        className="ml-2 inline-flex text-yellow-600 focus:outline-none"
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -535,7 +483,7 @@ const ProductsPage = () => {
                     {/* Price Range */}
                     <div>
                       <h4 className="text-base font-semibold text-gray-900 mb-4">
-                        Price Range ($)
+                        Price Range
                       </h4>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -577,47 +525,6 @@ const ProductsPage = () => {
                       </div>
                     </div>
 
-                    {/* Rating Filter */}
-                    <div>
-                      <h4 className="text-base font-semibold text-gray-900 mb-4">
-                        Customer Rating
-                      </h4>
-                      <div className="space-y-3">
-                        {ratingOptions.map((rating) => (
-                          <div key={`mobile-rating-${rating}`} className="flex items-center">
-                            <input
-                              id={`mobile-rating-${rating}`}
-                              type="radio"
-                              checked={filters.rating === String(rating)}
-                              onChange={() =>
-                                setFilters((prev) => ({
-                                  ...prev,
-                                  rating: String(rating),
-                                }))
-                              }
-                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                            />
-                            <label
-                              htmlFor={`mobile-rating-${rating}`}
-                              className="ml-3 text-sm text-gray-700 flex items-center"
-                            >
-                              {Array.from({ length: 5 }).map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`w-4 h-4 ${
-                                    i < rating
-                                      ? "text-yellow-400 fill-yellow-400"
-                                      : "text-gray-300"
-                                  }`}
-                                />
-                              ))}
-                              {rating < 5 && <span className="ml-2 text-gray-600">& Up</span>}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
                     <div className="flex gap-3 pt-4">
                       <button
                         onClick={handleClearFilters}
@@ -639,26 +546,33 @@ const ProductsPage = () => {
 
             {/* Products Display */}
             {loading && products.length === 0 ? (
-              <div className="flex justify-center items-center h-96">
-                <Loader2 className="animate-spin h-16 w-16 text-indigo-600" />
-                <span className="ml-3 text-lg">Loading products...</span>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+                {[...Array(8)].map((_, index) => (
+                  <div key={index} className="bg-white rounded-lg shadow-sm overflow-hidden animate-pulse">
+                    <div className="h-48 bg-gray-200"></div>
+                    <div className="p-4">
+                      <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                      <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                      <div className="mt-4 h-8 bg-gray-200 rounded"></div>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : products.length === 0 ? (
-              <div className="text-center py-20 bg-white rounded-xl shadow-md">
+              <div className="text-center py-20 bg-white rounded-xl shadow-sm">
                 <div className="inline-flex justify-center items-center w-20 h-20 rounded-full bg-gray-100 mb-6">
-                  <Search className="h-10 w-10 text-gray-400" />
+                  <ShoppingBag className="h-10 w-10 text-gray-400" />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">
                   No products found
                 </h3>
                 <p className="text-gray-500 mb-6 max-w-md mx-auto">
-                  Try adjusting your search or filter criteria. We might not have what you're looking for yet.
+                  Try adjusting your search or filter criteria
                 </p>
                 <button
                   onClick={handleClearFilters}
-                  className="inline-flex items-center px-4 py-2 text-indigo-600 hover:text-indigo-800 font-medium text-lg"
+                  className="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
                 >
-                  <Trash2 className="w-5 h-5 mr-2" />
                   Clear all filters
                 </button>
               </div>
@@ -670,19 +584,10 @@ const ProductsPage = () => {
                     Showing <span className="font-semibold">{products.length}</span> of{" "}
                     <span className="font-semibold">{pagination.total}</span> products
                   </p>
-                  {hasActiveFilters && (
-                    <button
-                      onClick={handleClearFilters}
-                      className="text-base text-indigo-600 hover:text-indigo-800 flex items-center font-medium"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Clear filters
-                    </button>
-                  )}
                 </div>
 
                 {/* Product Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
                   {products.map((product) => (
                     <CompactProductCard
                       key={product._id}
@@ -692,42 +597,34 @@ const ProductsPage = () => {
                   ))}
                 </div>
 
-                {/* Loading more indicator */}
-                {isFetchingMore && (
-                  <div className="flex justify-center my-10">
-                    <div className="flex items-center">
-                      <Loader2 className="animate-spin h-10 w-10 text-indigo-600 mr-3" />
-                      <span className="text-lg text-gray-600">Loading more products...</span>
+                {/* Pagination */}
+                {pagination.totalPages > 1 && (
+                  <div className="mt-10 flex justify-center">
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={handlePrevPage}
+                        disabled={pagination.page === 1}
+                        className="p-3 border rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 flex items-center"
+                      >
+                        <ChevronLeft className="w-6 h-6" />
+                        <span className="ml-1 hidden sm:inline">Previous</span>
+                      </button>
+
+                      <span className="px-5 py-2 text-base font-medium">
+                        Page {pagination.page} of {pagination.totalPages}
+                      </span>
+
+                      <button
+                        onClick={handleNextPage}
+                        disabled={pagination.page >= pagination.totalPages}
+                        className="p-3 border rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 flex items-center"
+                      >
+                        <span className="mr-1 hidden sm:inline">Next</span>
+                        <ChevronRight className="w-6 h-6" />
+                      </button>
                     </div>
                   </div>
                 )}
-
-                {/* Pagination */}
-                <div className="mt-10 flex justify-center">
-                  <div className="flex items-center gap-4">
-                    <button
-                      onClick={handlePrevPage}
-                      disabled={pagination.page === 1}
-                      className="p-3 border rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 flex items-center"
-                    >
-                      <ChevronLeft className="w-6 h-6" />
-                      <span className="ml-1 hidden sm:inline">Previous</span>
-                    </button>
-
-                    <span className="px-5 py-2 text-base font-medium">
-                      Page {pagination.page} of {pagination.totalPages}
-                    </span>
-
-                    <button
-                      onClick={handleNextPage}
-                      disabled={pagination.page >= pagination.totalPages}
-                      className="p-3 border rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 flex items-center"
-                    >
-                      <span className="mr-1 hidden sm:inline">Next</span>
-                      <ChevronRight className="w-6 h-6" />
-                    </button>
-                  </div>
-                </div>
               </>
             )}
           </div>
