@@ -49,7 +49,8 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Company Info */}
           <div className="space-y-4">
-            <img src={Logo} alt="Friends Gift Logo" className="h-12 w-28.5" />
+            {/* Increased logo size */}
+            <img src={Logo} alt="Friends Gift Logo" className="h-48 w-48" />
             <p className="text-white/90 leading-relaxed">
               Making gift-giving easier and more meaningful. Create events,
               share wishlists, and celebrate special moments together.
