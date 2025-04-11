@@ -4,26 +4,28 @@ import { useLocation, useNavigate, Link } from "react-router-dom";
 import {
   Search,
   Filter,
-  Edit,
   Trash2,
   Eye,
-  ShoppingBag,
+  Package,
   AlertCircle,
   Check,
   X,
   RefreshCw,
-  Package,
   Tag,
-  DollarSign,
   GridIcon,
   ListIcon,
   CheckCircle,
   XCircle,
   Clock,
-  MoreVertical,
-  ExternalLink,
+  MoreHorizontal,
   ChevronRight,
   ChevronLeft,
+  Sliders,
+  User,
+  ExternalLink,
+  ArrowUp,
+  ArrowDown,
+  DollarSign,
 } from "lucide-react";
 import api from "../../services/api/axios.config";
 import { toast } from "react-toastify";
@@ -33,12 +35,14 @@ const AdminProducts = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
+  const searchTimeout = useRef(null);
   
   // Parse query parameters
   const queryParams = new URLSearchParams(location.search);
   
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingSearch, setLoadingSearch] = useState(false);
   const [searchTerm, setSearchTerm] = useState(queryParams.get("search") || "");
   const [categoryFilter, setCategoryFilter] = useState(queryParams.get("category") || "");
   const [sellerFilter, setSellerFilter] = useState(queryParams.get("seller") || "");
@@ -55,7 +59,10 @@ const AdminProducts = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
   const [viewMode, setViewMode] = useState(localStorage.getItem("adminProductsViewMode") || "table");
-  const [actionsDropdown, setActionsDropdown] = useState(null);
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [sortField, setSortField] = useState("createdAt");
+  const [sortDirection, setSortDirection] = useState("desc");
 
   useEffect(() => {
     fetchProducts();
@@ -65,12 +72,39 @@ const AdminProducts = () => {
     // Close dropdown when clicking outside
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setActionsDropdown(null);
+        setActiveDropdown(null);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [page, categoryFilter, sellerFilter, statusFilter, approvalFilter]);
+    
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      if (searchTimeout.current) {
+        clearTimeout(searchTimeout.current);
+      }
+    };
+  }, [page, categoryFilter, sellerFilter, statusFilter, approvalFilter, sortField, sortDirection]);
+
+  // Debounced search effect
+  useEffect(() => {
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current);
+    }
+    
+    if (searchTerm) {
+      setLoadingSearch(true);
+      searchTimeout.current = setTimeout(() => {
+        setPage(1); // Reset to first page when searching
+        fetchProducts();
+      }, 500); // Debounce for 500ms
+    }
+    
+    return () => {
+      if (searchTimeout.current) {
+        clearTimeout(searchTimeout.current);
+      }
+    };
+  }, [searchTerm]);
 
   useEffect(() => {
     // Update URL with current filters
@@ -99,6 +133,7 @@ const AdminProducts = () => {
       const params = new URLSearchParams();
       params.append("page", page);
       params.append("limit", 12);
+      params.append("sort", `${sortDirection === "desc" ? "-" : ""}${sortField}`);
 
       if (categoryFilter) {
         params.append("category", categoryFilter);
@@ -135,6 +170,7 @@ const AdminProducts = () => {
       toast.error("Failed to load products");
     } finally {
       setLoading(false);
+      setLoadingSearch(false);
     }
   };
 
@@ -161,7 +197,16 @@ const AdminProducts = () => {
   };
 
   const handleSearch = (e) => {
-    e.preventDefault();
+    if (e) {
+      e.preventDefault();
+    }
+    
+    // Cancel any existing search timeout
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current);
+    }
+    
+    setLoadingSearch(true);
     setPage(1); // Reset to first page
     fetchProducts();
   };
@@ -233,21 +278,35 @@ const AdminProducts = () => {
   const openDeleteModal = (product) => {
     setSelectedProduct(product);
     setShowDeleteModal(true);
-    setActionsDropdown(null); // Close any open dropdown
+    setActiveDropdown(null); // Close any open dropdown
   };
 
   const openStatusModal = (product) => {
     setSelectedProduct(product);
     setShowStatusModal(true);
-    setActionsDropdown(null); // Close any open dropdown
+    setActiveDropdown(null); // Close any open dropdown
   };
 
-  const toggleActionsDropdown = (productId) => {
-    if (actionsDropdown === productId) {
-      setActionsDropdown(null);
+  const toggleDropdown = (productId) => {
+    setActiveDropdown(activeDropdown === productId ? null : productId);
+  };
+
+  const handleSort = (field) => {
+    if (field === sortField) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
-      setActionsDropdown(productId);
+      setSortField(field);
+      setSortDirection("desc");
     }
+  };
+
+  // Format date
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   };
 
   // Helper function to get appropriate status badge
@@ -297,26 +356,66 @@ const AdminProducts = () => {
   // Render loading spinner
   if (loading && products.length === 0) {
     return (
-      <div className="p-6 flex justify-center items-center min-h-[400px]">
+      <div className="p-4 md:p-6 flex justify-center items-center min-h-[400px]">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      <div className="flex flex-wrap justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">{getPageTitle()}</h1>
-        
-        {/* View mode toggle + filters */}
-        <div className="flex items-center space-x-2 mt-2 sm:mt-0">
+    <div className="p-4 md:p-6">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold">{getPageTitle()}</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Manage your product catalog
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="relative flex-grow md:flex-grow-0">
+            <form onSubmit={handleSearch} className="w-full md:w-auto">
+              <input
+                type="text"
+                placeholder="Search products..."
+                className="pl-10 pr-4 py-2 border rounded-lg w-full md:w-64"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {loadingSearch ? (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <RefreshCw className="w-4 h-4 text-gray-400 animate-spin" />
+                </div>
+              ) : (
+                <button
+                  type="submit"
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                >
+                  <Search className="w-4 h-4" />
+                </button>
+              )}
+            </form>
+          </div>
+          
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="p-2 border rounded-lg hover:bg-gray-50 relative"
+            aria-expanded={showFilters}
+          >
+            <Sliders className="w-5 h-5 text-gray-600" />
+            {(categoryFilter || sellerFilter || statusFilter !== "all" || approvalFilter !== "all") && (
+              <span className="absolute top-0 right-0 transform translate-x-1/3 -translate-y-1/3 bg-blue-500 rounded-full w-2.5 h-2.5"></span>
+            )}
+          </button>
+
           <div className="flex items-center border rounded-lg overflow-hidden">
             <button
               onClick={() => setViewMode("table")}
               className={`p-2 ${
                 viewMode === "table"
                   ? "bg-blue-600 text-white"
-                  : "bg-white text-gray-600 hover:bg-gray-100"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
               }`}
               title="Table view"
             >
@@ -327,143 +426,131 @@ const AdminProducts = () => {
               className={`p-2 ${
                 viewMode === "grid"
                   ? "bg-blue-600 text-white"
-                  : "bg-white text-gray-600 hover:bg-gray-100"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
               }`}
               title="Grid view"
             >
               <GridIcon className="w-5 h-5" />
             </button>
           </div>
+
+          <button
+            onClick={fetchProducts}
+            className="p-2 border rounded-lg hover:bg-gray-50"
+          >
+            <RefreshCw className="w-5 h-5 text-gray-600" />
+          </button>
         </div>
       </div>
 
-      {/* Search and filters */}
-      <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <form
-          onSubmit={handleSearch}
-          className="flex flex-wrap gap-4 items-end"
-        >
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Search
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search products..."
-                className="pl-10 pr-4 py-2 border rounded-lg w-full"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+      {/* Filters Panel */}
+      {showFilters && (
+        <div className="bg-white p-4 rounded-lg shadow-md mb-6 animate-fadeIn">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-medium">Filters</h2>
+            <button
+              onClick={resetFilters}
+              className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+            >
+              <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+              Reset all filters
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category
+              </label>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="px-4 py-2 border rounded-lg text-gray-700 w-full"
+              >
+                <option value="">All Categories</option>
+                {categories.map((category) => (
+                  <option key={category._id} value={category._id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Seller
+              </label>
+              <select
+                value={sellerFilter}
+                onChange={(e) => setSellerFilter(e.target.value)}
+                className="px-4 py-2 border rounded-lg text-gray-700 w-full"
+              >
+                <option value="">All Sellers</option>
+                {sellers.map((seller) => (
+                  <option key={seller._id} value={seller._id}>
+                    {seller.businessName || seller.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Status
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-4 py-2 border rounded-lg text-gray-700 w-full"
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Approval
+              </label>
+              <select
+                value={approvalFilter}
+                onChange={(e) => setApprovalFilter(e.target.value)}
+                className="px-4 py-2 border rounded-lg text-gray-700 w-full"
+              >
+                <option value="all">All</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
             </div>
           </div>
 
-          <div className="w-full sm:w-auto">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Category
-            </label>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-4 py-2 border rounded-lg text-gray-700 w-full"
-            >
-              <option value="">All Categories</option>
-              {categories.map((category) => (
-                <option key={category._id} value={category._id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="w-full sm:w-auto">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Seller
-            </label>
-            <select
-              value={sellerFilter}
-              onChange={(e) => setSellerFilter(e.target.value)}
-              className="px-4 py-2 border rounded-lg text-gray-700 w-full"
-            >
-              <option value="">All Sellers</option>
-              {sellers.map((seller) => (
-                <option key={seller._id} value={seller._id}>
-                  {seller.businessName || seller.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="w-full sm:w-auto">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status
-            </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border rounded-lg text-gray-700 w-full"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-
-          <div className="w-full sm:w-auto">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Approval
-            </label>
-            <select
-              value={approvalFilter}
-              onChange={(e) => setApprovalFilter(e.target.value)}
-              className="px-4 py-2 border rounded-lg text-gray-700 w-full"
-            >
-              <option value="all">All</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </div>
-
-          <div className="flex gap-2">
+          <div className="flex justify-end mt-4">
             <button
-              type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              onClick={() => {
+                setShowFilters(false);
+                fetchProducts();
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              <Filter className="w-4 h-4 mr-2 inline-block" />
-              <span className="hidden sm:inline-block">Filter</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 flex items-center"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline-block">Reset</span>
+              Apply Filters
             </button>
           </div>
-        </form>
-      </div>
-
-      {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg flex items-center">
-          <AlertCircle className="w-5 h-5 mr-2" />
-          <span>{error}</span>
         </div>
       )}
 
-      {/* Filter Pills */}
+      {/* Active Filters */}
       {(categoryFilter || sellerFilter || statusFilter !== "all" || approvalFilter !== "all") && (
         <div className="mb-4 flex flex-wrap gap-2">
           {categoryFilter && (
-            <div className="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full flex items-center">
+            <div className="bg-blue-50 border border-blue-200 text-blue-700 text-xs px-3 py-1 rounded-full flex items-center">
+              <Tag className="w-3 h-3 mr-1.5" />
               <span className="mr-1">Category:</span>
               <span className="font-medium mr-2">
-                {categories.find(cat => cat._id === categoryFilter)?.name || 'Selected'}
+                {categories.find((c) => c._id === categoryFilter)?.name || "Selected"}
               </span>
-              <button 
+              <button
                 onClick={() => setCategoryFilter("")}
                 className="text-blue-500 hover:text-blue-700"
               >
@@ -471,15 +558,15 @@ const AdminProducts = () => {
               </button>
             </div>
           )}
-          
+
           {sellerFilter && (
-            <div className="bg-purple-100 text-purple-800 text-xs px-3 py-1 rounded-full flex items-center">
+            <div className="bg-purple-50 border border-purple-200 text-purple-700 text-xs px-3 py-1 rounded-full flex items-center">
+              <User className="w-3 h-3 mr-1.5" />
               <span className="mr-1">Seller:</span>
               <span className="font-medium mr-2">
-                {sellers.find(s => s._id === sellerFilter)?.businessName || 
-                 sellers.find(s => s._id === sellerFilter)?.name || 'Selected'}
+                {sellers.find((s) => s._id === sellerFilter)?.businessName || "Selected"}
               </span>
-              <button 
+              <button
                 onClick={() => setSellerFilter("")}
                 className="text-purple-500 hover:text-purple-700"
               >
@@ -490,8 +577,13 @@ const AdminProducts = () => {
           
           {statusFilter !== "all" && (
             <div className={`${
-              statusFilter === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
-            } text-xs px-3 py-1 rounded-full flex items-center`}>
+              statusFilter === "active" ? "bg-green-50 border-green-200 text-green-700" : "bg-gray-50 border-gray-200 text-gray-700"
+            } text-xs px-3 py-1 rounded-full flex items-center border`}>
+              {statusFilter === "active" ? (
+                <CheckCircle className="w-3 h-3 mr-1.5" />
+              ) : (
+                <XCircle className="w-3 h-3 mr-1.5" />
+              )}
               <span className="mr-1">Status:</span>
               <span className="font-medium mr-2">
                 {statusFilter === "active" ? "Active" : "Inactive"}
@@ -507,10 +599,17 @@ const AdminProducts = () => {
           
           {approvalFilter !== "all" && (
             <div className={`${
-              approvalFilter === "approved" ? "bg-green-100 text-green-800" : 
-              approvalFilter === "pending" ? "bg-yellow-100 text-yellow-800" : 
-              "bg-red-100 text-red-800"
-            } text-xs px-3 py-1 rounded-full flex items-center`}>
+              approvalFilter === "approved" ? "bg-green-50 border-green-200 text-green-700" : 
+              approvalFilter === "pending" ? "bg-yellow-50 border-yellow-200 text-yellow-700" : 
+              "bg-red-50 border-red-200 text-red-700"
+            } text-xs px-3 py-1 rounded-full flex items-center border`}>
+              {approvalFilter === "approved" ? (
+                <CheckCircle className="w-3 h-3 mr-1.5" />
+              ) : approvalFilter === "pending" ? (
+                <Clock className="w-3 h-3 mr-1.5" />
+              ) : (
+                <X className="w-3 h-3 mr-1.5" />
+              )}
               <span className="mr-1">Approval:</span>
               <span className="font-medium mr-2">
                 {approvalFilter.charAt(0).toUpperCase() + approvalFilter.slice(1)}
@@ -529,6 +628,61 @@ const AdminProducts = () => {
           )}
         </div>
       )}
+
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg flex items-center">
+          <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Stats Summary */}
+      <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm font-medium text-gray-700">Products Summary</h2>
+          <span className="bg-blue-100 text-blue-800 text-xs px-2.5 py-1 rounded-full">
+            {totalProducts} total product{totalProducts !== 1 ? "s" : ""}
+          </span>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+          <div className="flex items-center gap-3 bg-green-50 rounded-lg p-3">
+            <div className="bg-green-100 p-2 rounded-md">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+            </div>
+            <div>
+              <div className="text-xs text-green-800">Active</div>
+              <div className="text-lg font-semibold text-green-600">
+                {products.filter(p => p.approvalStatus === "approved" && p.isActive).length}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3 bg-yellow-50 rounded-lg p-3">
+            <div className="bg-yellow-100 p-2 rounded-md">
+              <Clock className="w-5 h-5 text-yellow-600" />
+            </div>
+            <div>
+              <div className="text-xs text-yellow-800">Pending</div>
+              <div className="text-lg font-semibold text-yellow-600">
+                {products.filter(p => p.approvalStatus === "pending").length}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3 bg-red-50 rounded-lg p-3">
+            <div className="bg-red-100 p-2 rounded-md">
+              <X className="w-5 h-5 text-red-600" />
+            </div>
+            <div>
+              <div className="text-xs text-red-800">Inactive/Rejected</div>
+              <div className="text-lg font-semibold text-red-600">
+                {products.filter(p => p.approvalStatus === "rejected" || (p.approvalStatus === "approved" && !p.isActive)).length}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Grid View for Products */}
       {viewMode === "grid" && (
@@ -560,7 +714,7 @@ const AdminProducts = () => {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <ShoppingBag className="h-16 w-16 text-gray-300" />
+                      <Package className="h-16 w-16 text-gray-300" />
                     </div>
                   )}
                   <div className="absolute top-2 right-2">
@@ -603,351 +757,4 @@ const AdminProducts = () => {
                       <Eye className="w-3.5 h-3.5 mr-1" /> View
                     </Link>
                     
-                    {product.isActive ? (
-                      <button
-                        onClick={() => openStatusModal(product)}
-                        className="text-red-600 px-3 py-1.5 text-sm rounded-lg border border-red-600 hover:bg-red-50 inline-flex items-center"
-                      >
-                        <X className="w-3.5 h-3.5 mr-1" /> Deactivate
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => openStatusModal(product)}
-                        className="text-green-600 px-3 py-1.5 text-sm rounded-lg border border-green-600 hover:bg-green-50 inline-flex items-center"
-                      >
-                        <Check className="w-3.5 h-3.5 mr-1" /> Activate
-                      </button>
-                    )}
-                    
-                    <button
-                      onClick={() => openDeleteModal(product)}
-                      className="text-gray-600 p-1.5 rounded-lg hover:bg-gray-100"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Table View for Products */}
-      {viewMode === "table" && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Product
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Price
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Category
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Seller
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Stock
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {products.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan="7"
-                      className="px-6 py-10 text-center text-gray-500"
-                    >
-                      <ShoppingBag className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
-                      <p>Try adjusting your search filters</p>
-                      {(categoryFilter || sellerFilter || statusFilter !== "all" || approvalFilter !== "all") && (
-                        <button
-                          onClick={resetFilters}
-                          className="mt-4 inline-flex items-center text-blue-600 hover:text-blue-800"
-                        >
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Reset all filters
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ) : (
-                  products.map((product) => (
-                    <tr key={product._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 rounded-md overflow-hidden bg-gray-100">
-                            {product.images && product.images.length > 0 ? (
-                              <img
-                                src={product.images[0].url}
-                                alt={product.name}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <ShoppingBag className="h-10 w-10 p-2 text-gray-400" />
-                            )}
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
-                              {product.name}
-                            </div>
-                            <div className="text-xs text-gray-500 truncate max-w-xs">
-                              {product.description}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {formatCurrency(product.price)}
-                        </div>
-                        {product.marginPercentage > 0 && (
-                          <div className="text-xs text-gray-500">
-                            Margin: {product.marginPercentage}%
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center text-sm text-gray-900">
-                          <Tag className="w-4 h-4 mr-1.5 text-gray-400" />
-                          {product.category?.name || "Uncategorized"}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {product.seller?.businessName ||
-                            product.seller?.name ||
-                            "Unknown Seller"}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {product.stock}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(product)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className="relative inline-block text-left" ref={dropdownRef}>
-                          <button
-                            onClick={() => toggleActionsDropdown(product._id)}
-                            className="text-gray-400 hover:text-gray-600"
-                          >
-                            <MoreVertical className="h-5 w-5" />
-                          </button>
-
-                          {actionsDropdown === product._id && (
-                            <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
-                              <div className="py-1">
-                                <Link
-                                  to={`/products/${product._id}`}
-                                  target="_blank"
-                                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                >
-                                  <ExternalLink className="w-4 h-4 mr-2 text-gray-400" />
-                                  View on Site
-                                </Link>
-                                
-                                {product.isActive ? (
-                                  <button
-                                    onClick={() => openStatusModal(product)}
-                                    className="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                                  >
-                                    <X className="w-4 h-4 mr-2" />
-                                    Deactivate
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={() => openStatusModal(product)}
-                                    className="w-full text-left flex items-center px-4 py-2 text-sm text-green-600 hover:bg-gray-100"
-                                  >
-                                    <Check className="w-4 h-4 mr-2" />
-                                    Activate
-                                  </button>
-                                )}
-                                
-                                <button
-                                  onClick={() => openDeleteModal(product)}
-                                  className="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-between items-center mt-6">
-          <div className="text-sm text-gray-700 hidden sm:block">
-            Showing <span className="font-medium">{products.length}</span> of{" "}
-            <span className="font-medium">{totalProducts}</span> products
-          </div>
-          <div className="flex gap-2 mx-auto sm:mx-0">
-            <button
-              onClick={() => setPage(Math.max(1, page - 1))}
-              disabled={page === 1}
-              className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 flex items-center"
-            >
-              <ChevronLeft className="w-4 h-4 sm:mr-1" />
-              <span className="hidden sm:inline">Previous</span>
-            </button>
-            
-            <div className="hidden sm:flex gap-2">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const pageNum = page > 3 && totalPages > 5 ? page - 3 + i : i + 1;
-                if (pageNum <= totalPages) {
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => setPage(pageNum)}
-                      className={`w-8 h-8 flex items-center justify-center border rounded ${
-                        pageNum === page
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "hover:bg-gray-50"
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                }
-                return null;
-              })}
-            </div>
-            
-            <div className="sm:hidden flex items-center px-2">
-              <span className="text-sm font-medium">
-                {page} / {totalPages}
-              </span>
-            </div>
-            
-            <button
-              onClick={() => setPage(Math.min(totalPages, page + 1))}
-              disabled={page === totalPages}
-              className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 flex items-center"
-            >
-              <span className="hidden sm:inline">Next</span>
-              <ChevronRight className="w-4 h-4 sm:ml-1" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && selectedProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h2 className="text-xl font-bold mb-4">Delete Product</h2>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete the product "
-              {selectedProduct?.name}"? This action cannot be undone.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={actionLoading}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center"
-              >
-                {actionLoading ? (
-                  <>
-                    <RefreshCw className="animate-spin w-4 h-4 mr-2" />
-                    Deleting...
-                  </>
-                ) : (
-                  "Delete Product"
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Activate/Deactivate Confirmation Modal */}
-      {showStatusModal && selectedProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h2 className="text-xl font-bold mb-4">
-              {selectedProduct.isActive ? "Deactivate" : "Activate"} Product
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to {selectedProduct.isActive ? "deactivate" : "activate"} the product "
-              {selectedProduct?.name}"? 
-              {selectedProduct.isActive 
-                ? " This will make the product invisible to users." 
-                : " This will make the product visible to users."}
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowStatusModal(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => toggleProductStatus(selectedProduct)}
-                disabled={actionLoading}
-                className={`text-white px-4 py-2 rounded-lg disabled:opacity-50 flex items-center ${
-                  selectedProduct.isActive 
-                    ? "bg-red-600 hover:bg-red-700" 
-                    : "bg-green-600 hover:bg-green-700"
-                }`}
-              >
-                {actionLoading ? (
-                  <>
-                    <RefreshCw className="animate-spin w-4 h-4 mr-2" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    {selectedProduct.isActive ? (
-                      <>
-                        <X className="w-4 h-4 mr-2" />
-                        Deactivate
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-4 h-4 mr-2" />
-                        Activate
-                      </>
-                    )}
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default AdminProducts;
+                    {product
