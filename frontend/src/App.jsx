@@ -42,6 +42,8 @@ import AdminProducts from "./pages/admin/AdminProducts";
 import AdminCategories from "./pages/admin/AdminCategories";
 import AdminApprovalsList from "./pages/admin/AdminApprovalsList";
 import AdminProductReview from "./pages/admin/AdminProductReview";
+import AdminOrders from "./pages/admin/AdminOrders";
+import AdminOrderDetail from "./pages/admin/AdminOrderDetail";
 
 // Seller Pages
 import BusinessSetup from "./pages/dashboard/seller/BusinessSetup";
@@ -242,9 +244,10 @@ const router = createBrowserRouter(
                 { path: "products", element: <AdminProducts /> },
                 { path: "categories", element: <AdminCategories /> },
                 { path: "settings", element: <AdminSettings /> },
-                // New approval routes
                 { path: "approvals", element: <AdminApprovalsList /> },
                 { path: "product-review/:id", element: <AdminProductReview /> },
+                { path: "orders", element: <AdminOrders /> },
+                { path: "orders/:id", element: <AdminOrderDetail /> },
               ],
             },
           ],

@@ -1,4 +1,4 @@
-// frontend/src/pages/admin/AdminDashboard.jsx (Updated)
+// frontend/src/pages/admin/AdminDashboard.jsx
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -19,6 +19,7 @@ import {
   Clock,
   CheckCircle,
   X,
+  User
 } from "lucide-react";
 import api from "../../services/api/axios.config";
 import { formatCurrency } from "../../utils/currency";
