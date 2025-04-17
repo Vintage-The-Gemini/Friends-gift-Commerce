@@ -213,7 +213,7 @@ const HomePage = () => {
             ].map((step, index) => (
               <div
                 key={index}
-                className="text-center p-6 rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow border border-gray-100"
+                className="text-center p-6 rounded-xl bg-white shadow-sm transition-shadow border border-blue-500"
               >
                 <div className="w-20 h-20 mx-auto bg-indigo-50 rounded-full flex items-center justify-center mb-6">
                   {step.icon}

@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "friends-gifts-commerce-67e63"
-  }
+    "default": "friends-gifts-commerce-67e63",
+    "testing": "friends-gifts-commerce-67e63"
+  },
+  "targets": {},
+  "etags": {}
 }
