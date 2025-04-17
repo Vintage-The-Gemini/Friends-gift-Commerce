@@ -23,6 +23,10 @@ import ResetPassword from "./pages/auth/ResetPassword";
 import EventsPage from "./pages/public/EventsPage";
 import ProductsPage from "./pages/public/ProductsPage";
 import ProductDetailsPage from "./pages/public/ProductDetailsPage";
+import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
+import TermsOfService from "./pages/legal/TermsOfService";
+import ContactPage from "./pages/legal/ContactPage";
+import HelpSupportPage from "./pages/legal/HelpSupportPage";
 
 // Event Pages
 import CreateEvent from "./pages/events/CreateEvent";
@@ -95,6 +99,12 @@ const router = createBrowserRouter(
             // Product Routes
             { path: "/products", element: <ProductsPage /> },
             { path: "/products/:id", element: <ProductDetailsPage /> },
+            
+            // Legal Pages
+            { path: "/privacy-policy", element: <PrivacyPolicy /> },
+            { path: "/terms-of-service", element: <TermsOfService /> },
+            { path: "/contact", element: <ContactPage /> },
+            { path: "/help-support", element: <HelpSupportPage /> },
 
             // Event Routes
             { path: "/events", element: <EventsPage /> },
