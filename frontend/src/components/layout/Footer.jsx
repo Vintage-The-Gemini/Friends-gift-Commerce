@@ -19,14 +19,14 @@ const Footer = () => {
   return (
     <footer className="bg-[#5551FF] text-white py-0 mt-0">
       <div className="container mx-auto px-6">
-        {/* Main Footer Content */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12 justify-items-center text-center md:text-left pt-8">
+        {/* Main Footer Content - Reduced vertical spacing */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-4 justify-items-center text-center md:text-left pt-8">
           {/* Categories Column */}
           <div className="w-full max-w-xs">
-            <h3 className="text-base font-semibold text-white mb-6 uppercase tracking-wide">
+            <h3 className="text-base font-semibold text-white mb-3 uppercase tracking-wide">
               Categories
             </h3>
-            <ul className="space-y-4 text-base">
+            <ul className="space-y-2 text-base">
               <li>
                 <Link to="/products" className="text-white/80 hover:text-white">
                   All Products
@@ -62,10 +62,10 @@ const Footer = () => {
 
           {/* For Gift Givers Column */}
           <div className="w-full max-w-xs">
-            <h3 className="text-base font-semibold text-white mb-6 uppercase tracking-wide">
+            <h3 className="text-base font-semibold text-white mb-3 uppercase tracking-wide">
               For Gift Givers
             </h3>
-            <ul className="space-y-4 text-base">
+            <ul className="space-y-2 text-base">
               <li>
                 <Link to="/" className="text-white/80 hover:text-white">
                   How It Works
@@ -99,8 +99,8 @@ const Footer = () => {
 
           {/* Account Column */}
           <div className="w-full max-w-xs">
-            <h3 className="text-base font-semibold text-white mb-6 uppercase tracking-wide">Account</h3>
-            <ul className="space-y-4 text-base">
+            <h3 className="text-base font-semibold text-white mb-3 uppercase tracking-wide">Account</h3>
+            <ul className="space-y-2 text-base">
               <li>
                 <Link
                   to="/auth/signin"
@@ -136,63 +136,69 @@ const Footer = () => {
           </div>
         </div>
 
-        {/* Footer Bottom */}
-        <div className="border-t border-white/40 pt-6 pb-6 flex flex-col md:flex-row justify-between items-center">
-          {/* Logo and Copyright */}
-          <div className="flex items-center mb-6 md:mb-0">
-            <Link to="/" className="mr-6">
-              <img src={Logo} alt="Friends Gift Logo" className="h-50" />
-            </Link>
-            <span className="text-base text-white/90">
-              © Friends Gift Ltd. {currentYear}
-            </span>
-          </div>
+        {/* Footer Bottom - Fixed height for logo container */}
+        <div className="border-t border-white/40 pt-3 pb-3">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            {/* Logo and Copyright - Taller fixed height container */}
+            <div className="flex items-center mb-3 md:mb-0">
+              <div className="mr-6 h-16 flex items-center">
+                <img 
+                  src={Logo} 
+                  alt="Friends Gift Logo" 
+                  className="h-30" 
+                />
+              </div>
+              <span className="text-base text-white/90">
+                © Friends Gift Ltd. {currentYear}
+              </span>
+            </div>
 
-          {/* Social Icons and Language Selector */}
-          <div className="flex items-center space-x-8">
-            {/* Social Media Icons */}
-            <Link
-              to="/"
-              aria-label="Facebook"
-              className="text-white/80 hover:text-white"
-            >
-              <Facebook size={22} />
-            </Link>
-            <Link
-              to="/"
-              aria-label="Instagram"
-              className="text-white/80 hover:text-white"
-            >
-              <Instagram size={22} />
-            </Link>
-            <Link
-              to="/"
-              aria-label="Twitter"
-              className="text-white/80 hover:text-white"
-            >
-              <Twitter size={22} />
-            </Link>
-            <Link
-              to="/"
-              aria-label="LinkedIn"
-              className="text-white/80 hover:text-white"
-            >
-              <Linkedin size={22} />
-            </Link>
-            <Link
-              to="/"
-              aria-label="Email"
-              className="text-white/80 hover:text-white"
-            >
-              <Mail size={22} />
-            </Link>
+            {/* Social Icons and Language Selector */}
+            <div className="flex items-center space-x-6">
+              {/* Social Media Icons */}
+              <Link
+                to="/"
+                aria-label="Facebook"
+                className="text-white/80 hover:text-white"
+              >
+                <Facebook size={20} />
+              </Link>
+              <Link
+                to="/"
+                aria-label="Instagram"
+                className="text-white/80 hover:text-white"
+              >
+                <Instagram size={20} />
+              </Link>
+              <Link
+                to="/"
+                aria-label="Twitter"
+                className="text-white/80 hover:text-white"
+              >
+                <Twitter size={20} />
+              </Link>
+              <Link
+                to="/"
+                aria-label="LinkedIn"
+                className="text-white/80 hover:text-white"
+              >
+                <Linkedin size={20} />
+              </Link>
+              <Link
+                to="/"
+                aria-label="Email"
+                className="text-white/80 hover:text-white"
+              >
+                <Mail size={20} />
+              </Link>
 
-            {/* Language and Currency */}
-            <div className="flex items-center text-base">
-              <button className="text-white/80 hover:text-white mr-6 flex items-center">
-                <Globe size={18} className="mr-2" /> English
-              </button>
-              <button className="text-white/80 hover:text-white">KES</button>
+              {/* Language and Currency */}
+              <div className="flex items-center text-base">
+                <button className="text-white/80 hover:text-white mr-6 flex items-center">
+                  <Globe size={16} className="mr-2" /> English
+                </button>
+                <button className="text-white/80 hover:text-white">KES</button>
+              </div>
             </div>
           </div>
         </div>

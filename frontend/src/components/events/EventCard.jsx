@@ -87,7 +87,7 @@ const EventCard = ({ event, compact = false }) => {
 
   // Full event card
   return (
-    <div className="group bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+    <div className="group bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 flex flex-col h-full">
       {/* Card Header / Image */}
       <div className="relative">
         {event.image ? (
@@ -133,7 +133,7 @@ const EventCard = ({ event, compact = false }) => {
       </div>
 
       {/* Card Content */}
-      <div className="p-4">
+      <div className="p-4 flex-1 flex flex-col">
         {/* Event Meta */}
         <div className="flex flex-wrap gap-4 text-xs text-gray-600 mb-4">
           <div className="flex items-center">
@@ -176,17 +176,19 @@ const EventCard = ({ event, compact = false }) => {
           </div>
         </div>
 
-        {/* Description */}
-        {event.description && (
-          <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-            {event.description}
-          </p>
-        )}
+        {/* Description - Fixed height with ellipsis */}
+        <div className="flex-grow mb-4">
+          {event.description && (
+            <p className="text-gray-600 text-sm line-clamp-2 overflow-hidden">
+              {event.description}
+            </p>
+          )}
+        </div>
 
-        {/* Action Button */}
+        {/* Action Button - Now at the bottom of the flex column */}
         <Link
           to={`/events/${event._id}`}
-          className="inline-flex items-center justify-center w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          className="inline-flex items-center justify-center w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors mt-auto"
         >
           <Gift className="w-4 h-4 mr-2" />
           <span>View Event</span>

@@ -1,9 +1,13 @@
 // backend/src/controllers/event.controller.js
 const Event = require("../models/Event");
 const Product = require("../models/Product");
+const User = require("../models/user");
+
 const { uploadToCloudinary } = require("../utils/cloudinary");
 const Order = require("../models/Order");
 const crypto = require("crypto");
+const notificationService = require("../utils/notifications");
+
 
 // Helper to generate access code for private events
 const generateAccessCode = () => {

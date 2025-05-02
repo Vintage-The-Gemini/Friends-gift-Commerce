@@ -19,7 +19,9 @@ import {
   Clock,
   CheckCircle,
   X,
-  User
+  User,
+  BarChart2,
+  PieChart
 } from "lucide-react";
 import api from "../../services/api/axios.config";
 import { formatCurrency } from "../../utils/currency";
@@ -53,10 +55,14 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [timeRange, setTimeRange] = useState("weekly");
+  const [salesTrend, setSalesTrend] = useState([]);
+  const [categoryData, setCategoryData] = useState([]);
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+    fetchAnalyticsData();
+  }, [timeRange]);
 
   const fetchDashboardData = async () => {
     try {
@@ -109,6 +115,25 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchAnalyticsData = async () => {
+    try {
+      const [salesTrendResponse, categoryResponse] = await Promise.all([
+        api.get(`/admin/analytics/sales?timeRange=${timeRange}`),
+        api.get('/admin/analytics/categories')
+      ]);
+      
+      if (salesTrendResponse.data.success) {
+        setSalesTrend(salesTrendResponse.data.data || []);
+      }
+      
+      if (categoryResponse.data.success) {
+        setCategoryData(categoryResponse.data.data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching analytics data:", error);
+    }
+  };
+
   // Generate activities array from various data sources
   const generateActivities = (statsData, pendingProductsData) => {
     const activitiesList = [];
@@ -158,12 +183,12 @@ const AdminDashboard = () => {
   
     setActivities(activitiesList);
   };
-  
 
   const refreshDashboard = async () => {
     try {
       setRefreshing(true);
       await fetchDashboardData();
+      await fetchAnalyticsData();
       // Show success feedback
       setTimeout(() => setRefreshing(false), 1000);
     } catch (error) {
@@ -194,16 +219,28 @@ const AdminDashboard = () => {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-        <button
-          onClick={refreshDashboard}
-          disabled={refreshing}
-          className="flex items-center px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100"
-        >
-          <RefreshCw
-            className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`}
-          />
-          {refreshing ? "Refreshing..." : "Refresh"}
-        </button>
+        <div className="flex items-center gap-4">
+          <select
+            value={timeRange}
+            onChange={(e) => setTimeRange(e.target.value)}
+            className="border rounded-lg px-3 py-2"
+          >
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+          </select>
+          <button
+            onClick={refreshDashboard}
+            disabled={refreshing}
+            className="flex items-center px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100"
+          >
+            <RefreshCw
+              className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`}
+            />
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -315,6 +352,44 @@ const AdminDashboard = () => {
               >
                 View All <ChevronRight className="h-4 w-4 ml-1" />
               </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Analytics Overview */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">Sales Trend</h2>
+            <div className="flex items-center text-sm text-gray-500">
+              <TrendingUp className="w-4 h-4 mr-1 text-green-500" />
+              <span className="text-green-500 font-medium">+12.5%</span>
+              <span className="ml-1">vs last {timeRange}</span>
+            </div>
+          </div>
+          <div className="h-64 w-full">
+            {/* Replace with actual chart component */}
+            <div className="w-full h-full bg-gray-50 rounded-lg flex items-center justify-center">
+              <BarChart2 className="w-12 h-12 text-gray-400" />
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">Category Distribution</h2>
+            <Link 
+              to="/admin/categories" 
+              className="text-sm text-indigo-600 hover:text-indigo-800"
+            >
+              View Categories
+            </Link>
+          </div>
+          <div className="h-64 w-full">
+            {/* Replace with actual chart component */}
+            <div className="w-full h-full bg-gray-50 rounded-lg flex items-center justify-center">
+              <PieChart className="w-12 h-12 text-gray-400" />
             </div>
           </div>
         </div>
