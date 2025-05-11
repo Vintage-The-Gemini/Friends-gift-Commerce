@@ -1,16 +1,16 @@
 // frontend/src/pages/legal/ContactPage.jsx
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { 
-  ArrowLeft, 
-  Mail, 
-  Phone, 
-  MapPin, 
+import {
+  ArrowLeft,
+  Mail,
+  Phone,
+  MapPin,
   Send,
   Facebook,
   Instagram,
   Twitter,
-  Linkedin
+  Linkedin,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -19,15 +19,15 @@ const ContactPage = () => {
     name: "",
     email: "",
     subject: "",
-    message: ""
+    message: "",
   });
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prevData => ({
+    setFormData((prevData) => ({
       ...prevData,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -38,18 +38,18 @@ const ContactPage = () => {
     try {
       // In a real implementation, you would send this data to your backend
       // const response = await api.post("/contact", formData);
-      
+
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       toast.success("Your message has been sent. We'll get back to you soon!");
-      
+
       // Reset form
       setFormData({
         name: "",
         email: "",
         subject: "",
-        message: ""
+        message: "",
       });
     } catch (error) {
       console.error("Error sending message:", error);
@@ -62,14 +62,17 @@ const ContactPage = () => {
   return (
     <div className="container mx-auto px-4 py-10 max-w-4xl">
       <div className="mb-8">
-        <Link to="/" className="flex items-center text-indigo-600 mb-4 hover:underline">
+        <Link
+          to="/"
+          className="flex items-center text-indigo-600 mb-4 hover:underline"
+        >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Home
         </Link>
         <h1 className="text-3xl font-bold mb-2">Contact Us</h1>
         <p className="text-gray-600 max-w-2xl">
-          Have questions about Friends Gift? We're here to help! Use the form below 
-          or our contact information to reach our team.
+          Have questions about Friends Gift? We're here to help! Use the form
+          below or our contact information to reach our team.
         </p>
       </div>
 
@@ -78,14 +81,16 @@ const ContactPage = () => {
         <div className="md:col-span-1">
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h2 className="text-xl font-semibold mb-6">Contact Information</h2>
-            
+
             <div className="space-y-6">
               <div className="flex items-start">
                 <MapPin className="w-5 h-5 text-indigo-600 mr-3 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-gray-600">
-                    Ngumo Phase 1, House No. 30A<br />
-                    Nairobi, Kenya<br />
+                    Ngumo Phase 1, House No. 30A
+                    <br />
+                    Nairobi, Kenya
+                    <br />
                     P.O. Box 903, Postal Code 30100
                   </p>
                 </div>
@@ -110,33 +115,33 @@ const ContactPage = () => {
             <div className="mt-8">
               <h3 className="font-medium text-gray-900 mb-3">Follow Us</h3>
               <div className="flex space-x-4">
-                <a 
-                  href="https://www.facebook.com" 
-                  target="_blank" 
+                <a
+                  href="https://www.facebook.com"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-indigo-600 hover:text-indigo-800"
                 >
                   <Facebook className="w-5 h-5" />
                 </a>
-                <a 
-                  href="https://www.instagram.com" 
-                  target="_blank" 
+                <a
+                  href="https://www.instagram.com"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-indigo-600 hover:text-indigo-800"
                 >
                   <Instagram className="w-5 h-5" />
                 </a>
-                <a 
-                  href="https://www.twitter.com" 
-                  target="_blank" 
+                <a
+                  href="https://www.twitter.com"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-indigo-600 hover:text-indigo-800"
                 >
                   <Twitter className="w-5 h-5" />
                 </a>
-                <a 
-                  href="https://www.linkedin.com" 
-                  target="_blank" 
+                <a
+                  href="https://www.linkedin.com"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-indigo-600 hover:text-indigo-800"
                 >
@@ -151,11 +156,14 @@ const ContactPage = () => {
         <div className="md:col-span-2">
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h2 className="text-xl font-semibold mb-6">Send Us a Message</h2>
-            
+
             <form onSubmit={handleSubmit}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="name"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Your Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -166,12 +174,15 @@ const ContactPage = () => {
                     onChange={handleChange}
                     required
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="John Doe"
+                    placeholder=""
                   />
                 </div>
-                
+
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="email"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Email Address <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -182,13 +193,16 @@ const ContactPage = () => {
                     onChange={handleChange}
                     required
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="johndoe@example.com"
+                    placeholder=""
                   />
                 </div>
               </div>
-              
+
               <div className="mb-6">
-                <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="subject"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Subject <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -202,9 +216,12 @@ const ContactPage = () => {
                   placeholder="How can we help you?"
                 />
               </div>
-              
+
               <div className="mb-6">
-                <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="message"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Your Message <span className="text-red-500">*</span>
                 </label>
                 <textarea
@@ -218,7 +235,7 @@ const ContactPage = () => {
                   placeholder="Write your message here..."
                 ></textarea>
               </div>
-              
+
               <div>
                 <button
                   type="submit"
