@@ -7,6 +7,7 @@ const { protect, authorize } = require("../middleware/auth");
 const adminController = require("../controllers/admin.controller");
 const productController = require("../controllers/admin.product.controller");
 const orderController = require("../controllers/admin.order.controller");
+const adminCategoryRoutes = require("./admin.category.routes");
 
 // Public admin route - no authentication required
 router.post("/login", adminController.adminLogin);
@@ -30,6 +31,9 @@ router.get("/check-auth", protect, (req, res) => {
 // Apply protection to all routes below
 router.use(protect);
 router.use(authorize(["admin"]));
+
+// Use category admin routes
+router.use("/categories", adminCategoryRoutes);
 
 // Dashboard routes
 router.get("/dashboard/stats", adminController.getDashboardStats);
