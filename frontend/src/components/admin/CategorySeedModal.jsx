@@ -1,4 +1,4 @@
-// frontend/src/components/admin/CategorySeedModal.jsx
+// src/components/admin/CategorySeedModal.jsx
 import { useState, useEffect } from "react";
 import { X, Check, AlertCircle, RefreshCw } from "lucide-react";
 import api from "../../services/api/axios.config";
@@ -130,6 +130,20 @@ const CategorySeedModal = ({ isOpen, onClose, onSuccess }) => {
           { name: "Valentine's Day" },
           { name: "Mother's & Father's Day" }
         ]
+      },
+      {
+        name: "Experience Gifts",
+        characteristics: [
+          { name: "duration", type: "select", options: ["Hour", "Half Day", "Full Day", "Weekend", "Week"] },
+          { name: "group_size", type: "select", options: ["Solo", "Couple", "Small Group", "Large Group"] },
+          { name: "location_type", type: "select", options: ["Indoor", "Outdoor", "Virtual"] }
+        ],
+        subcategories: [
+          { name: "Adventure Experiences" },
+          { name: "Food & Drink" },
+          { name: "Classes & Workshops" },
+          { name: "Wellness & Spa" }
+        ]
       }
     ]
   };
@@ -223,7 +237,6 @@ const CategorySeedModal = ({ isOpen, onClose, onSuccess }) => {
     setError(null);
     
     try {
-      // Create a new endpoint in your API for seeding categories
       const response = await api.post("/admin/categories/seed", {
         categories: seedPreview
       });
@@ -247,42 +260,43 @@ const CategorySeedModal = ({ isOpen, onClose, onSuccess }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
       <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
-        <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-xl font-bold">Seed Categories</h2>
+        <div className="flex justify-between items-center p-4 sm:p-6 border-b sticky top-0 bg-white z-10">
+          <h2 className="text-lg sm:text-xl font-bold">Seed Categories</h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-500 hover:text-gray-700 p-1"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
         
-        <div className="p-6 overflow-y-auto flex-grow">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-grow">
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg flex items-center">
+            <div className="mb-4 sm:mb-6 bg-red-50 border border-red-200 text-red-600 p-3 sm:p-4 rounded-lg flex items-center">
               <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
-              <span>{error}</span>
+              <span className="text-sm">{error}</span>
             </div>
           )}
           
-          <div className="mb-6">
+          <div className="mb-4 sm:mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Select Template
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <button
                 type="button"
                 onClick={() => handleSeedTemplateChange("default")}
-                className={`p-4 border rounded-lg text-left ${
+                className={`p-3 sm:p-4 border rounded-lg text-left ${
                   seedTemplate === "default" 
                     ? "border-blue-500 ring-2 ring-blue-500 bg-blue-50" 
                     : "border-gray-300 hover:bg-gray-50"
                 }`}
               >
                 <div className="font-medium mb-1">Default</div>
-                <div className="text-sm text-gray-500">
+                <div className="text-xs sm:text-sm text-gray-500">
                   Basic categories with electronics, clothing, and home & living
                 </div>
               </button>
@@ -290,14 +304,14 @@ const CategorySeedModal = ({ isOpen, onClose, onSuccess }) => {
               <button
                 type="button"
                 onClick={() => handleSeedTemplateChange("retail")}
-                className={`p-4 border rounded-lg text-left ${
+                className={`p-3 sm:p-4 border rounded-lg text-left ${
                   seedTemplate === "retail" 
                     ? "border-blue-500 ring-2 ring-blue-500 bg-blue-50" 
                     : "border-gray-300 hover:bg-gray-50"
                 }`}
               >
                 <div className="font-medium mb-1">Retail</div>
-                <div className="text-sm text-gray-500">
+                <div className="text-xs sm:text-sm text-gray-500">
                   E-commerce focused categories with detailed attributes
                 </div>
               </button>
@@ -305,14 +319,14 @@ const CategorySeedModal = ({ isOpen, onClose, onSuccess }) => {
               <button
                 type="button"
                 onClick={() => handleSeedTemplateChange("events")}
-                className={`p-4 border rounded-lg text-left ${
+                className={`p-3 sm:p-4 border rounded-lg text-left ${
                   seedTemplate === "events" 
                     ? "border-blue-500 ring-2 ring-blue-500 bg-blue-50" 
                     : "border-gray-300 hover:bg-gray-50"
                 }`}
               >
                 <div className="font-medium mb-1">Events</div>
-                <div className="text-sm text-gray-500">
+                <div className="text-xs sm:text-sm text-gray-500">
                   Gift-giving categories organized by celebrations and holidays
                 </div>
               </button>
@@ -320,14 +334,14 @@ const CategorySeedModal = ({ isOpen, onClose, onSuccess }) => {
               <button
                 type="button"
                 onClick={() => handleSeedTemplateChange("custom")}
-                className={`p-4 border rounded-lg text-left ${
+                className={`p-3 sm:p-4 border rounded-lg text-left ${
                   seedTemplate === "custom" 
                     ? "border-blue-500 ring-2 ring-blue-500 bg-blue-50" 
                     : "border-gray-300 hover:bg-gray-50"
                 }`}
               >
                 <div className="font-medium mb-1">Custom</div>
-                <div className="text-sm text-gray-500">
+                <div className="text-xs sm:text-sm text-gray-500">
                   Define your own category structure using JSON
                 </div>
               </button>
@@ -335,21 +349,21 @@ const CategorySeedModal = ({ isOpen, onClose, onSuccess }) => {
           </div>
           
           {seedTemplate === "custom" && (
-            <div className="mb-6">
+            <div className="mb-4 sm:mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Custom Template JSON
               </label>
               <textarea
                 value={customSeedData}
                 onChange={(e) => handleCustomSeedDataChange(e.target.value)}
-                className="w-full h-40 px-3 py-2 border rounded-lg font-mono text-sm"
+                className="w-full h-40 px-3 py-2 border rounded-lg font-mono text-xs sm:text-sm resize-y"
                 placeholder='[{"name": "Category 1", "characteristics": [], "subcategories": []}]'
               />
               
               {validationErrors.length > 0 && (
                 <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                  <div className="font-medium text-yellow-800 mb-1">Validation Issues:</div>
-                  <ul className="list-disc pl-5 text-sm text-yellow-700 space-y-1">
+                  <div className="font-medium text-yellow-800 text-sm mb-1">Validation Issues:</div>
+                  <ul className="list-disc pl-5 text-xs sm:text-sm text-yellow-700 space-y-1">
                     {validationErrors.map((error, index) => (
                       <li key={index}>{error.message}</li>
                     ))}
@@ -360,10 +374,10 @@ const CategorySeedModal = ({ isOpen, onClose, onSuccess }) => {
           )}
           
           <div>
-            <h3 className="text-lg font-medium mb-2">Preview</h3>
+            <h3 className="text-sm sm:text-base font-medium mb-2">Preview</h3>
             <div className="border rounded-lg overflow-hidden">
-              <div className="bg-gray-50 p-4 overflow-x-auto">
-                <pre className="text-sm text-gray-800">
+              <div className="bg-gray-50 p-3 sm:p-4 overflow-x-auto">
+                <pre className="text-xs sm:text-sm text-gray-800 whitespace-pre-wrap break-words">
                   {JSON.stringify(seedPreview, null, 2)}
                 </pre>
               </div>
@@ -377,11 +391,11 @@ const CategorySeedModal = ({ isOpen, onClose, onSuccess }) => {
           </div>
         </div>
         
-        <div className="px-6 py-4 border-t flex justify-end space-x-3">
+        <div className="px-4 py-3 sm:px-6 sm:py-4 border-t flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:space-x-3 sticky bottom-0 bg-white">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 w-full sm:w-auto"
           >
             Cancel
           </button>
@@ -389,7 +403,7 @@ const CategorySeedModal = ({ isOpen, onClose, onSuccess }) => {
             type="button"
             onClick={handleSeedSubmit}
             disabled={actionLoading || validationErrors.length > 0}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center"
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center w-full sm:w-auto"
           >
             {actionLoading ? (
               <>
