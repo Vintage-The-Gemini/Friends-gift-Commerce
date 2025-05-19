@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from "react";
 import { DollarSign, X, CreditCard, Phone, Gift, Info, AlertCircle } from "lucide-react";
 import { formatCurrency } from "../../utils/currency";
+import { toast } from "react-toastify";
+import MpesaPaymentForm from "../payments/MpesaPaymentForm";
 
 const ContributionModal = ({
   event,
@@ -18,6 +20,7 @@ const ContributionModal = ({
   const [error, setError] = useState("");
   const [remainingAmount, setRemainingAmount] = useState(0);
   const [showAmountWarning, setShowAmountWarning] = useState(false);
+  const [showMpesaForm, setShowMpesaForm] = useState(false);
 
   useEffect(() => {
     // Calculate remaining amount needed for this event
@@ -68,6 +71,13 @@ const ContributionModal = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    
+    // For M-PESA, use the dedicated form
+    if (paymentMethod === "mpesa") {
+      setShowMpesaForm(true);
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -88,27 +98,25 @@ const ContributionModal = ({
         }
       }
 
-      if (paymentMethod === "mpesa" && !phoneNumber.match(/^\+254[0-9]{9}$/)) {
-        throw new Error("Please enter a valid Kenyan phone number (+254...)");
+      if (paymentMethod === "card") {
+        // Card payment implementation will go here
+        // Create the contribution data object
+        const contributionData = {
+          eventId: event._id,
+          amount: parseFloat(amount),
+          paymentMethod,
+          message,
+          anonymous,
+        };
+
+        // If it's for a specific product, add the product info
+        if (selectedProduct) {
+          contributionData.productId = selectedProduct.product._id;
+          contributionData.productQuantity = selectedProduct.quantity;
+        }
+
+        await onContribute(contributionData);
       }
-
-      // Create the contribution data object
-      const contributionData = {
-        eventId: event._id,
-        amount: parseFloat(amount),
-        paymentMethod,
-        phoneNumber,
-        message,
-        anonymous,
-      };
-
-      // If it's for a specific product, add the product info
-      if (selectedProduct) {
-        contributionData.productId = selectedProduct.product._id;
-        contributionData.productQuantity = selectedProduct.quantity;
-      }
-
-      await onContribute(contributionData);
     } catch (err) {
       setError(err.message || "Failed to process contribution");
     } finally {
@@ -244,7 +252,9 @@ const ContributionModal = ({
               <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
-                  onClick={() => setPaymentMethod("mpesa")}
+                  onClick={() => {
+                    setPaymentMethod("mpesa");
+                  }}
                   className={`flex items-center justify-center p-3 border rounded-lg ${
                     paymentMethod === "mpesa"
                       ? "border-[#5551FF] bg-[#5551FF]/10 text-[#5551FF]"
@@ -269,27 +279,7 @@ const ContributionModal = ({
               </div>
             </div>
 
-            {/* Phone Number (for M-PESA) */}
-            {paymentMethod === "mpesa" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  M-PESA Phone Number
-                </label>
-                <input
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#5551FF]"
-                  placeholder="+254..."
-                  required
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Enter phone number in format: +254XXXXXXXXX
-                </p>
-              </div>
-            )}
-
-            {/* Card Payment Fields (simple implementation) */}
+            {/* Card Payment Fields (displayed only if card is selected) */}
             {paymentMethod === "card" && (
               <div className="space-y-4">
                 <div>
@@ -376,10 +366,41 @@ const ContributionModal = ({
             disabled={loading}
             className="w-full bg-[#5551FF] text-white py-3 rounded-lg hover:bg-[#4440FF] disabled:opacity-50"
           >
-            {loading ? "Processing..." : "Contribute"}
+            {loading ? "Processing..." : paymentMethod === "mpesa" ? "Continue to M-PESA" : "Contribute"}
           </button>
         </div>
       </div>
+
+      {/* M-PESA Payment Form Modal */}
+      {showMpesaForm && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="max-w-md w-full">
+            <MpesaPaymentForm
+              amount={amount}
+              eventId={event._id}
+              productId={selectedProduct?.product?._id}
+              message={message}
+              anonymous={anonymous}
+              onSuccess={(data) => {
+                // Handle successful payment
+                toast.success("Payment successful!");
+                onContribute({
+                  eventId: event._id,
+                  amount: parseFloat(amount),
+                  paymentMethod: "mpesa",
+                  paymentStatus: "completed",
+                  message,
+                  anonymous,
+                  productId: selectedProduct?.product?._id,
+                });
+                setShowMpesaForm(false);
+                onClose();
+              }}
+              onCancel={() => setShowMpesaForm(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

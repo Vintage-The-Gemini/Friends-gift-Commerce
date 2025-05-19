@@ -21,21 +21,39 @@ const EditCategoryModal = ({ category, categories, onClose, onSuccess }) => {
       setFormData({
         name: category.name || "",
         description: category.description || "",
-        parent: category.parent?._id || "",
+        parent: category.parent?._id || category.parent || "",
         characteristics: category.characteristics || [],
         isActive: category.isActive !== false
       });
     }
   }, [category]);
 
+  // Generate a slug from the name
+  const generateSlug = (name) => {
+    return name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setActionLoading(true);
 
     try {
+      // Create a copy of the form data for submission
+      const submissionData = { ...formData };
+      
+      // Generate slug from name if name has changed
+      if (submissionData.name !== category.name) {
+        submissionData.slug = generateSlug(submissionData.name);
+      }
+      
+      // Convert empty parent to null
+      if (!submissionData.parent) {
+        submissionData.parent = null;
+      }
+
       const response = await api.put(
         `/admin/categories/${category._id}`,
-        formData
+        submissionData
       );
 
       if (response.data.success) {
@@ -152,6 +170,9 @@ const EditCategoryModal = ({ category, categories, onClose, onSuccess }) => {
                 className="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 required
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Changing the name will also update the category slug
+              </p>
             </div>
             
             <div>

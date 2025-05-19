@@ -7,9 +7,13 @@ const {
   getUserContributions,
   updateContributionStatus,
   getContribution,
+  handleMpesaCallback,
 } = require("../controllers/contribution.controller");
 
-// All routes are protected
+// Public route for M-PESA callback (must be accessible without auth)
+router.post("/mpesa-callback", handleMpesaCallback);
+
+// All other routes are protected
 router.use(protect);
 
 // Routes

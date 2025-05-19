@@ -89,6 +89,17 @@ setTimeout(async () => {
   }
 }, 2000);
 
+// Set up M-PESA test utilities in development mode
+if (process.env.NODE_ENV !== "production") {
+  try {
+    const mpesaTestUtils = require("./src/utils/mpesaTestUtils");
+    mpesaTestUtils.setupTestEndpoint(app);
+    console.log("M-PESA test utilities enabled at /api/test/mpesa-callback");
+  } catch (error) {
+    console.warn("Failed to set up M-PESA test utilities:", error.message);
+  }
+}
+
 // Basic route
 app.get("/api", (req, res) => {
   res.json({

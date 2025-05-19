@@ -34,6 +34,8 @@ const contributionSchema = new mongoose.Schema(
       transactionCode: String,
       responseCode: String,
       responseDescription: String,
+      merchantRequestID: String,  // Added for Daraja API
+      checkoutRequestID: String,  // Added for Daraja API
     },
     cardDetails: {
       last4: String,

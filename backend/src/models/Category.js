@@ -97,7 +97,7 @@ categorySchema.pre("save", function (next) {
   next();
 });
 
-// Update path when parent changes
+
 categorySchema.pre("save", async function (next) {
   if (this.isModified("parent")) {
     if (!this.parent) {

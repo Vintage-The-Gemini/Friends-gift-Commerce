@@ -1,9 +1,7 @@
 // controllers/category.controller.js
 const Category = require("../models/Category");
 
-// @desc    Create a new category
-// @route   POST /api/categories
-// @access  Private/Admin
+
 exports.createCategory = async (req, res) => {
   try {
     const category = await Category.create(req.body);
@@ -19,9 +17,7 @@ exports.createCategory = async (req, res) => {
   }
 };
 
-// @desc    Get all categories
-// @route   GET /api/categories
-// @access  Public
+
 exports.getCategories = async (req, res) => {
   try {
     const categories = await Category.find()

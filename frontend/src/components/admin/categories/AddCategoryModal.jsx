@@ -15,18 +15,31 @@ const AddCategoryModal = ({ categories, onClose, onSuccess }) => {
     isActive: true
   });
 
+  // Generate a slug from the name
+  const generateSlug = (name) => {
+    return name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setActionLoading(true);
 
     try {
+      // Create a copy of the form data for submission
+      const submissionData = { ...formData };
+      
+      // Generate slug from name
+      submissionData.slug = generateSlug(submissionData.name);
+      
+      // Convert empty parent to null
+      if (!submissionData.parent) {
+        submissionData.parent = null;
+      }
+      
       // Add characteristics as empty array if not provided
-      const formattedData = {
-        ...formData,
-        characteristics: formData.characteristics || [],
-      };
+      submissionData.characteristics = submissionData.characteristics || [];
 
-      const response = await api.post("/admin/categories", formattedData);
+      const response = await api.post("/admin/categories", submissionData);
 
       if (response.data.success) {
         toast.success("Category created successfully");
@@ -142,6 +155,9 @@ const AddCategoryModal = ({ categories, onClose, onSuccess }) => {
                 className="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 required
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Slug will be auto-generated from the name
+              </p>
             </div>
             
             <div>

@@ -4,7 +4,7 @@ import api from "./axios.config";
 // API endpoints
 const ENDPOINTS = {
   BASE: "/contributions",
-  EVENT: (eventId) => `/events/${eventId}/contributions`,
+  EVENT: (eventId) => `/contributions/event/${eventId}`,
   DETAIL: (id) => `/contributions/${id}`,
   USER: "/contributions/user",
 };
@@ -130,6 +130,18 @@ export const contributionService = {
       return response.data;
     } catch (error) {
       return handleApiError(error, "Failed to process card payment");
+    }
+  },
+
+  // Check M-PESA payment status
+  checkMpesaStatus: async (contributionId) => {
+    try {
+      const response = await api.get(
+        `${ENDPOINTS.DETAIL(contributionId)}/mpesa-status`
+      );
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, "Failed to check payment status");
     }
   },
 };
