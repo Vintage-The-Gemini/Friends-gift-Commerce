@@ -12,6 +12,7 @@ const errorHandler = require("./src/middleware/errorHandler");
 dotenv.config();
 
 // Connect to database
+//The db has two endpoints for the real and test environments
 connectDB();
 
 const app = express();
