@@ -15,6 +15,7 @@ dotenv.config();
 //The db has two endpoints for the real and test environments
 connectDB();
 
+
 const app = express();
 
 // Middleware
@@ -145,3 +146,4 @@ process.on("uncaughtException", (err) => {
   // Close server & exit process
   // process.exit(1);
 });
+
