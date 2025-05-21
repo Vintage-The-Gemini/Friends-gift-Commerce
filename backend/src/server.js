@@ -25,6 +25,11 @@ if (process.env.NODE_ENV === "production") {
 // CORS configuration
 app.use(
   cors({
+    origin: [
+      "http://localhost:5173",
+      "https://friendsgift.co.ke",
+      "https://friends-gifts-commerce-67e63--testing-wu87kkga.web.app",
+    ],
     origin: true,
     credentials: true,
   })
