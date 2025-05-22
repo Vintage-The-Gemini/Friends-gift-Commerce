@@ -12,9 +12,7 @@ const errorHandler = require("./src/middleware/errorHandler");
 dotenv.config();
 
 // Connect to database
-//The db has two endpoints for the real and test environments
 connectDB();
-
 
 const app = express();
 
@@ -32,7 +30,6 @@ app.use(
       "https://friendsgift.co.ke",
       "https://friends-gifts-commerce-67e63--testing-wu87kkga.web.app",
     ],
-    origin: true,
     credentials: true,
   })
 );
@@ -75,26 +72,48 @@ app.use("/api/seller/analytics", analyticsRoutes);
 app.use("/api/buyer", buyerRoutes);
 app.use("/api/admin/approvals", approvalRoutes);
 
-initializeAdmin();
-
-setTimeout(async () => {
+// Initialize admin user with proper error handling
+const initAdmin = async () => {
   try {
-    const adminUser = await User.findOne({ role: "admin" });
-    console.log(
-      "Admin user check:",
-      adminUser
-        ? {
-            exists: true,
-            id: adminUser._id,
-            phone: adminUser.phoneNumber,
-            active: adminUser.isActive,
-          }
-        : "No admin user found"
-    );
-  } catch (err) {
-    console.error("Admin check error:", err);
+    console.log("🔄 Starting admin initialization...");
+    console.log("Environment:", process.env.NODE_ENV);
+    console.log("Admin Phone from ENV:", process.env.ADMIN_PHONE);
+    
+    await initializeAdmin();
+    
+    // Verify admin was created/exists
+    setTimeout(async () => {
+      try {
+        const adminUser = await User.findOne({ role: "admin" });
+        console.log("=== ADMIN VERIFICATION ===");
+        if (adminUser) {
+          console.log("✅ Admin user found:");
+          console.log("   ID:", adminUser._id);
+          console.log("   Name:", adminUser.name);
+          console.log("   Phone:", adminUser.phoneNumber);
+          console.log("   Active:", adminUser.isActive);
+          console.log("   Role:", adminUser.role);
+        } else {
+          console.log("❌ No admin user found in database");
+          console.log("🔄 Attempting to create admin again...");
+          
+          // Try to create admin again if not found
+          await initializeAdmin();
+        }
+        console.log("========================");
+      } catch (err) {
+        console.error("❌ Admin verification error:", err.message);
+      }
+    }, 2000);
+    
+  } catch (error) {
+    console.error("❌ Admin initialization failed:", error.message);
+    console.error("Full error:", error);
   }
-}, 2000);
+};
+
+// Call admin initialization
+initAdmin();
 
 // Set up M-PESA test utilities in development mode
 if (process.env.NODE_ENV !== "production") {
@@ -113,14 +132,36 @@ app.get("/api", (req, res) => {
     message: "Welcome to Friends Gift API",
     version: "1.0.0",
     status: "Running",
+    environment: process.env.NODE_ENV,
   });
+});
+
+// Admin check endpoint for debugging
+app.get("/api/check-admin", async (req, res) => {
+  try {
+    const adminCount = await User.countDocuments({ role: "admin" });
+    const admins = await User.find({ role: "admin" }).select("-password");
+    
+    res.json({
+      success: true,
+      adminCount,
+      admins,
+      environment: process.env.NODE_ENV,
+      adminPhone: process.env.ADMIN_PHONE,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
 });
 
 // 404 handler - must come BEFORE error handler
 app.use((req, res, next) => {
   const error = new Error(`Route not found: ${req.originalUrl}`);
   error.statusCode = 404;
-  next(error); // Pass to error handler
+  next(error);
 });
 
 // Global error handling middleware
@@ -129,8 +170,9 @@ app.use(errorHandler);
 // Set up server
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+const server = app.listen(PORT, () => {
+  console.log(`🚀 Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+  console.log(`📊 Admin check available at: http://localhost:${PORT}/api/check-admin`);
 });
 
 // Handle unhandled promise rejections
@@ -146,4 +188,3 @@ process.on("uncaughtException", (err) => {
   // Close server & exit process
   // process.exit(1);
 });
-

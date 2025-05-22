@@ -12,7 +12,7 @@ const initializeAdmin = async () => {
     }
 
     // Admin credentials for logging (don't log the actual password)
-    const adminPhone = process.env.ADMIN_PHONE || "254700000000";
+    const adminPhone = process.env.ADMIN_PHONE || "+254700000000";
     const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
 
     console.log("Creating admin user with phone:", adminPhone);
