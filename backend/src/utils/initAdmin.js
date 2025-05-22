@@ -11,7 +11,7 @@ const initializeAdmin = async () => {
       return;
     }
 
-    // Admin credentials for logging (don't log the actual password)
+    // Admin credentials for logging 
     const adminPhone = process.env.ADMIN_PHONE || "+254700000000";
     const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
 
