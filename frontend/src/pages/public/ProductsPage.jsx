@@ -1,15 +1,13 @@
-// src/pages/public/ProductsPage.jsx
-import React, { useState, useEffect, useCallback } from "react";
+// src/pages/public/ProductsPage.jsx - OPTIMIZED VERSION
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Search,
   Filter,
-  Grid,
   X,
   ChevronDown,
   ChevronRight,
   ChevronLeft,
-  Star,
   ShoppingBag
 } from "lucide-react";
 import { productService } from "../../services/api/product";
@@ -17,8 +15,93 @@ import { categoryService } from "../../services/api/category";
 import { useAuth } from "../../hooks/useAuth";
 import { toast } from "react-toastify";
 import CompactProductCard from "../../components/products/CompactProductCard";
-import { debounce } from "lodash";
 import { formatCurrency } from "../../utils/currency";
+
+// Debounce utility
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
+
+// Memoized Product Card with optimizations
+const OptimizedProductCard = React.memo(({ 
+  product, 
+  onAddToEvent, 
+  index 
+}) => {
+  const handleAddToEvent = useCallback((e) => {
+    e.stopPropagation();
+    if (onAddToEvent) {
+      onAddToEvent(product);
+    }
+  }, [product, onAddToEvent]);
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+      <div className="relative">
+        <img
+          src={product.images?.[0]?.url || "/api/placeholder/300/300"}
+          alt={product.name}
+          className="w-full h-48 object-cover"
+          loading={index < 8 ? "eager" : "lazy"} // Prioritize first 8 images
+          decoding="async"
+          onError={(e) => {
+            e.target.src = "/api/placeholder/300/300";
+          }}
+        />
+        
+        {product.stock <= 0 && (
+          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <span className="text-white font-medium px-3 py-1 bg-red-500 rounded-md">
+              Out of Stock
+            </span>
+          </div>
+        )}
+      </div>
+      
+      <div className="p-4">
+        <h3 className="font-medium text-gray-900 mb-1 truncate">
+          {product.name}
+        </h3>
+        
+        <div className="flex justify-between items-center mb-3">
+          <span className="text-indigo-700 font-bold">
+            {formatCurrency(product.price)}
+          </span>
+          <span className="text-xs text-gray-500">
+            Stock: {product.stock}
+          </span>
+        </div>
+        
+        <button
+          onClick={handleAddToEvent}
+          disabled={product.stock <= 0}
+          className={`w-full text-xs rounded-lg py-2 flex items-center justify-center transition-colors ${
+            product.stock <= 0
+              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+              : "bg-indigo-600 text-white hover:bg-indigo-700"
+          }`}
+        >
+          <ShoppingBag className="w-3 h-3 mr-1" />
+          Add to Event
+        </button>
+      </div>
+    </div>
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.product._id === nextProps.product._id &&
+    prevProps.product.stock === nextProps.product.stock &&
+    prevProps.product.price === nextProps.product.price
+  );
+});
 
 const ProductsPage = () => {
   const navigate = useNavigate();
@@ -28,7 +111,7 @@ const ProductsPage = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [viewMode, setViewMode] = useState("grid");
+  const [loadingMore, setLoadingMore] = useState(false);
   const [pagination, setPagination] = useState({
     page: parseInt(searchParams.get("page")) || 1,
     totalPages: 1,
@@ -46,43 +129,23 @@ const ProductsPage = () => {
   const [sortOption, setSortOption] = useState(
     searchParams.get("sort") || "newest"
   );
+  const [hasMoreProducts, setHasMoreProducts] = useState(true);
 
-  // Fetch categories on mount - just once
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await categoryService.getAllCategories();
-        if (response.success) {
-          setCategories(response.data);
-        }
-      } catch (error) {
-        console.error("Error fetching categories:", error);
+  // Fetch categories on mount - memoized
+  const fetchCategories = useCallback(async () => {
+    try {
+      const response = await categoryService.getAllCategories();
+      if (response.success) {
+        setCategories(response.data);
       }
-    };
-
-    fetchCategories();
-    fetchProducts(true);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
   }, []);
 
-  // Fetch products when filters or sort changes
   useEffect(() => {
-    const params = new URLSearchParams();
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
-    });
-    params.append("page", pagination.page.toString());
-    params.append("sort", sortOption);
-    setSearchParams(params);
-    
-    fetchProducts(true);
-  }, [filters, sortOption]);
-
-  // Fetch products when page changes 
-  useEffect(() => {
-    if (pagination.page > 1) {
-      fetchProducts(false);
-    }
-  }, [pagination.page]);
+    fetchCategories();
+  }, [fetchCategories]);
 
   // Debounced search handler
   const debouncedSearch = useCallback(
@@ -93,39 +156,7 @@ const ProductsPage = () => {
     []
   );
 
-  const fetchProducts = async (resetPage = false) => {
-    try {
-      setLoading(true);
-
-      const options = {
-        page: resetPage ? 1 : pagination.page,
-        limit: 24,
-        sort: getSortValue(),
-      };
-
-      const response = await productService.getAllProducts(filters, options);
-
-      if (response.success) {
-        if (resetPage) {
-          setProducts(response.data);
-        } else {
-          setProducts((prev) => [...prev, ...response.data]);
-        }
-        setPagination({
-          page: response.pagination.page,
-          totalPages: response.pagination.totalPages,
-          total: response.pagination.total,
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching products:", error);
-      toast.error("Failed to load products");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getSortValue = () => {
+  const getSortValue = useCallback(() => {
     switch (sortOption) {
       case "newest":
         return "-createdAt";
@@ -142,9 +173,67 @@ const ProductsPage = () => {
       default:
         return "-createdAt";
     }
-  };
+  }, [sortOption]);
 
-  const handleAddToEvent = (product) => {
+  const fetchProducts = useCallback(async (resetPage = false, loadMore = false) => {
+    try {
+      if (resetPage) {
+        setLoading(true);
+        setProducts([]);
+        setPagination(prev => ({ ...prev, page: 1 }));
+      } else if (loadMore) {
+        setLoadingMore(true);
+      }
+
+      const currentPage = resetPage ? 1 : pagination.page;
+      
+      const options = {
+        page: currentPage,
+        limit: 24,
+        sort: getSortValue(),
+      };
+
+      const response = await productService.getAllProducts(filters, options);
+
+      if (response.success) {
+        if (resetPage) {
+          setProducts(response.data);
+        } else if (loadMore) {
+          setProducts(prev => [...prev, ...response.data]);
+        }
+        
+        setPagination({
+          page: response.pagination.page,
+          totalPages: response.pagination.totalPages,
+          total: response.pagination.total,
+        });
+        
+        setHasMoreProducts(
+          response.pagination.page < response.pagination.totalPages
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      toast.error("Failed to load products");
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [filters, getSortValue, pagination.page]);
+
+  // Fetch products when filters or sort changes
+  useEffect(() => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params.append(key, value);
+    });
+    params.append("sort", sortOption);
+    setSearchParams(params);
+    
+    fetchProducts(true);
+  }, [filters, sortOption]);
+
+  const handleAddToEvent = useCallback((product) => {
     if (!user) {
       toast.info("Please sign in to add products to your event");
       navigate("/auth/signin", { state: { from: window.location.pathname } });
@@ -154,9 +243,9 @@ const ProductsPage = () => {
     navigate("/events/create", {
       state: { selectedProduct: product },
     });
-  };
+  }, [user, navigate]);
 
-  const handleClearFilters = () => {
+  const handleClearFilters = useCallback(() => {
     setFilters({
       category: "",
       search: "",
@@ -164,31 +253,51 @@ const ProductsPage = () => {
       maxPrice: "",
     });
     setPagination((prev) => ({ ...prev, page: 1 }));
-  };
+  }, []);
 
-  const handlePrevPage = () => {
-    if (pagination.page > 1) {
-      setPagination((prev) => ({
-        ...prev,
-        page: prev.page - 1,
-      }));
+  const handleLoadMore = useCallback(() => {
+    if (!loadingMore && hasMoreProducts) {
+      setPagination(prev => ({ ...prev, page: prev.page + 1 }));
+      fetchProducts(false, true);
     }
-  };
+  }, [loadingMore, hasMoreProducts, fetchProducts]);
 
-  const handleNextPage = () => {
-    if (pagination.page < pagination.totalPages) {
-      setPagination((prev) => ({
-        ...prev,
-        page: prev.page + 1,
-      }));
-    }
-  };
-
-  const handleSearchChange = (e) => {
+  const handleSearchChange = useCallback((e) => {
     debouncedSearch(e.target.value);
-  };
+  }, [debouncedSearch]);
 
-  const hasActiveFilters = Object.values(filters).some((v) => v);
+  const hasActiveFilters = useMemo(() => 
+    Object.values(filters).some((v) => v), [filters]
+  );
+
+  // Intersection Observer for infinite scroll
+  const loadMoreRef = useCallback(node => {
+    if (loadingMore || !hasMoreProducts) return;
+    
+    const observer = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) {
+        handleLoadMore();
+      }
+    });
+    
+    if (node) observer.observe(node);
+    
+    return () => {
+      if (node) observer.unobserve(node);
+    };
+  }, [loadingMore, hasMoreProducts, handleLoadMore]);
+
+  // Memoized product grid
+  const productGrid = useMemo(() => {
+    return products.map((product, index) => (
+      <OptimizedProductCard
+        key={product._id}
+        product={product}
+        onAddToEvent={handleAddToEvent}
+        index={index}
+      />
+    ));
+  }, [products, handleAddToEvent]);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -588,41 +697,25 @@ const ProductsPage = () => {
 
                 {/* Product Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {products.map((product) => (
-                    <CompactProductCard
-                      key={product._id}
-                      product={product}
-                      onAddToEvent={handleAddToEvent}
-                    />
-                  ))}
+                  {productGrid}
                 </div>
 
-                {/* Pagination */}
-                {pagination.totalPages > 1 && (
-                  <div className="mt-10 flex justify-center">
-                    <div className="flex items-center gap-4">
-                      <button
-                        onClick={handlePrevPage}
-                        disabled={pagination.page === 1}
-                        className="p-3 border rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 flex items-center"
-                      >
-                        <ChevronLeft className="w-6 h-6" />
-                        <span className="ml-1 hidden sm:inline">Previous</span>
-                      </button>
+                {/* Load More Trigger */}
+                {hasMoreProducts && (
+                  <div 
+                    ref={loadMoreRef}
+                    className="flex justify-center mt-10 py-4"
+                  >
+                    {loadingMore && (
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                    )}
+                  </div>
+                )}
 
-                      <span className="px-5 py-2 text-base font-medium">
-                        Page {pagination.page} of {pagination.totalPages}
-                      </span>
-
-                      <button
-                        onClick={handleNextPage}
-                        disabled={pagination.page >= pagination.totalPages}
-                        className="p-3 border rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 flex items-center"
-                      >
-                        <span className="mr-1 hidden sm:inline">Next</span>
-                        <ChevronRight className="w-6 h-6" />
-                      </button>
-                    </div>
+                {/* End of results */}
+                {!hasMoreProducts && products.length > 0 && (
+                  <div className="text-center mt-10 py-4 text-gray-500">
+                    <p>You've reached the end of the products list</p>
                   </div>
                 )}
               </>
