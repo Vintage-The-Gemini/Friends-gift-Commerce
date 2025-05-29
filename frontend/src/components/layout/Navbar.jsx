@@ -1,3 +1,4 @@
+// frontend/src/components/layout/Navbar.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
@@ -18,8 +19,14 @@ import {
   ShoppingCart,
   Bell,
   Heart,
+  BellRing,
+  Check,
+  Trash2,
+  ExternalLink,
 } from "lucide-react";
 import Logo from "../../assets/Friends-gift-logo.svg";
+import { notificationService } from "../../services/api/notification";
+import { toast } from "react-toastify";
 
 const NavBar = () => {
   const { user, logout } = useAuth();
@@ -31,24 +38,12 @@ const NavBar = () => {
   const dropdownRef = useRef(null);
   const notificationsRef = useRef(null);
 
-  // Simulated state - in production this would come from a real notification system
-  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(true);
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      title: "New contribution",
-      message: "Alex contributed to your event",
-      unread: true,
-      time: "5m ago",
-    },
-    {
-      id: 2,
-      title: "Event reminder",
-      message: "Sarah's birthday is tomorrow",
-      unread: true,
-      time: "1h ago",
-    },
-  ]);
+  // Real notification state
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsPage, setNotificationsPage] = useState(1);
+  const [hasMoreNotifications, setHasMoreNotifications] = useState(true);
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
@@ -70,19 +65,177 @@ const NavBar = () => {
     if (notificationsOpen) setNotificationsOpen(false);
   };
 
-  const toggleNotifications = (e) => {
+  const toggleNotifications = async (e) => {
     e.stopPropagation();
     setNotificationsOpen(!notificationsOpen);
     if (profileDropdownOpen) setProfileDropdownOpen(false);
 
-    // Mark notifications as read when opened
-    if (!notificationsOpen && hasUnreadNotifications) {
-      setHasUnreadNotifications(false);
-      setNotifications((prev) =>
-        prev.map((notification) => ({ ...notification, unread: false }))
-      );
+    // Load notifications when opening dropdown
+    if (!notificationsOpen && user) {
+      await fetchNotifications(true);
     }
   };
+
+  // Fetch notifications
+  const fetchNotifications = async (reset = false) => {
+    if (!user || notificationsLoading) return;
+
+    try {
+      setNotificationsLoading(true);
+      const page = reset ? 1 : notificationsPage;
+      
+      const response = await notificationService.getUserNotifications({
+        page,
+        limit: 10,
+      });
+
+      if (response.success) {
+        if (reset) {
+          setNotifications(response.data);
+          setNotificationsPage(1);
+        } else {
+          setNotifications(prev => [...prev, ...response.data]);
+        }
+        
+        setUnreadCount(response.unreadCount);
+        setHasMoreNotifications(
+          response.pagination.page < response.pagination.totalPages
+        );
+        setNotificationsPage(page);
+      }
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
+
+  // Fetch unread count
+  const fetchUnreadCount = async () => {
+    if (!user) return;
+
+    try {
+      const response = await notificationService.getUnreadCount();
+      if (response.success) {
+        setUnreadCount(response.count);
+      }
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+    }
+  };
+
+  // Mark notification as read
+  const markAsRead = async (notificationId, actionUrl = null) => {
+    try {
+      const response = await notificationService.markAsRead({ notificationId });
+      
+      if (response.success) {
+        // Update local state
+        setNotifications(prev =>
+          prev.map(n =>
+            n._id === notificationId ? { ...n, isRead: true } : n
+          )
+        );
+        setUnreadCount(prev => Math.max(0, prev - 1));
+
+        // Navigate to action URL if provided
+        if (actionUrl) {
+          setNotificationsOpen(false);
+          navigate(actionUrl);
+        }
+      }
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  };
+
+  // Mark all as read
+  const markAllAsRead = async () => {
+    try {
+      const response = await notificationService.markAllAsRead();
+      
+      if (response.success) {
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        setUnreadCount(0);
+        toast.success("All notifications marked as read");
+      }
+    } catch (error) {
+      console.error("Error marking all as read:", error);
+      toast.error("Failed to mark notifications as read");
+    }
+  };
+
+  // Delete notification
+  const deleteNotification = async (notificationId) => {
+    try {
+      const response = await notificationService.deleteNotification({ notificationId });
+      
+      if (response.success) {
+        setNotifications(prev => prev.filter(n => n._id !== notificationId));
+        // Decrease unread count if the deleted notification was unread
+        const notification = notifications.find(n => n._id === notificationId);
+        if (notification && !notification.isRead) {
+          setUnreadCount(prev => Math.max(0, prev - 1));
+        }
+      }
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+    }
+  };
+
+  // Load more notifications
+  const loadMoreNotifications = async () => {
+    if (hasMoreNotifications && !notificationsLoading) {
+      await fetchNotifications(false);
+      setNotificationsPage(prev => prev + 1);
+    }
+  };
+
+  // Format relative time
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+
+    if (diffInMinutes < 1) return "Just now";
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays}d ago`;
+    
+    return date.toLocaleDateString();
+  };
+
+  // Get notification icon
+  const getNotificationIcon = (type) => {
+    const iconMap = {
+      event_contribution: "💰",
+      event_target_reached: "🎉",
+      event_ending_soon: "⏰",
+      product_approved: "✅",
+      product_rejected: "❌",
+      new_order: "🛍️",
+      order_shipped: "📦",
+      welcome: "👋",
+      payment_received: "💳",
+      payment_failed: "⚠️",
+    };
+    return iconMap[type] || "🔔";
+  };
+
+  // Initial load of unread count
+  useEffect(() => {
+    if (user) {
+      fetchUnreadCount();
+      
+      // Set up polling for unread count (every 30 seconds)
+      const interval = setInterval(fetchUnreadCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -90,15 +243,12 @@ const NavBar = () => {
     let notificationsTimeoutId;
 
     const handleClickOutside = (event) => {
-      // Handle profile dropdown
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        // Use a slight delay to prevent accidental closing
         profileTimeoutId = setTimeout(() => {
           setProfileDropdownOpen(false);
         }, 100);
       }
 
-      // Handle notifications dropdown
       if (
         notificationsRef.current &&
         !notificationsRef.current.contains(event.target)
@@ -117,12 +267,10 @@ const NavBar = () => {
     };
   }, []);
 
-  // Stop propagation to prevent closing when clicking inside dropdown
   const handleDropdownClick = (e) => {
     e.stopPropagation();
   };
 
-  // Consistent active link styling
   const getNavLinkClass = (path) => {
     const isPathActive =
       location.pathname === path || location.pathname.startsWith(`${path}/`);
@@ -134,14 +282,12 @@ const NavBar = () => {
     }`;
   };
 
-  // Determine display name
   const getDisplayName = () => {
     if (!user) return "";
     if (user.businessName && user.role === "seller") return user.businessName;
     return user.name || user.phoneNumber || "User";
   };
 
-  // Seller Navigation Links - Simplified
   const sellerLinks = [
     {
       path: "/seller/dashboard",
@@ -235,9 +381,15 @@ const NavBar = () => {
                     className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors relative"
                     aria-label="Notifications"
                   >
-                    <Bell className="w-5 h-5" />
-                    {hasUnreadNotifications && (
-                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white"></span>
+                    {unreadCount > 0 ? (
+                      <BellRing className="w-5 h-5" />
+                    ) : (
+                      <Bell className="w-5 h-5" />
+                    )}
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full text-white text-xs flex items-center justify-center ring-2 ring-white">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
                     )}
                   </button>
 
@@ -245,49 +397,115 @@ const NavBar = () => {
                   {notificationsOpen && (
                     <div
                       ref={notificationsRef}
-                      className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg overflow-hidden transform transition-all duration-200 ease-in-out z-50"
+                      className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-lg overflow-hidden transform transition-all duration-200 ease-in-out z-50 max-h-96"
                       onClick={handleDropdownClick}
                     >
-                      <div className="px-4 py-3 border-b border-gray-100">
+                      <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center">
                         <h3 className="font-medium">Notifications</h3>
-                      </div>
-
-                      <div className="max-h-80 overflow-y-auto">
-                        {notifications.length === 0 ? (
-                          <div className="px-4 py-6 text-center text-gray-500">
-                            <p>No notifications</p>
-                          </div>
-                        ) : (
-                          notifications.map((notification) => (
-                            <div
-                              key={notification.id}
-                              className={`px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors ${
-                                notification.unread ? "bg-indigo-50/50" : ""
-                              }`}
-                            >
-                              <div className="flex justify-between">
-                                <p className="font-medium text-sm">
-                                  {notification.title}
-                                </p>
-                                <p className="text-xs text-gray-400">
-                                  {notification.time}
-                                </p>
-                              </div>
-                              <p className="text-sm text-gray-600 mt-1">
-                                {notification.message}
-                              </p>
-                            </div>
-                          ))
+                        {unreadCount > 0 && (
+                          <button
+                            onClick={markAllAsRead}
+                            className="text-sm text-indigo-600 hover:text-indigo-800"
+                          >
+                            Mark all read
+                          </button>
                         )}
                       </div>
 
-                      {notifications.length > 0 && (
-                        <div className="px-4 py-2 border-t border-gray-100 text-center">
-                          <button className="text-sm text-indigo-600">
-                            Mark all as read
-                          </button>
-                        </div>
-                      )}
+                      <div className="max-h-80 overflow-y-auto">
+                        {notificationsLoading && notifications.length === 0 ? (
+                          <div className="px-4 py-6 text-center text-gray-500">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto"></div>
+                            <p className="mt-2">Loading notifications...</p>
+                          </div>
+                        ) : notifications.length === 0 ? (
+                          <div className="px-4 py-6 text-center text-gray-500">
+                            <Bell className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                            <p>No notifications yet</p>
+                          </div>
+                        ) : (
+                          <>
+                            {notifications.map((notification) => (
+                              <div
+                                key={notification._id}
+                                className={`px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-50 ${
+                                  !notification.isRead ? "bg-indigo-50/30" : ""
+                                }`}
+                              >
+                                <div className="flex items-start space-x-3">
+                                  <div className="flex-shrink-0 text-lg">
+                                    {getNotificationIcon(notification.type)}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex justify-between items-start">
+                                      <div className="flex-1">
+                                        <p className={`text-sm ${!notification.isRead ? 'font-semibold' : 'font-medium'} text-gray-900 truncate`}>
+                                          {notification.title}
+                                        </p>
+                                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                                          {notification.message}
+                                        </p>
+                                        <p className="text-xs text-gray-400 mt-1">
+                                          {formatTime(notification.createdAt)}
+                                        </p>
+                                      </div>
+                                      <div className="flex items-center space-x-1 ml-2">
+                                        {!notification.isRead && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              markAsRead(notification._id);
+                                            }}
+                                            className="p-1 text-gray-400 hover:text-green-600"
+                                            title="Mark as read"
+                                          >
+                                            <Check className="w-3 h-3" />
+                                          </button>
+                                        )}
+                                        {notification.actionUrl && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              markAsRead(notification._id, notification.actionUrl);
+                                            }}
+                                            className="p-1 text-gray-400 hover:text-indigo-600"
+                                            title="View details"
+                                          >
+                                            <ExternalLink className="w-3 h-3" />
+                                          </button>
+                                        )}
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteNotification(notification._id);
+                                          }}
+                                          className="p-1 text-gray-400 hover:text-red-600"
+                                          title="Delete"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+
+                            {/* Load More Button */}
+                            {hasMoreNotifications && (
+                              <div className="px-4 py-2 border-t border-gray-100">
+                                <button
+                                  onClick={loadMoreNotifications}
+                                  disabled={notificationsLoading}
+                                  className="w-full text-sm text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
+                                >
+                                  {notificationsLoading ? "Loading..." : "Load more"}
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -439,6 +657,11 @@ const NavBar = () => {
               <div className="text-sm text-gray-500">
                 {user.role === "seller" ? "Seller Account" : "Buyer Account"}
               </div>
+              {unreadCount > 0 && (
+                <div className="text-xs text-indigo-600 font-medium">
+                  {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
+                </div>
+              )}
             </div>
           </div>
         ) : null}

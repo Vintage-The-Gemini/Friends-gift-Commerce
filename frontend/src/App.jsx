@@ -1,4 +1,4 @@
-// frontend/src/App.jsx
+// frontend/src/App.jsx - ENHANCED VERSION
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
@@ -6,6 +6,9 @@ import ProtectedRoute from "./middleware/ProtectedRoute";
 import RequireBusinessProfile from "./middleware/RequireBusinessProfile";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+
+// ⭐ NEW: Import notification context
+import { NotificationProvider } from "./contexts/NotificationContext";
 
 // Layouts
 import RootLayout from "./layouts/RootLayout";
@@ -34,6 +37,9 @@ import EditEvent from "./pages/events/EditEvent";
 import EventDetails from "./pages/events/EventDetails";
 import MyEventsPage from "./pages/events/MyEventsPage";
 import CompletedEventsPage from "./pages/events/CompletedEventsPage";
+
+// ⭐ NEW: Notification Pages
+import NotificationManagement from "./pages/notifications/NotificationManagement";
 
 // Admin Pages
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -64,11 +70,25 @@ import SellerEvents from "./pages/dashboard/seller/SellerEvents";
 // Error Boundary
 import ErrorBoundary from "./components/common/ErrorBoundary";
 
+// ⭐ NEW: Root component with notification provider
 const Root = () => {
   return (
     <AuthProvider>
-      <ToastContainer position="top-right" autoClose={5000} />
-      <Outlet />
+      <NotificationProvider>
+        <ToastContainer 
+          position="top-right" 
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="light"
+        />
+        <Outlet />
+      </NotificationProvider>
     </AuthProvider>
   );
 };
@@ -110,6 +130,16 @@ const router = createBrowserRouter(
             { path: "/events", element: <EventsPage /> },
             { path: "/events/:id", element: <EventDetails /> },
 
+            // ⭐ NEW: Notification Routes
+            {
+              path: "/notifications",
+              element: (
+                <ProtectedRoute allowedRoles={["buyer", "seller", "admin"]}>
+                  <NotificationManagement />
+                </ProtectedRoute>
+              ),
+            },
+
             // Consolidated My Events Page (protected)
             {
               path: "/events/my-events",
@@ -120,7 +150,7 @@ const router = createBrowserRouter(
               ),
             },
 
-            // Completed Events Page (new)
+            // Completed Events Page
             {
               path: "/events/completed",
               element: (
