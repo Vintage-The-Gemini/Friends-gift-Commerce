@@ -1,299 +1,291 @@
-// backend/src/utils/notificationTriggers.js
-const notificationService = require("../services/notificationService");
-const Event = require("../models/event");
-const Product = require("../models/product");
-const Order = require("../models/order");
+// backend/src/utils/notificationTriggers.js - MINIMAL VERSION TO PREVENT CRASHES
+console.log("🔔 Loading notification triggers...");
 
 /**
- * Integration points for triggering notifications throughout the application
+ * Minimal notification triggers to prevent app crashes
+ * This is a basic implementation that logs notifications instead of creating them
+ * Replace with full implementation once notification system is ready
  */
 
-// ===== EVENT-RELATED NOTIFICATION TRIGGERS =====
+// For now, just log notifications instead of creating them
+const logNotification = (type, data) => {
+  console.log(`📢 [NOTIFICATION] ${type}:`, JSON.stringify(data, null, 2));
+};
 
-// Trigger when someone contributes to an event
-const triggerEventContribution = async (contributionData) => {
+/**
+ * Trigger welcome notification for new users
+ */
+const triggerWelcomeNotification = async (userId, userRole = "buyer") => {
   try {
-    const { eventId, contributorId, amount } = contributionData;
-    
-    // Get event details
-    const event = await Event.findById(eventId).populate('creator');
-    if (!event || !event.creator) return;
+    logNotification('WELCOME', {
+      userId,
+      userRole,
+      message: `Welcome notification for ${userRole} user ${userId}`
+    });
+    return { success: true, message: 'Welcome notification logged' };
+  } catch (error) {
+    console.error("Error in triggerWelcomeNotification:", error);
+  }
+};
 
-    // Don't notify if contributor is the event creator
-    if (event.creator._id.toString() === contributorId.toString()) return;
-
-    // Send notification to event creator
-    await notificationService.notifyEventContribution(
+/**
+ * Trigger notification when someone contributes to an event
+ */
+const triggerEventContribution = async ({ eventId, contributorId, amount, message }) => {
+  try {
+    logNotification('EVENT_CONTRIBUTION', {
       eventId,
       contributorId,
-      event.creator._id,
-      amount
-    );
-
-    // Check if target is reached
-    if (event.currentAmount >= event.targetAmount) {
-      await notificationService.notifyEventTargetReached(
-        eventId,
-        event.creator._id
-      );
-    }
-
-    console.log(`Triggered contribution notification for event ${eventId}`);
-  } catch (error) {
-    console.error("Error triggering event contribution notification:", error);
-  }
-};
-
-// Trigger when event is ending soon (called by cron job)
-const triggerEventEndingSoon = async () => {
-  try {
-    const threeDaysFromNow = new Date();
-    threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
-
-    const oneDayFromNow = new Date();
-    oneDayFromNow.setDate(oneDayFromNow.getDate() + 1);
-
-    // Find events ending in 1-3 days
-    const endingEvents = await Event.find({
-      status: "active",
-      endDate: {
-        $gte: oneDayFromNow,
-        $lte: threeDaysFromNow,
-      },
-    }).populate('creator');
-
-    for (const event of endingEvents) {
-      if (!event.creator) continue;
-
-      const daysLeft = Math.ceil(
-        (new Date(event.endDate) - new Date()) / (1000 * 60 * 60 * 24)
-      );
-
-      await notificationService.notifyEventEndingSoon(
-        event._id,
-        event.creator._id,
-        daysLeft
-      );
-    }
-
-    console.log(`Triggered ending soon notifications for ${endingEvents.length} events`);
-  } catch (error) {
-    console.error("Error triggering event ending soon notifications:", error);
-  }
-};
-
-// Trigger when event expires (called by cron job)
-const triggerEventExpired = async () => {
-  try {
-    const now = new Date();
-
-    // Find events that expired today
-    const expiredEvents = await Event.find({
-      status: "active",
-      endDate: { $lt: now },
-    }).populate('creator');
-
-    for (const event of expiredEvents) {
-      if (!event.creator) continue;
-
-      // Update event status
-      await Event.findByIdAndUpdate(event._id, { status: "expired" });
-
-      // Send notification
-      await notificationService.notifyEventExpired(
-        event._id,
-        event.creator._id
-      );
-    }
-
-    console.log(`Triggered expired notifications for ${expiredEvents.length} events`);
-  } catch (error) {
-    console.error("Error triggering event expired notifications:", error);
-  }
-};
-
-// ===== PRODUCT-RELATED NOTIFICATION TRIGGERS =====
-
-// Trigger when product is approved/rejected (called from admin actions)
-const triggerProductApproval = async (productId, status, reason = null) => {
-  try {
-    const product = await Product.findById(productId).populate('seller');
-    if (!product || !product.seller) return;
-
-    if (status === "approved") {
-      await notificationService.notifyProductApproved(
-        productId,
-        product.seller._id
-      );
-    } else if (status === "rejected") {
-      await notificationService.notifyProductRejected(
-        productId,
-        product.seller._id,
-        reason || "Product does not meet our guidelines"
-      );
-    }
-
-    console.log(`Triggered product ${status} notification for product ${productId}`);
-  } catch (error) {
-    console.error("Error triggering product approval notification:", error);
-  }
-};
-
-// Trigger when new order is created
-const triggerNewOrder = async (orderData) => {
-  try {
-    const { orderId, sellerId, totalAmount } = orderData;
-
-    await notificationService.notifyNewOrder(
-      orderId,
-      sellerId,
-      totalAmount
-    );
-
-    console.log(`Triggered new order notification for order ${orderId}`);
-  } catch (error) {
-    console.error("Error triggering new order notification:", error);
-  }
-};
-
-// Trigger when order status changes
-const triggerOrderStatusChange = async (orderId, newStatus, buyerId) => {
-  try {
-    if (newStatus === "shipped") {
-      await notificationService.notifyOrderShipped(orderId, buyerId);
-      console.log(`Triggered order shipped notification for order ${orderId}`);
-    }
-  } catch (error) {
-    console.error("Error triggering order status change notification:", error);
-  }
-};
-
-// ===== PAYMENT-RELATED NOTIFICATION TRIGGERS =====
-
-// Trigger when payment is received
-const triggerPaymentReceived = async (userId, amount, paymentMethod) => {
-  try {
-    await notificationService.notifyPaymentReceived(
-      userId,
       amount,
-      paymentMethod
-    );
-
-    console.log(`Triggered payment received notification for user ${userId}`);
+      message,
+      description: `Contribution of $${amount} received for event ${eventId}`
+    });
+    return { success: true, message: 'Event contribution notification logged' };
   } catch (error) {
-    console.error("Error triggering payment received notification:", error);
+    console.error("Error in triggerEventContribution:", error);
   }
 };
 
-// Trigger when payment fails
-const triggerPaymentFailed = async (userId, amount, reason) => {
+/**
+ * Trigger notification when event target is reached
+ */
+const triggerEventTargetReached = async (eventId) => {
   try {
-    await notificationService.notifyPaymentFailed(userId, amount, reason);
-
-    console.log(`Triggered payment failed notification for user ${userId}`);
+    logNotification('EVENT_TARGET_REACHED', {
+      eventId,
+      description: `Event ${eventId} has reached its target amount`
+    });
+    return { success: true, message: 'Event target reached notification logged' };
   } catch (error) {
-    console.error("Error triggering payment failed notification:", error);
+    console.error("Error in triggerEventTargetReached:", error);
   }
 };
 
-// ===== USER ONBOARDING TRIGGERS =====
-
-// Trigger welcome notification for new users
-const triggerWelcomeNotification = async (userId, userRole) => {
+/**
+ * Trigger notification when event is ending soon
+ */
+const triggerEventEndingSoon = async (eventId, daysLeft = 3) => {
   try {
-    await notificationService.notifyWelcome(userId, userRole);
-    console.log(`Triggered welcome notification for user ${userId}`);
+    logNotification('EVENT_ENDING_SOON', {
+      eventId,
+      daysLeft,
+      description: `Event ${eventId} is ending in ${daysLeft} days`
+    });
+    return { success: true, message: 'Event ending soon notification logged' };
   } catch (error) {
-    console.error("Error triggering welcome notification:", error);
+    console.error("Error in triggerEventEndingSoon:", error);
   }
 };
 
-// ===== BULK NOTIFICATION TRIGGERS =====
-
-// Trigger notifications for multiple users (e.g., event updates)
-const triggerBulkNotifications = async (notifications) => {
+/**
+ * Trigger notification when event checkout is ready
+ */
+const triggerEventCheckoutReady = async (eventId) => {
   try {
-    const result = await notificationService.createBulkNotifications(notifications);
-    console.log(`Triggered bulk notifications:`, result.summary);
-    return result;
+    logNotification('EVENT_CHECKOUT_READY', {
+      eventId,
+      description: `Event ${eventId} is ready for checkout`
+    });
+    return { success: true, message: 'Event checkout ready notification logged' };
   } catch (error) {
-    console.error("Error triggering bulk notifications:", error);
+    console.error("Error in triggerEventCheckoutReady:", error);
   }
 };
 
-// ===== SCHEDULED NOTIFICATION TRIGGERS =====
-
-// Check for events ending soon (to be called by cron job)
-const checkEventsEndingSoon = async () => {
+/**
+ * Trigger notification when event is completed
+ */
+const triggerEventCompleted = async (eventId) => {
   try {
-    await triggerEventEndingSoon();
-    console.log("Completed events ending soon check");
+    logNotification('EVENT_COMPLETED', {
+      eventId,
+      description: `Event ${eventId} has been completed`
+    });
+    return { success: true, message: 'Event completed notification logged' };
   } catch (error) {
-    console.error("Error in events ending soon check:", error);
+    console.error("Error in triggerEventCompleted:", error);
   }
 };
 
-// Check for expired events (to be called by cron job)
-const checkExpiredEvents = async () => {
+/**
+ * Trigger notification for product approval/rejection
+ */
+const triggerProductApproval = async (productId, status, reason = null, reviewerId = null) => {
   try {
-    await triggerEventExpired();
-    console.log("Completed expired events check");
+    logNotification('PRODUCT_APPROVAL', {
+      productId,
+      status,
+      reason,
+      reviewerId,
+      description: `Product ${productId} was ${status}`
+    });
+    return { success: true, message: 'Product approval notification logged' };
   } catch (error) {
-    console.error("Error in expired events check:", error);
+    console.error("Error in triggerProductApproval:", error);
   }
 };
 
-// Check for low stock products (for sellers)
-const checkLowStockProducts = async () => {
+/**
+ * Trigger notification when product is out of stock
+ */
+const triggerProductOutOfStock = async (productId) => {
   try {
-    const lowStockThreshold = 5; // Products with 5 or fewer items
-    
-    const lowStockProducts = await Product.find({
-      stock: { $lte: lowStockThreshold, $gt: 0 },
-      status: "approved",
-    }).populate('seller');
-
-    for (const product of lowStockProducts) {
-      if (!product.seller) continue;
-
-      await notificationService.createNotification({
-        recipientId: product.seller._id,
-        type: "product_out_of_stock",
-        title: "Low Stock Alert ⚠️",
-        message: `${product.name} is running low on stock (${product.stock} remaining)`,
-        data: { productId: product._id, currentStock: product.stock },
-        relatedEntity: { entityType: "Product", entityId: product._id },
-        priority: "normal",
-      });
-    }
-
-    console.log(`Triggered low stock notifications for ${lowStockProducts.length} products`);
+    logNotification('PRODUCT_OUT_OF_STOCK', {
+      productId,
+      description: `Product ${productId} is out of stock`
+    });
+    return { success: true, message: 'Product out of stock notification logged' };
   } catch (error) {
-    console.error("Error checking low stock products:", error);
+    console.error("Error in triggerProductOutOfStock:", error);
   }
 };
 
+/**
+ * Trigger notification for new order
+ */
+const triggerNewOrder = async (orderId) => {
+  try {
+    logNotification('NEW_ORDER', {
+      orderId,
+      description: `New order ${orderId} received`
+    });
+    return { success: true, message: 'New order notification logged' };
+  } catch (error) {
+    console.error("Error in triggerNewOrder:", error);
+  }
+};
+
+/**
+ * Trigger notification for order status update
+ */
+const triggerOrderUpdate = async (orderId, newStatus, message = null) => {
+  try {
+    logNotification('ORDER_UPDATE', {
+      orderId,
+      newStatus,
+      message,
+      description: `Order ${orderId} status updated to ${newStatus}`
+    });
+    return { success: true, message: 'Order update notification logged' };
+  } catch (error) {
+    console.error("Error in triggerOrderUpdate:", error);
+  }
+};
+
+/**
+ * Trigger notification for successful payment
+ */
+const triggerPaymentReceived = async (contributionId) => {
+  try {
+    logNotification('PAYMENT_RECEIVED', {
+      contributionId,
+      description: `Payment received for contribution ${contributionId}`
+    });
+    return { success: true, message: 'Payment received notification logged' };
+  } catch (error) {
+    console.error("Error in triggerPaymentReceived:", error);
+  }
+};
+
+/**
+ * Trigger notification for failed payment
+ */
+const triggerPaymentFailed = async (contributionId, reason = null) => {
+  try {
+    logNotification('PAYMENT_FAILED', {
+      contributionId,
+      reason,
+      description: `Payment failed for contribution ${contributionId}`
+    });
+    return { success: true, message: 'Payment failed notification logged' };
+  } catch (error) {
+    console.error("Error in triggerPaymentFailed:", error);
+  }
+};
+
+/**
+ * Trigger notification for event invitation
+ */
+const triggerEventInvitation = async (eventId, invitedUserId, inviterName) => {
+  try {
+    logNotification('EVENT_INVITATION', {
+      eventId,
+      invitedUserId,
+      inviterName,
+      description: `User ${invitedUserId} invited to event ${eventId} by ${inviterName}`
+    });
+    return { success: true, message: 'Event invitation notification logged' };
+  } catch (error) {
+    console.error("Error in triggerEventInvitation:", error);
+  }
+};
+
+/**
+ * Trigger reminder notification
+ */
+const triggerReminder = async (userId, type, title, message, relatedEntity = null, priority = "normal") => {
+  try {
+    logNotification('REMINDER', {
+      userId,
+      type,
+      title,
+      message,
+      relatedEntity,
+      priority,
+      description: `Reminder for user ${userId}: ${title}`
+    });
+    return { success: true, message: 'Reminder notification logged' };
+  } catch (error) {
+    console.error("Error in triggerReminder:", error);
+  }
+};
+
+/**
+ * Send notification to multiple users
+ */
+const triggerBulkNotification = async (userIds, notificationData) => {
+  try {
+    logNotification('BULK_NOTIFICATION', {
+      userIds,
+      notificationData,
+      description: `Bulk notification sent to ${userIds.length} users`
+    });
+    return { success: true, message: 'Bulk notification logged' };
+  } catch (error) {
+    console.error("Error in triggerBulkNotification:", error);
+  }
+};
+
+console.log("✅ Notification triggers loaded (minimal logging version)");
+
+// Export all functions
 module.exports = {
-  // Event-related triggers
+  // User related
+  triggerWelcomeNotification,
+  
+  // Event related
   triggerEventContribution,
+  triggerEventTargetReached,
   triggerEventEndingSoon,
-  triggerEventExpired,
+  triggerEventCheckoutReady,
+  triggerEventCompleted,
   
-  // Product-related triggers
+  // Product related
   triggerProductApproval,
-  triggerNewOrder,
-  triggerOrderStatusChange,
+  triggerProductOutOfStock,
   
-  // Payment-related triggers
+  // Order related
+  triggerNewOrder,
+  triggerOrderUpdate,
+  
+  // Payment related
   triggerPaymentReceived,
   triggerPaymentFailed,
   
-  // User onboarding triggers
-  triggerWelcomeNotification,
+  // Invitation related
+  triggerEventInvitation,
   
-  // Bulk and scheduled triggers
-  triggerBulkNotifications,
-  checkEventsEndingSoon,
-  checkExpiredEvents,
-  checkLowStockProducts,
+  // General
+  triggerReminder,
+  triggerBulkNotification
 };

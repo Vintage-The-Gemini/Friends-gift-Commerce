@@ -1,6 +1,14 @@
-// controllers/contribution.controller.js
+// backend/src/controllers/contribution.controller.js - ENHANCED WITH NOTIFICATIONS
 const Contribution = require("../models/Contribution");
 const Event = require("../models/Event");
+
+// ⭐ NEW: Import notification triggers
+const { 
+  triggerEventContribution, 
+  triggerEventTargetReached,
+  triggerPaymentReceived,
+  triggerPaymentFailed 
+} = require('../utils/notificationTriggers');
 
 // Import the M-PESA service if real payments are enabled
 let mpesaService = null;
@@ -182,18 +190,56 @@ exports.createContribution = async (req, res) => {
               // Update event amount
               const eventToUpdate = await Event.findById(eventId);
               if (eventToUpdate) {
+                const previousAmount = eventToUpdate.currentAmount;
                 eventToUpdate.currentAmount += amount;
                 eventToUpdate.contributions.push(contribution._id);
 
-                if (eventToUpdate.currentAmount >= eventToUpdate.targetAmount) {
-                  eventToUpdate.status = "completed";
+                // ⭐ NEW: TRIGGER CONTRIBUTION NOTIFICATION
+                try {
+                  await triggerEventContribution({
+                    eventId: eventId,
+                    contributorId: req.user._id,
+                    amount: amount,
+                    message: message
+                  });
+                  console.log(`Event contribution notification triggered for contribution ${contribution._id}`);
+                } catch (notificationError) {
+                  console.error('Event contribution notification failed:', notificationError);
                 }
+
+                // ⭐ NEW: TRIGGER PAYMENT RECEIVED NOTIFICATION
+                try {
+                  await triggerPaymentReceived(contribution._id);
+                  console.log(`Payment received notification triggered for contribution ${contribution._id}`);
+                } catch (notificationError) {
+                  console.error('Payment received notification failed:', notificationError);
+                }
+
+                // ⭐ NEW: CHECK IF TARGET REACHED AND TRIGGER NOTIFICATION
+                if (previousAmount < eventToUpdate.targetAmount && eventToUpdate.currentAmount >= eventToUpdate.targetAmount) {
+                  eventToUpdate.status = "completed";
+                  try {
+                    await triggerEventTargetReached(eventId);
+                    console.log(`Event target reached notification triggered for event ${eventId}`);
+                  } catch (notificationError) {
+                    console.error('Event target reached notification failed:', notificationError);
+                  }
+                }
+
                 await eventToUpdate.save();
                 console.log(`Simulation: Updated event ${eventId} with new contribution`);
               }
             }
           } catch (simError) {
             console.error("Error in payment simulation:", simError);
+            
+            // ⭐ NEW: TRIGGER PAYMENT FAILED NOTIFICATION ON ERROR
+            try {
+              await triggerPaymentFailed(contribution._id, simError.message);
+              console.log(`Payment failed notification triggered for contribution ${contribution._id}`);
+            } catch (notificationError) {
+              console.error('Payment failed notification failed:', notificationError);
+            }
           }
         }, 5000);
       }
@@ -214,6 +260,15 @@ exports.createContribution = async (req, res) => {
       // If payment initialization fails, update contribution status
       contribution.paymentStatus = "failed";
       await contribution.save();
+      
+      // ⭐ NEW: TRIGGER PAYMENT FAILED NOTIFICATION
+      try {
+        await triggerPaymentFailed(contribution._id, paymentError.message);
+        console.log(`Payment failed notification triggered for failed contribution ${contribution._id}`);
+      } catch (notificationError) {
+        console.error('Payment failed notification failed:', notificationError);
+      }
+      
       throw paymentError;
     }
   } catch (error) {
@@ -327,6 +382,7 @@ exports.updateContributionStatus = async (req, res) => {
 
     const { paymentStatus, transactionId, paymentDetails } = req.body;
 
+    const oldStatus = contribution.paymentStatus;
     contribution.paymentStatus = paymentStatus;
     if (transactionId) contribution.transactionId = transactionId;
 
@@ -346,18 +402,47 @@ exports.updateContributionStatus = async (req, res) => {
 
     await contribution.save();
 
-    if (paymentStatus === "completed") {
-      const event = await Event.findById(contribution.event);
-      if (event) {
-        event.currentAmount = await Contribution.aggregate([
-          { $match: { event: event._id, paymentStatus: "completed" } },
-          { $group: { _id: null, total: { $sum: "$amount" } } },
-        ]).then((result) => result[0]?.total || 0);
-
-        if (event.currentAmount >= event.targetAmount) {
-          event.status = "completed";
+    // ⭐ NEW: TRIGGER NOTIFICATIONS BASED ON STATUS CHANGE
+    if (oldStatus !== paymentStatus) {
+      if (paymentStatus === "completed") {
+        // Trigger payment received notification
+        try {
+          await triggerPaymentReceived(contribution._id);
+          console.log(`Payment received notification triggered for contribution ${contribution._id}`);
+        } catch (notificationError) {
+          console.error('Payment received notification failed:', notificationError);
         }
-        await event.save();
+
+        // Update event amount and check for target reached
+        const event = await Event.findById(contribution.event);
+        if (event) {
+          const previousAmount = event.currentAmount;
+          event.currentAmount = await Contribution.aggregate([
+            { $match: { event: event._id, paymentStatus: "completed" } },
+            { $group: { _id: null, total: { $sum: "$amount" } } },
+          ]).then((result) => result[0]?.total || 0);
+
+          // Check if target reached
+          if (previousAmount < event.targetAmount && event.currentAmount >= event.targetAmount) {
+            event.status = "completed";
+            try {
+              await triggerEventTargetReached(event._id);
+              console.log(`Event target reached notification triggered for event ${event._id}`);
+            } catch (notificationError) {
+              console.error('Event target reached notification failed:', notificationError);
+            }
+          }
+          
+          await event.save();
+        }
+      } else if (paymentStatus === "failed") {
+        // Trigger payment failed notification
+        try {
+          await triggerPaymentFailed(contribution._id, "Payment processing failed");
+          console.log(`Payment failed notification triggered for contribution ${contribution._id}`);
+        } catch (notificationError) {
+          console.error('Payment failed notification failed:', notificationError);
+        }
       }
     }
 
@@ -409,7 +494,7 @@ exports.getContribution = async (req, res) => {
   }
 };
 
-// M-PESA callback handler
+// M-PESA callback handler - ENHANCED WITH NOTIFICATIONS
 exports.handleMpesaCallback = async (req, res) => {
   try {
     // Log the callback for debugging
@@ -451,21 +536,59 @@ exports.handleMpesaCallback = async (req, res) => {
         }
       }
       
-      // Update event amount
+      // ⭐ NEW: TRIGGER SUCCESS NOTIFICATIONS
+      try {
+        await triggerPaymentReceived(contribution._id);
+        console.log(`Payment received notification triggered for M-PESA contribution ${contribution._id}`);
+      } catch (notificationError) {
+        console.error('Payment received notification failed:', notificationError);
+      }
+
+      // Update event amount and check for notifications
       const event = await Event.findById(contribution.event);
       if (event) {
+        const previousAmount = event.currentAmount;
         event.currentAmount += contribution.amount;
         event.contributions.push(contribution._id);
 
-        if (event.currentAmount >= event.targetAmount) {
-          event.status = "completed";
+        // Trigger contribution notification
+        try {
+          await triggerEventContribution({
+            eventId: contribution.event,
+            contributorId: contribution.contributor,
+            amount: contribution.amount,
+            message: contribution.message
+          });
+          console.log(`Event contribution notification triggered for M-PESA contribution ${contribution._id}`);
+        } catch (notificationError) {
+          console.error('Event contribution notification failed:', notificationError);
         }
+
+        // Check if target reached
+        if (previousAmount < event.targetAmount && event.currentAmount >= event.targetAmount) {
+          event.status = "completed";
+          try {
+            await triggerEventTargetReached(event._id);
+            console.log(`Event target reached notification triggered for event ${event._id}`);
+          } catch (notificationError) {
+            console.error('Event target reached notification failed:', notificationError);
+          }
+        }
+        
         await event.save();
       }
     } else {
       // Payment failed
       contribution.paymentStatus = "failed";
       contribution.mpesaDetails.responseDescription = ResultDesc || "Payment failed";
+      
+      // ⭐ NEW: TRIGGER FAILURE NOTIFICATION
+      try {
+        await triggerPaymentFailed(contribution._id, ResultDesc || "M-PESA payment failed");
+        console.log(`Payment failed notification triggered for M-PESA contribution ${contribution._id}`);
+      } catch (notificationError) {
+        console.error('Payment failed notification failed:', notificationError);
+      }
     }
     
     await contribution.save();
@@ -477,4 +600,14 @@ exports.handleMpesaCallback = async (req, res) => {
     // Always respond with success to M-PESA
     return res.status(200).json({ ResultCode: 0, ResultDesc: "Success" });
   }
+};
+
+// Ensure all functions are properly exported
+module.exports = {
+  createContribution: exports.createContribution,
+  getEventContributions: exports.getEventContributions,
+  getUserContributions: exports.getUserContributions,
+  updateContributionStatus: exports.updateContributionStatus,
+  getContribution: exports.getContribution,
+  handleMpesaCallback: exports.handleMpesaCallback
 };

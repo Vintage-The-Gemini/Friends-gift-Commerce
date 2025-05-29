@@ -1,212 +1,104 @@
-// backend/src/routes/notification.routes.js
+// backend/src/routes/notification.routes.js - COMPLETE ROUTES
 const express = require("express");
 const router = express.Router();
-const protect = require("../middleware/auth");
-const notificationService = require("../services/notificationService");
+const { protect } = require("../middleware/auth");
+const {
+  getUserNotifications,
+  getUnreadCount,
+  markAsRead,
+  markAllAsRead,
+  deleteNotification,
+  getNotification,
+  getNotificationStats,
+  updateNotificationPreferences,
+  testNotification
+} = require("../controllers/notificationController");
+
+// All notification routes require authentication
+router.use(protect);
+
+// ====================
+// CORE NOTIFICATION ROUTES
+// ====================
 
 /**
  * @route   GET /api/notifications
- * @desc    Get user notifications with pagination
+ * @desc    Get user's notifications with pagination and filters
  * @access  Private
+ * @params  page, limit, onlyUnread, type, priority
  */
-router.get("/", protect, async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const { page = 1, limit = 20, onlyUnread = false, type } = req.query;
-
-    const result = await notificationService.getUserNotifications(userId, {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      onlyUnread: onlyUnread === "true",
-      type,
-    });
-
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        data: result.notifications,
-        pagination: result.pagination,
-        unreadCount: result.unreadCount,
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: "Failed to fetch notifications",
-        error: result.error,
-      });
-    }
-  } catch (error) {
-    console.error("Error in GET /notifications:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-});
+router.get("/", getUserNotifications);
 
 /**
  * @route   GET /api/notifications/unread-count
  * @desc    Get count of unread notifications
  * @access  Private
  */
-router.get("/unread-count", protect, async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const result = await notificationService.getUnreadCount(userId);
+router.get("/unread-count", getUnreadCount);
 
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        count: result.count,
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: "Failed to get unread count",
-        error: result.error,
-      });
-    }
-  } catch (error) {
-    console.error("Error in GET /notifications/unread-count:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-});
+/**
+ * @route   GET /api/notifications/stats
+ * @desc    Get notification statistics for user
+ * @access  Private
+ */
+router.get("/stats", getNotificationStats);
+
+/**
+ * @route   GET /api/notifications/:id
+ * @desc    Get single notification by ID
+ * @access  Private
+ */
+router.get("/:id", getNotification);
+
+// ====================
+// NOTIFICATION ACTIONS
+// ====================
 
 /**
  * @route   PUT /api/notifications/read
  * @desc    Mark notification(s) as read
  * @access  Private
+ * @body    { notificationId?, all? }
  */
-router.put("/read", protect, async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const { notificationId, all = false } = req.body;
+router.put("/read", markAsRead);
 
-    if (!all && !notificationId) {
-      return res.status(400).json({
-        success: false,
-        message: "Either notificationId or all=true is required",
-      });
-    }
-
-    const result = await notificationService.markAsRead({
-      userId,
-      notificationId,
-      all,
-    });
-
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        message: result.message,
-        data: result.data,
-      });
-    } else {
-      res.status(400).json({
-        success: false,
-        message: result.message,
-      });
-    }
-  } catch (error) {
-    console.error("Error in PUT /notifications/read:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-});
+/**
+ * @route   PUT /api/notifications/mark-all-read
+ * @desc    Mark all notifications as read
+ * @access  Private
+ */
+router.put("/mark-all-read", markAllAsRead);
 
 /**
  * @route   DELETE /api/notifications
  * @desc    Delete notification(s)
  * @access  Private
+ * @body    { notificationId?, all? }
  */
-router.delete("/", protect, async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const { notificationId, all = false } = req.body;
+router.delete("/", deleteNotification);
 
-    if (!all && !notificationId) {
-      return res.status(400).json({
-        success: false,
-        message: "Either notificationId or all=true is required",
-      });
-    }
+// ====================
+// PREFERENCES & SETTINGS
+// ====================
 
-    const result = await notificationService.deleteNotifications({
-      userId,
-      notificationId,
-      all,
-    });
+/**
+ * @route   PUT /api/notifications/preferences
+ * @desc    Update notification preferences
+ * @access  Private
+ * @body    { preferences }
+ */
+router.put("/preferences", updateNotificationPreferences);
 
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        message: result.message,
-      });
-    } else {
-      res.status(400).json({
-        success: false,
-        message: result.message,
-      });
-    }
-  } catch (error) {
-    console.error("Error in DELETE /notifications:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-});
+// ====================
+// DEVELOPMENT & TESTING
+// ====================
 
 /**
  * @route   POST /api/notifications/test
- * @desc    Create a test notification (development only)
+ * @desc    Create test notification (development only)
  * @access  Private
+ * @body    { type?, title?, message? }
  */
-if (process.env.NODE_ENV !== "production") {
-  router.post("/test", protect, async (req, res) => {
-    try {
-      const userId = req.user._id;
-      const { type = "welcome", title, message } = req.body;
-
-      const result = await notificationService.createNotification({
-        recipientId: userId,
-        type,
-        title: title || "Test Notification",
-        message: message || "This is a test notification.",
-        priority: "normal",
-      });
-
-      if (result.success) {
-        res.status(201).json({
-          success: true,
-          message: "Test notification created",
-          data: result.notification,
-        });
-      } else {
-        res.status(500).json({
-          success: false,
-          message: "Failed to create test notification",
-          error: result.error,
-        });
-      }
-    } catch (error) {
-      console.error("Error in POST /notifications/test:", error);
-      res.status(500).json({
-        success: false,
-        message: "Internal server error",
-        error: error.message,
-      });
-    }
-  });
-}
+router.post("/test", testNotification);
 
 module.exports = router;
