@@ -1,4 +1,4 @@
-// frontend/src/App.jsx - ENHANCED VERSION WITH WISHLIST
+// frontend/src/App.jsx - UPDATED WITH WISHLIST PROVIDER
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
@@ -7,8 +7,9 @@ import RequireBusinessProfile from "./middleware/RequireBusinessProfile";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-// ⭐ NEW: Import notification context
+// ⭐ NEW: Import notification and wishlist contexts
 import { NotificationProvider } from "./contexts/NotificationContext";
+import { WishlistProvider } from "./hooks/useWishlist";
 
 // Layouts
 import RootLayout from "./layouts/RootLayout";
@@ -73,25 +74,27 @@ import SellerEvents from "./pages/dashboard/seller/SellerEvents";
 // Error Boundary
 import ErrorBoundary from "./components/common/ErrorBoundary";
 
-// ⭐ NEW: Root component with notification provider
+// ⭐ UPDATED: Root component with all providers
 const Root = () => {
   return (
     <AuthProvider>
       <NotificationProvider>
-        <ToastContainer 
-          position="top-right" 
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="light"
-          className="toast-container"
-        />
-        <Outlet />
+        <WishlistProvider>
+          <ToastContainer 
+            position="top-right" 
+            autoClose={5000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="light"
+            className="toast-container"
+          />
+          <Outlet />
+        </WishlistProvider>
       </NotificationProvider>
     </AuthProvider>
   );

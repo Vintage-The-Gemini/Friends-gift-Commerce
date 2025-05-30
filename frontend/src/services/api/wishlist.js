@@ -1,86 +1,70 @@
-// frontend/src/services/api/wishlist.js - FIXED VERSION
+// frontend/src/services/api/wishlist.js - COMPLETE FIXED VERSION
 import api from './axios.config';
-
-// API endpoints
-const ENDPOINTS = {
-  BASE: "/wishlist",
-  CHECK: (productId) => `/wishlist/check/${productId}`,
-  PRODUCT: (productId) => `/wishlist/${productId}`,
-  MOVE_TO_EVENT: "/wishlist/move-to-event",
-};
-
-// Helper function to handle API errors
-const handleApiError = (error, defaultMessage) => {
-  console.error("[Wishlist Service] Error:", error);
-  
-  if (error.response) {
-    const enhancedError = new Error(
-      error.response.data?.message || defaultMessage
-    );
-    enhancedError.status = error.response.status;
-    enhancedError.response = error.response;
-    throw enhancedError;
-  }
-  
-  throw error.response?.data || {
-    success: false,
-    message: defaultMessage,
-    error: error.message,
-  };
-};
 
 export const wishlistService = {
   /**
-   * Get user's wishlist
-   * @param {Object} options - Query options (page, limit, sortBy)
-   * @returns {Promise<Object>} API response
+   * Get user's wishlist with pagination and sorting
    */
-  getWishlist: async (options = {}) => {
+  getWishlist: async (params = {}) => {
     try {
-      const params = new URLSearchParams();
+      const queryParams = new URLSearchParams();
       
-      if (options.page) params.append('page', options.page);
-      if (options.limit) params.append('limit', options.limit);
-      if (options.sortBy) params.append('sortBy', options.sortBy);
+      // Add optional parameters
+      if (params.page) queryParams.append('page', params.page);
+      if (params.limit) queryParams.append('limit', params.limit);
+      if (params.sortBy) queryParams.append('sortBy', params.sortBy);
       
-      const queryString = params.toString();
-      const url = queryString ? `${ENDPOINTS.BASE}?${queryString}` : ENDPOINTS.BASE;
+      const queryString = queryParams.toString();
+      const url = queryString ? `/wishlist?${queryString}` : '/wishlist';
       
       const response = await api.get(url);
       return response.data;
     } catch (error) {
-      return handleApiError(error, 'Failed to fetch wishlist');
+      console.error('[Wishlist Service] Get Wishlist Error:', error);
+      throw error;
     }
   },
 
   /**
    * Add product to wishlist
-   * @param {string} productId - Product ID
-   * @param {Object} options - Additional options (notes, priority)
-   * @returns {Promise<Object>} API response
    */
-  addToWishlist: async (productId, options = {}) => {
+  addToWishlist: async (productId, notes = '', priority = 'medium') => {
     try {
       if (!productId) {
         throw new Error('Product ID is required');
       }
 
-      const requestData = {
+      const payload = {
         productId,
-        ...options
+        ...(notes && { notes }),
+        ...(priority && { priority })
       };
 
-      const response = await api.post(ENDPOINTS.BASE, requestData);
+      const response = await api.post('/wishlist', payload);
       return response.data;
     } catch (error) {
-      return handleApiError(error, 'Failed to add product to wishlist');
+      console.error('[Wishlist Service] Add to Wishlist Error:', error);
+      
+      // Handle specific error cases
+      if (error.response?.status === 400) {
+        const message = error.response.data?.message || 'Product already in wishlist';
+        throw new Error(message);
+      }
+      
+      if (error.response?.status === 404) {
+        throw new Error('Product not found');
+      }
+      
+      if (error.response?.status === 401) {
+        throw new Error('Please sign in to add items to your wishlist');
+      }
+      
+      throw error;
     }
   },
 
   /**
    * Remove product from wishlist
-   * @param {string} productId - Product ID
-   * @returns {Promise<Object>} API response
    */
   removeFromWishlist: async (productId) => {
     try {
@@ -88,18 +72,21 @@ export const wishlistService = {
         throw new Error('Product ID is required');
       }
 
-      const response = await api.delete(ENDPOINTS.PRODUCT(productId));
+      const response = await api.delete(`/wishlist/${productId}`);
       return response.data;
     } catch (error) {
-      return handleApiError(error, 'Failed to remove product from wishlist');
+      console.error('[Wishlist Service] Remove from Wishlist Error:', error);
+      
+      if (error.response?.status === 404) {
+        throw new Error('Item not found in wishlist');
+      }
+      
+      throw error;
     }
   },
 
   /**
-   * Update wishlist item
-   * @param {string} productId - Product ID
-   * @param {Object} updates - Updates to apply (notes, priority)
-   * @returns {Promise<Object>} API response
+   * Update wishlist item (notes, priority)
    */
   updateWishlistItem: async (productId, updates) => {
     try {
@@ -107,17 +94,16 @@ export const wishlistService = {
         throw new Error('Product ID is required');
       }
 
-      const response = await api.put(ENDPOINTS.PRODUCT(productId), updates);
+      const response = await api.put(`/wishlist/${productId}`, updates);
       return response.data;
     } catch (error) {
-      return handleApiError(error, 'Failed to update wishlist item');
+      console.error('[Wishlist Service] Update Wishlist Item Error:', error);
+      throw error;
     }
   },
 
   /**
    * Check if product is in wishlist
-   * @param {string} productId - Product ID
-   * @returns {Promise<Object>} API response
    */
   checkWishlistStatus: async (productId) => {
     try {
@@ -125,49 +111,177 @@ export const wishlistService = {
         throw new Error('Product ID is required');
       }
 
-      const response = await api.get(ENDPOINTS.CHECK(productId));
+      const response = await api.get(`/wishlist/check/${productId}`);
       return response.data;
     } catch (error) {
-      return handleApiError(error, 'Failed to check wishlist status');
+      console.error('[Wishlist Service] Check Wishlist Status Error:', error);
+      
+      // If product not in wishlist, return false instead of throwing
+      if (error.response?.status === 404) {
+        return { success: true, data: { isInWishlist: false } };
+      }
+      
+      throw error;
     }
   },
 
   /**
    * Clear entire wishlist
-   * @returns {Promise<Object>} API response
    */
   clearWishlist: async () => {
     try {
-      const response = await api.delete(ENDPOINTS.BASE);
+      const response = await api.delete('/wishlist');
       return response.data;
     } catch (error) {
-      return handleApiError(error, 'Failed to clear wishlist');
+      console.error('[Wishlist Service] Clear Wishlist Error:', error);
+      throw error;
     }
   },
 
   /**
    * Move wishlist items to event
-   * @param {Array<string>} productIds - Array of product IDs
-   * @param {string} eventId - Event ID
-   * @returns {Promise<Object>} API response
    */
   moveToEvent: async (productIds, eventId) => {
     try {
       if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
         throw new Error('Product IDs array is required');
       }
-
+      
       if (!eventId) {
         throw new Error('Event ID is required');
       }
 
-      const response = await api.post(ENDPOINTS.MOVE_TO_EVENT, {
+      const response = await api.post('/wishlist/move-to-event', {
         productIds,
         eventId
       });
       return response.data;
     } catch (error) {
-      return handleApiError(error, 'Failed to move items to event');
+      console.error('[Wishlist Service] Move to Event Error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get wishlist statistics
+   */
+  getWishlistStats: async () => {
+    try {
+      const response = await api.get('/wishlist/stats');
+      return response.data;
+    } catch (error) {
+      console.error('[Wishlist Service] Get Stats Error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Batch operations - Add multiple products to wishlist
+   */
+  addMultipleToWishlist: async (productIds) => {
+    try {
+      if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+        throw new Error('Product IDs array is required');
+      }
+
+      const results = [];
+      
+      // Process items sequentially to avoid overwhelming the server
+      for (const productId of productIds) {
+        try {
+          const result = await this.addToWishlist(productId);
+          results.push({ productId, success: true, data: result });
+        } catch (error) {
+          results.push({ 
+            productId, 
+            success: false, 
+            error: error.message 
+          });
+        }
+      }
+
+      return {
+        success: true,
+        data: results,
+        summary: {
+          total: productIds.length,
+          successful: results.filter(r => r.success).length,
+          failed: results.filter(r => !r.success).length
+        }
+      };
+    } catch (error) {
+      console.error('[Wishlist Service] Batch Add Error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Batch operations - Remove multiple products from wishlist
+   */
+  removeMultipleFromWishlist: async (productIds) => {
+    try {
+      if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+        throw new Error('Product IDs array is required');
+      }
+
+      const results = [];
+      
+      for (const productId of productIds) {
+        try {
+          const result = await this.removeFromWishlist(productId);
+          results.push({ productId, success: true, data: result });
+        } catch (error) {
+          results.push({ 
+            productId, 
+            success: false, 
+            error: error.message 
+          });
+        }
+      }
+
+      return {
+        success: true,
+        data: results,
+        summary: {
+          total: productIds.length,
+          successful: results.filter(r => r.success).length,
+          failed: results.filter(r => !r.success).length
+        }
+      };
+    } catch (error) {
+      console.error('[Wishlist Service] Batch Remove Error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Export wishlist data
+   */
+  exportWishlist: async (format = 'json') => {
+    try {
+      const response = await api.get(`/wishlist/export?format=${format}`, {
+        responseType: format === 'csv' ? 'blob' : 'json'
+      });
+      
+      if (format === 'csv') {
+        // Create download link for CSV
+        const blob = new Blob([response.data], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `wishlist-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        return { success: true, message: 'Wishlist exported successfully' };
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('[Wishlist Service] Export Error:', error);
+      throw error;
     }
   }
 };

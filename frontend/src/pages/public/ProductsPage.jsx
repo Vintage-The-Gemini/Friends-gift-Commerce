@@ -1,4 +1,4 @@
-// frontend/src/pages/public/ProductsPage.jsx - OPTIMIZED WITH FAST LOADING
+// frontend/src/pages/public/ProductsPage.jsx - COMPLETE CLEAN VERSION
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -10,12 +10,12 @@ import {
   Heart,
   Grid,
   List,
-  Star,
   AlertCircle,
   Eye,
   Share2,
   Package,
   RefreshCw,
+  Plus,
 } from "lucide-react";
 import { productService } from "../../services/api/product";
 import { categoryService } from "../../services/api/category";
@@ -37,8 +37,8 @@ const debounce = (func, wait) => {
   };
 };
 
-// Optimized Product Card with lazy loading and memoization
-const OptimizedProductCard = React.memo(
+// Clean Product Card Component - No seller, stars, or stock display
+const CleanProductCard = React.memo(
   ({
     product,
     onAddToEvent,
@@ -96,7 +96,6 @@ const OptimizedProductCard = React.memo(
     // Preload image for better performance
     useEffect(() => {
       if (product.images?.[0]?.url && index < 8) {
-        // Preload first 8 images
         const img = new Image();
         img.onload = () => setImageLoaded(true);
         img.onerror = () => setImageError(true);
@@ -113,7 +112,6 @@ const OptimizedProductCard = React.memo(
         <div className="relative aspect-square overflow-hidden bg-gray-100">
           {!imageError ? (
             <>
-              {/* Skeleton loader */}
               {!imageLoaded && (
                 <div className="absolute inset-0 bg-gray-200 animate-pulse" />
               )}
@@ -126,7 +124,7 @@ const OptimizedProductCard = React.memo(
                 }`}
                 onLoad={() => setImageLoaded(true)}
                 onError={() => setImageError(true)}
-                loading={index < 6 ? "eager" : "lazy"} // Load first 6 immediately
+                loading={index < 6 ? "eager" : "lazy"}
                 decoding="async"
               />
             </>
@@ -136,21 +134,11 @@ const OptimizedProductCard = React.memo(
             </div>
           )}
 
-          {/* Stock Status */}
+          {/* Out of Stock Overlay */}
           {product.stock <= 0 && (
             <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
               <span className="text-white font-medium px-3 py-1 bg-red-500 rounded-md text-sm">
                 Out of Stock
-              </span>
-            </div>
-          )}
-
-          {/* Low Stock Warning */}
-          {product.stock > 0 && product.stock <= 5 && (
-            <div className="absolute top-2 left-2">
-              <span className="bg-orange-500 text-white px-2 py-1 rounded-md text-xs font-medium flex items-center">
-                <AlertCircle className="w-3 h-3 mr-1" />
-                {product.stock} left
               </span>
             </div>
           )}
@@ -193,48 +181,17 @@ const OptimizedProductCard = React.memo(
           )}
         </div>
 
-        {/* Product Info */}
+        {/* Product Info - Clean and Minimal */}
         <div className="p-4">
-          {/* Seller */}
-          <div className="text-xs text-gray-500 mb-1 truncate">
-            {product.seller?.businessName ||
-              product.seller?.name ||
-              "Unknown Seller"}
-          </div>
-
-          {/* Title */}
-          <h3 className="font-medium text-gray-900 mb-2 line-clamp-2 text-sm leading-tight">
+          {/* Product Title */}
+          <h3 className="font-medium text-gray-900 mb-3 line-clamp-2 text-sm leading-tight min-h-[2.5rem]">
             {product.name}
           </h3>
 
-          {/* Rating */}
-          {product.rating && (
-            <div className="flex items-center mb-2">
-              <div className="flex items-center">
-                {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    className={`w-3 h-3 ${
-                      i < Math.floor(product.rating)
-                        ? "text-yellow-400 fill-current"
-                        : "text-gray-300"
-                    }`}
-                  />
-                ))}
-              </div>
-              <span className="text-xs text-gray-500 ml-1">
-                ({product.reviewCount || 0})
-              </span>
-            </div>
-          )}
-
-          {/* Price and Stock */}
-          <div className="flex justify-between items-center mb-3">
+          {/* Price */}
+          <div className="mb-3">
             <span className="font-bold text-indigo-600 text-lg">
               {formatCurrency(product.price)}
-            </span>
-            <span className="text-xs text-gray-500">
-              Stock: {product.stock}
             </span>
           </div>
 
@@ -265,7 +222,6 @@ const OptimizedProductCard = React.memo(
     );
   },
   (prevProps, nextProps) => {
-    // Only re-render if essential props changed
     return (
       prevProps.product._id === nextProps.product._id &&
       prevProps.product.stock === nextProps.product.stock &&
@@ -313,7 +269,7 @@ const ProductsPage = () => {
   );
   const [hasMoreProducts, setHasMoreProducts] = useState(true);
 
-  // Memoized category fetch
+  // Fetch categories
   const fetchCategories = useCallback(async () => {
     try {
       const response = await categoryService.getAllCategories();
@@ -329,12 +285,12 @@ const ProductsPage = () => {
     fetchCategories();
   }, [fetchCategories]);
 
-  // Optimized debounced search
+  // Debounced search
   const debouncedSearch = useCallback(
     debounce((value) => {
       setFilters((prev) => ({ ...prev, search: value }));
       setPagination((prev) => ({ ...prev, page: 1 }));
-    }, 150), // Reduced debounce time for faster response
+    }, 300),
     []
   );
 
@@ -370,7 +326,6 @@ const ProductsPage = () => {
           sort: getSortValue(),
         };
 
-        // Build optimized filters
         const apiFilters = { ...filters };
         if (filters.inStock) {
           apiFilters.minStock = 1;
@@ -409,7 +364,6 @@ const ProductsPage = () => {
     [filters, getSortValue, pagination.page]
   );
 
-  // Fetch products when dependencies change
   useEffect(() => {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
@@ -421,7 +375,7 @@ const ProductsPage = () => {
     fetchProducts(true);
   }, [filters, sortOption]);
 
-  // Optimized wishlist toggle
+  // Wishlist toggle handler
   const handleWishlistToggle = useCallback(
     async (productId) => {
       if (!user) {
@@ -435,7 +389,7 @@ const ProductsPage = () => {
     [user, navigate, toggleWishlist]
   );
 
-  // Handle add to event
+  // Add to event handler
   const handleAddToEvent = useCallback(
     (product) => {
       if (!user) {
@@ -483,7 +437,6 @@ const ProductsPage = () => {
     [debouncedSearch]
   );
 
-  // Save view mode preference
   useEffect(() => {
     localStorage.setItem("productViewMode", viewMode);
   }, [viewMode]);
@@ -673,8 +626,9 @@ const ProductsPage = () => {
           )}
         </div>
 
-        {/* Desktop Filters Sidebar */}
+        {/* Desktop Filters Sidebar and Products */}
         <div className="flex gap-8">
+          {/* Desktop Filters Sidebar */}
           <div className="hidden lg:block w-64 flex-shrink-0">
             <div className="bg-white rounded-xl shadow-sm p-6 sticky top-6">
               <div className="flex justify-between items-center mb-6">
@@ -861,7 +815,7 @@ const ProductsPage = () => {
                 {viewMode === "grid" ? (
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-6">
                     {products.map((product, index) => (
-                      <OptimizedProductCard
+                      <CleanProductCard
                         key={product._id}
                         product={product}
                         index={index}
@@ -873,7 +827,7 @@ const ProductsPage = () => {
                     ))}
                   </div>
                 ) : (
-                  /* List View */
+                  /* Clean List View */
                   <div className="space-y-4">
                     {products.map((product, index) => (
                       <div
@@ -912,66 +866,25 @@ const ProductsPage = () => {
                             )}
                           </div>
 
-                          {/* Product Info */}
+                          {/* Product Info - Clean */}
                           <div className="flex-1 p-4 sm:p-6">
                             <div className="flex justify-between items-start">
                               <div className="flex-1 min-w-0">
-                                {/* Seller */}
-                                <div className="text-xs text-gray-500 mb-1">
-                                  {product.seller?.businessName ||
-                                    product.seller?.name ||
-                                    "Unknown Seller"}
-                                </div>
-
                                 {/* Title */}
                                 <h3 className="font-semibold text-gray-900 mb-2 text-lg leading-tight">
                                   {product.name}
                                 </h3>
 
                                 {/* Description */}
-                                <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                                <p className="text-gray-600 text-sm mb-4 line-clamp-2">
                                   {product.description}
                                 </p>
 
-                                {/* Rating */}
-                                {product.rating && (
-                                  <div className="flex items-center mb-3">
-                                    <div className="flex items-center">
-                                      {[...Array(5)].map((_, i) => (
-                                        <Star
-                                          key={i}
-                                          className={`w-4 h-4 ${
-                                            i < Math.floor(product.rating)
-                                              ? "text-yellow-400 fill-current"
-                                              : "text-gray-300"
-                                          }`}
-                                        />
-                                      ))}
-                                    </div>
-                                    <span className="text-sm text-gray-500 ml-2">
-                                      ({product.reviewCount || 0} reviews)
-                                    </span>
-                                  </div>
-                                )}
-
-                                {/* Price and Stock */}
+                                {/* Price Only */}
                                 <div className="flex items-center justify-between mb-4">
                                   <span className="font-bold text-indigo-600 text-xl">
                                     {formatCurrency(product.price)}
                                   </span>
-                                  <div className="text-sm text-gray-500">
-                                    <span
-                                      className={
-                                        product.stock <= 5
-                                          ? "text-orange-600 font-medium"
-                                          : ""
-                                      }
-                                    >
-                                      {product.stock > 0
-                                        ? `${product.stock} in stock`
-                                        : "Out of stock"}
-                                    </span>
-                                  </div>
                                 </div>
                               </div>
 
