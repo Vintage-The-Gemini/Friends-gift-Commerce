@@ -1,242 +1,250 @@
 // frontend/src/contexts/NotificationContext.jsx
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { notificationService } from '../services/api/notification';
 
-// Initial state
-const initialState = {
-  notifications: [],
-  unreadCount: 0,
-  loading: false,
-  error: null,
-  page: 1,
-  hasMore: true,
-};
-
-// Action types
-const NOTIFICATION_ACTIONS = {
-  SET_LOADING: 'SET_LOADING',
-  SET_NOTIFICATIONS: 'SET_NOTIFICATIONS',
-  ADD_NOTIFICATIONS: 'ADD_NOTIFICATIONS',
-  SET_UNREAD_COUNT: 'SET_UNREAD_COUNT',
-  MARK_AS_READ: 'MARK_AS_READ',
-  MARK_ALL_AS_READ: 'MARK_ALL_AS_READ',
-  DELETE_NOTIFICATION: 'DELETE_NOTIFICATION',
-  SET_ERROR: 'SET_ERROR',
-  SET_HAS_MORE: 'SET_HAS_MORE',
-  INCREMENT_PAGE: 'INCREMENT_PAGE',
-  RESET_PAGE: 'RESET_PAGE',
-};
-
-// Reducer
-const notificationReducer = (state, action) => {
-  switch (action.type) {
-    case NOTIFICATION_ACTIONS.SET_LOADING:
-      return { ...state, loading: action.payload };
-
-    case NOTIFICATION_ACTIONS.SET_NOTIFICATIONS:
-      return { 
-        ...state, 
-        notifications: action.payload, 
-        loading: false,
-        error: null 
-      };
-
-    case NOTIFICATION_ACTIONS.ADD_NOTIFICATIONS:
-      return { 
-        ...state, 
-        notifications: [...state.notifications, ...action.payload],
-        loading: false,
-        error: null 
-      };
-
-    case NOTIFICATION_ACTIONS.SET_UNREAD_COUNT:
-      return { ...state, unreadCount: action.payload };
-
-    case NOTIFICATION_ACTIONS.MARK_AS_READ:
-      return {
-        ...state,
-        notifications: state.notifications.map(notification =>
-          notification._id === action.payload
-            ? { ...notification, isRead: true }
-            : notification
-        ),
-        unreadCount: Math.max(0, state.unreadCount - 1),
-      };
-
-    case NOTIFICATION_ACTIONS.MARK_ALL_AS_READ:
-      return {
-        ...state,
-        notifications: state.notifications.map(notification => ({
-          ...notification,
-          isRead: true,
-        })),
-        unreadCount: 0,
-      };
-
-    case NOTIFICATION_ACTIONS.DELETE_NOTIFICATION:
-      const deletedNotification = state.notifications.find(n => n._id === action.payload);
-      return {
-        ...state,
-        notifications: state.notifications.filter(n => n._id !== action.payload),
-        unreadCount: deletedNotification && !deletedNotification.isRead 
-          ? Math.max(0, state.unreadCount - 1) 
-          : state.unreadCount,
-      };
-
-    case NOTIFICATION_ACTIONS.SET_ERROR:
-      return { ...state, error: action.payload, loading: false };
-
-    case NOTIFICATION_ACTIONS.SET_HAS_MORE:
-      return { ...state, hasMore: action.payload };
-
-    case NOTIFICATION_ACTIONS.INCREMENT_PAGE:
-      return { ...state, page: state.page + 1 };
-
-    case NOTIFICATION_ACTIONS.RESET_PAGE:
-      return { ...state, page: 1 };
-
-    default:
-      return state;
-  }
-};
-
-// Create context
+// Create Notification Context
 const NotificationContext = createContext();
 
-// Provider component
+// Notification Provider Component
 export const NotificationProvider = ({ children }) => {
-  const [state, dispatch] = useReducer(notificationReducer, initialState);
   const { user } = useAuth();
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
-  // Fetch notifications
-  const fetchNotifications = async (reset = false) => {
-    if (!user || state.loading) return;
+  // Initialize notifications when user changes
+  useEffect(() => {
+    if (user) {
+      loadNotifications();
+      loadUnreadCount();
+    } else {
+      // Clear notifications when user logs out
+      setNotifications([]);
+      setUnreadCount(0);
+      setInitialized(false);
+    }
+  }, [user]);
+
+  // Load notifications from server
+  const loadNotifications = useCallback(async (page = 1, limit = 10) => {
+    if (!user) return;
 
     try {
-      dispatch({ type: NOTIFICATION_ACTIONS.SET_LOADING, payload: true });
-      
-      const page = reset ? 1 : state.page;
+      setLoading(true);
       const response = await notificationService.getUserNotifications({
         page,
-        limit: 20,
+        limit
       });
 
       if (response.success) {
-        if (reset) {
-          dispatch({ type: NOTIFICATION_ACTIONS.SET_NOTIFICATIONS, payload: response.data });
-          dispatch({ type: NOTIFICATION_ACTIONS.RESET_PAGE });
+        if (page === 1) {
+          setNotifications(response.data);
         } else {
-          dispatch({ type: NOTIFICATION_ACTIONS.ADD_NOTIFICATIONS, payload: response.data });
+          setNotifications(prev => [...prev, ...response.data]);
         }
-        
-        dispatch({ type: NOTIFICATION_ACTIONS.SET_UNREAD_COUNT, payload: response.unreadCount });
-        dispatch({ 
-          type: NOTIFICATION_ACTIONS.SET_HAS_MORE, 
-          payload: response.pagination.page < response.pagination.totalPages 
-        });
+        setUnreadCount(response.unreadCount);
       }
     } catch (error) {
-      console.error('Error fetching notifications:', error);
-      dispatch({ type: NOTIFICATION_ACTIONS.SET_ERROR, payload: error.message });
+      console.error('Error loading notifications:', error);
+    } finally {
+      setLoading(false);
+      setInitialized(true);
     }
-  };
+  }, [user]);
 
-  // Fetch unread count only
-  const fetchUnreadCount = async () => {
+  // Load unread count
+  const loadUnreadCount = useCallback(async () => {
     if (!user) return;
 
     try {
       const response = await notificationService.getUnreadCount();
       if (response.success) {
-        dispatch({ type: NOTIFICATION_ACTIONS.SET_UNREAD_COUNT, payload: response.count });
+        setUnreadCount(response.count);
       }
     } catch (error) {
-      console.error('Error fetching unread count:', error);
+      console.error('Error loading unread count:', error);
     }
-  };
+  }, [user]);
 
   // Mark notification as read
-  const markAsRead = async (notificationId) => {
+  const markAsRead = useCallback(async (notificationId) => {
+    if (!user || !notificationId) return;
+
     try {
       const response = await notificationService.markAsRead({ notificationId });
+      
       if (response.success) {
-        dispatch({ type: NOTIFICATION_ACTIONS.MARK_AS_READ, payload: notificationId });
+        // Update local state
+        setNotifications(prev =>
+          prev.map(notification =>
+            notification._id === notificationId
+              ? { ...notification, isRead: true }
+              : notification
+          )
+        );
+        
+        // Update unread count
+        setUnreadCount(prev => Math.max(0, prev - 1));
+        
+        return true;
       }
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
-  };
+    
+    return false;
+  }, [user]);
 
   // Mark all notifications as read
-  const markAllAsRead = async () => {
+  const markAllAsRead = useCallback(async () => {
+    if (!user) return;
+
     try {
       const response = await notificationService.markAllAsRead();
+      
       if (response.success) {
-        dispatch({ type: NOTIFICATION_ACTIONS.MARK_ALL_AS_READ });
+        // Update local state
+        setNotifications(prev =>
+          prev.map(notification => ({ ...notification, isRead: true }))
+        );
+        setUnreadCount(0);
+        
+        return true;
       }
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
     }
-  };
+    
+    return false;
+  }, [user]);
 
   // Delete notification
-  const deleteNotification = async (notificationId) => {
+  const deleteNotification = useCallback(async (notificationId) => {
+    if (!user || !notificationId) return;
+
     try {
       const response = await notificationService.deleteNotification({ notificationId });
+      
       if (response.success) {
-        dispatch({ type: NOTIFICATION_ACTIONS.DELETE_NOTIFICATION, payload: notificationId });
+        // Check if deleted notification was unread
+        const notification = notifications.find(n => n._id === notificationId);
+        const wasUnread = notification && !notification.isRead;
+        
+        // Update local state
+        setNotifications(prev => prev.filter(n => n._id !== notificationId));
+        
+        // Update unread count if needed
+        if (wasUnread) {
+          setUnreadCount(prev => Math.max(0, prev - 1));
+        }
+        
+        return true;
       }
     } catch (error) {
       console.error('Error deleting notification:', error);
     }
-  };
-
-  // Load more notifications
-  const loadMore = async () => {
-    if (!state.hasMore || state.loading) return;
     
-    dispatch({ type: NOTIFICATION_ACTIONS.INCREMENT_PAGE });
-    await fetchNotifications(false);
-  };
+    return false;
+  }, [user, notifications]);
+
+  // Add new notification (for real-time updates)
+  const addNotification = useCallback((notification) => {
+    setNotifications(prev => [notification, ...prev]);
+    
+    if (!notification.isRead) {
+      setUnreadCount(prev => prev + 1);
+    }
+  }, []);
 
   // Refresh notifications
-  const refresh = async () => {
-    await fetchNotifications(true);
-  };
-
-  // Initial load and periodic updates
-  useEffect(() => {
+  const refreshNotifications = useCallback(async () => {
     if (user) {
-      fetchUnreadCount();
-      
-      // Set up polling for unread count (every 30 seconds)
-      const interval = setInterval(fetchUnreadCount, 30000);
-      return () => clearInterval(interval);
+      await loadNotifications();
+      await loadUnreadCount();
     }
+  }, [user, loadNotifications, loadUnreadCount]);
+
+  // Clear all notifications
+  const clearAllNotifications = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const response = await notificationService.deleteNotification({ all: true });
+      
+      if (response.success) {
+        setNotifications([]);
+        setUnreadCount(0);
+        return true;
+      }
+    } catch (error) {
+      console.error('Error clearing notifications:', error);
+    }
+    
+    return false;
   }, [user]);
 
-  // Context value
-  const value = {
+  // Get notification by ID
+  const getNotificationById = useCallback((notificationId) => {
+    return notifications.find(n => n._id === notificationId);
+  }, [notifications]);
+
+  // Get unread notifications
+  const getUnreadNotifications = useCallback(() => {
+    return notifications.filter(n => !n.isRead);
+  }, [notifications]);
+
+  // Check if user has unread notifications
+  const hasUnreadNotifications = useCallback(() => {
+    return unreadCount > 0;
+  }, [unreadCount]);
+
+  // Set up real-time notifications if WebSocket is available
+  useEffect(() => {
+    if (!user || !window.io) return;
+
+    // Join user-specific room
+    const socket = window.io();
+    socket.emit('join', `user_${user._id}`);
+
+    // Listen for new notifications
+    socket.on('new_notification', (notification) => {
+      addNotification(notification);
+    });
+
+    // Cleanup
+    return () => {
+      socket.off('new_notification');
+      socket.disconnect();
+    };
+  }, [user, addNotification]);
+
+  const contextValue = {
     // State
-    notifications: state.notifications,
-    unreadCount: state.unreadCount,
-    loading: state.loading,
-    error: state.error,
-    hasMore: state.hasMore,
+    notifications,
+    unreadCount,
+    loading,
+    initialized,
     
-    // Actions
-    fetchNotifications,
-    fetchUnreadCount,
+    // Methods
+    loadNotifications,
+    loadUnreadCount,
     markAsRead,
     markAllAsRead,
     deleteNotification,
-    loadMore,
-    refresh,
+    addNotification,
+    refreshNotifications,
+    clearAllNotifications,
+    
+    // Getters
+    getNotificationById,
+    getUnreadNotifications,
+    hasUnreadNotifications,
   };
 
   return (
-    <NotificationContext.Provider value={value}>
+    <NotificationContext.Provider value={contextValue}>
       {children}
     </NotificationContext.Provider>
   );
@@ -245,9 +253,11 @@ export const NotificationProvider = ({ children }) => {
 // Custom hook to use notification context
 export const useNotifications = () => {
   const context = useContext(NotificationContext);
+  
   if (!context) {
     throw new Error('useNotifications must be used within a NotificationProvider');
   }
+  
   return context;
 };
 
