@@ -1,4 +1,4 @@
-// frontend/src/App.jsx - ENHANCED VERSION
+// frontend/src/App.jsx - ENHANCED VERSION WITH WISHLIST
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
@@ -37,6 +37,9 @@ import EditEvent from "./pages/events/EditEvent";
 import EventDetails from "./pages/events/EventDetails";
 import MyEventsPage from "./pages/events/MyEventsPage";
 import CompletedEventsPage from "./pages/events/CompletedEventsPage";
+
+// ⭐ NEW: Wishlist Pages
+import WishlistPage from "./pages/wishlist/WishlistPage";
 
 // ⭐ NEW: Notification Pages
 import NotificationManagement from "./pages/notifications/NotificationManagement";
@@ -86,6 +89,7 @@ const Root = () => {
           draggable
           pauseOnHover
           theme="light"
+          className="toast-container"
         />
         <Outlet />
       </NotificationProvider>
@@ -129,6 +133,16 @@ const router = createBrowserRouter(
             // Event Routes
             { path: "/events", element: <EventsPage /> },
             { path: "/events/:id", element: <EventDetails /> },
+
+            // ⭐ NEW: Wishlist Routes
+            {
+              path: "/wishlist",
+              element: (
+                <ProtectedRoute allowedRoles={["buyer", "seller"]}>
+                  <WishlistPage />
+                </ProtectedRoute>
+              ),
+            },
 
             // ⭐ NEW: Notification Routes
             {
