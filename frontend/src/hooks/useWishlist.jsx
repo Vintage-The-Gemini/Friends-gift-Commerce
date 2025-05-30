@@ -1,4 +1,4 @@
-// frontend/src/hooks/useWishlist.js
+// frontend/src/hooks/useWishlist.jsx - FIXED VERSION
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
 import { wishlistService } from '../services/api/wishlist';
@@ -278,7 +278,7 @@ export const useWishlist = () => {
   return context;
 };
 
-// Helper hook for wishlist state without context requirement
+// Simple wishlist state hook without context (for standalone use)
 export const useWishlistState = () => {
   const [localWishlist, setLocalWishlist] = useState([]);
   
