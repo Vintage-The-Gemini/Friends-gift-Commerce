@@ -1,4 +1,4 @@
-// src/components/events/CreateEventForm.jsx
+// frontend/src/components/events/CreateEventForm.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -32,20 +32,66 @@ const CreateEventForm = () => {
     description: "",
     eventDate: "",
     endDate: "",
-    visibility: "private",  // Changed from "public" to "private"
+    visibility: "private",
     selectedProducts: [],
     image: "",
   });
-  // Event types for the dropdown
-  const eventTypes = [
-    { value: "birthday", label: "Birthday" },
-    { value: "wedding", label: "Wedding" },
-    { value: "graduation", label: "Graduation" },
-    { value: "babyShower", label: "Baby Shower" },
-    { value: "houseWarming", label: "House Warming" },
-    { value: "anniversary", label: "Anniversary" },
-    { value: "other", label: "Other (Custom)" }, // Added custom option
-  ];
+
+  // Expanded event types organized by categories
+  const eventTypeCategories = {
+    personal: [
+      { value: "birthday", label: "Birthday" },
+      { value: "wedding", label: "Wedding" },
+      { value: "graduation", label: "Graduation" },
+      { value: "babyShower", label: "Baby Shower" },
+      { value: "houseWarming", label: "House Warming" },
+      { value: "anniversary", label: "Anniversary" },
+      { value: "retirement", label: "Retirement" },
+      { value: "engagement", label: "Engagement" },
+      { value: "achievement", label: "Achievement" },
+      { value: "milestone", label: "Milestone" },
+      { value: "recovery", label: "Recovery" },
+    ],
+    religious: [
+      { value: "christening", label: "Christening" },
+      { value: "baptism", label: "Baptism" },
+      { value: "communion", label: "First Communion" },
+      { value: "confirmation", label: "Confirmation" },
+      { value: "houseblessing", label: "House Blessing" },
+    ],
+    holiday: [
+      { value: "christmas", label: "Christmas" },
+      { value: "newyear", label: "New Year" },
+      { value: "valentines", label: "Valentine's Day" },
+      { value: "mothers-day", label: "Mother's Day" },
+      { value: "fathers-day", label: "Father's Day" },
+      { value: "easter", label: "Easter" },
+      { value: "thanksgiving", label: "Thanksgiving" },
+      { value: "holiday", label: "Other Holiday" },
+    ],
+    professional: [
+      { value: "promotion", label: "Promotion" },
+      { value: "teambuilding", label: "Team Building" },
+      { value: "business-launch", label: "Business Launch" },
+      { value: "opening", label: "Grand Opening" },
+    ],
+    social: [
+      { value: "reunion", label: "Reunion" },
+      { value: "celebration", label: "Celebration" },
+      { value: "farewell", label: "Farewell" },
+    ],
+    community: [
+      { value: "charity", label: "Charity Event" },
+      { value: "fundraiser", label: "Fundraiser" },
+    ],
+    memorial: [
+      { value: "funeral", label: "Funeral" },
+      { value: "memorial", label: "Memorial Service" },
+    ],
+    custom: [
+      { value: "other", label: "Custom Event" },
+    ],
+  };
 
   // Validation logic for different steps
   const isStepOneValid = () => {
@@ -118,7 +164,7 @@ const CreateEventForm = () => {
 
       if (response.success) {
         toast.success("Event created successfully!");
-        navigate(`/events/${response.data.event._id}`);
+        navigate(`/events/${response.data._id}`);
       } else {
         throw new Error(response.message || "Failed to create event");
       }
@@ -147,39 +193,56 @@ const CreateEventForm = () => {
     }));
   };
 
+  // Render event type selection with categories
+  const renderEventTypeSelection = () => (
+    <div className="space-y-6">
+      {Object.entries(eventTypeCategories).map(([category, types]) => (
+        <div key={category} className="space-y-3">
+          <h4 className="text-sm font-medium text-gray-700 capitalize">
+            {category === "custom" ? "Custom Events" : `${category} Events`}
+          </h4>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {types.map((type) => (
+              <button
+                key={type.value}
+                type="button"
+                onClick={() => {
+                  setFormData({
+                    ...formData,
+                    eventType: type.value,
+                    // Reset customEventType if not selecting 'other'
+                    customEventType:
+                      type.value === "other"
+                        ? formData.customEventType
+                        : "",
+                  });
+                }}
+                className={`p-3 text-left border rounded-lg hover:border-[#5551FF] transition-colors ${
+                  formData.eventType === type.value
+                    ? "border-[#5551FF] bg-[#5551FF]/5"
+                    : "border-gray-200"
+                }`}
+              >
+                <div className="font-medium text-sm">{type.label}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
   // Render step content
   const renderStepContent = () => {
     switch (step) {
       case 1:
         return (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
                 Event Type <span className="text-red-500">*</span>
               </label>
-              <select
-                value={formData.eventType}
-                onChange={(e) => {
-                  setFormData({
-                    ...formData,
-                    eventType: e.target.value,
-                    // Reset customEventType if not selecting 'other'
-                    customEventType:
-                      e.target.value === "other"
-                        ? formData.customEventType
-                        : "",
-                  });
-                }}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#5551FF]"
-                required
-              >
-                <option value="">Select Event Type</option>
-                {eventTypes.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
+              {renderEventTypeSelection()}
             </div>
 
             {/* Custom Event Type field - shows only when "other" is selected */}
@@ -198,9 +261,13 @@ const CreateEventForm = () => {
                     })
                   }
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#5551FF]"
-                  placeholder="Enter your custom event type"
+                  placeholder="Enter your custom event type (e.g., Housewarming, Farewell Party)"
+                  maxLength={50}
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Maximum 50 characters. Be specific about your event type.
+                </p>
               </div>
             )}
 
@@ -217,6 +284,7 @@ const CreateEventForm = () => {
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#5551FF]"
                 required
                 placeholder="Enter a meaningful title for your event"
+                maxLength={100}
               />
             </div>
 
@@ -233,14 +301,18 @@ const CreateEventForm = () => {
                 rows="4"
                 required
                 placeholder="Describe your event and why you're creating it"
+                maxLength={1000}
               />
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.description.length}/1000 characters
+              </p>
             </div>
           </div>
         );
 
       case 2:
         return (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Event Cover Image
