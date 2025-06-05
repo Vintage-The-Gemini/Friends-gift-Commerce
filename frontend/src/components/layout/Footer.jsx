@@ -132,8 +132,20 @@ const Footer = () => {
                   Terms of Service
                 </Link>
               </li>
+              <li>
+                <a
+                  href="https://friends-gifts-commerce-67e63--testing-wu87kkga.web.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/80 hover:text-white"
+                >
+                  Test Environment
+                </a>
+              </li>
             </ul>
           </div>
+
+          {/* Developer & Testing Column - Removed */}
         </div>
 
         {/* Footer Bottom - Fixed height for logo container */}
@@ -148,9 +160,14 @@ const Footer = () => {
                   className="h-30" 
                 />
               </div>
-              <span className="text-base text-white/90">
-                © Friends Gift Ltd. {currentYear}
-              </span>
+              <div className="flex flex-col">
+                <span className="text-base text-white/90">
+                  © Friends Gift Ltd. {currentYear}
+                </span>
+                <span className="text-xs text-white/70">
+                  Gift giving made simple and meaningful
+                </span>
+              </div>
             </div>
 
             {/* Social Icons and Language Selector */}
@@ -159,46 +176,55 @@ const Footer = () => {
               <Link
                 to="/"
                 aria-label="Facebook"
-                className="text-white/80 hover:text-white"
+                className="text-white/80 hover:text-white transition-colors"
               >
                 <Facebook size={20} />
               </Link>
               <Link
                 to="/"
                 aria-label="Instagram"
-                className="text-white/80 hover:text-white"
+                className="text-white/80 hover:text-white transition-colors"
               >
                 <Instagram size={20} />
               </Link>
               <Link
                 to="/"
                 aria-label="Twitter"
-                className="text-white/80 hover:text-white"
+                className="text-white/80 hover:text-white transition-colors"
               >
                 <Twitter size={20} />
               </Link>
               <Link
                 to="/"
                 aria-label="LinkedIn"
-                className="text-white/80 hover:text-white"
+                className="text-white/80 hover:text-white transition-colors"
               >
                 <Linkedin size={20} />
               </Link>
               <Link
                 to="/"
                 aria-label="Email"
-                className="text-white/80 hover:text-white"
+                className="text-white/80 hover:text-white transition-colors"
               >
                 <Mail size={20} />
               </Link>
 
               {/* Language and Currency */}
               <div className="flex items-center text-base">
-                <button className="text-white/80 hover:text-white mr-6 flex items-center">
+                <button className="text-white/80 hover:text-white mr-6 flex items-center transition-colors">
                   <Globe size={16} className="mr-2" /> English
                 </button>
-                <button className="text-white/80 hover:text-white">KES</button>
+                <button className="text-white/80 hover:text-white transition-colors">KES</button>
               </div>
+            </div>
+          </div>
+
+          {/* Additional Footer Info */}
+          <div className="mt-2 pt-2 border-t border-white/20 text-center">
+            <div className="flex flex-col md:flex-row justify-center items-center gap-4 text-xs text-white/60">
+              <span>Version 1.0.0</span>
+              <span className="hidden md:inline">•</span>
+              <span>Made with ❤️ in Kenya</span>
             </div>
           </div>
         </div>
