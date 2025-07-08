@@ -1,5 +1,5 @@
 // frontend/src/components/auth/GoogleAuth.jsx
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { toast } from "react-toastify";
 
@@ -8,11 +8,89 @@ const GoogleAuth = ({ buttonText = "Sign in with Google", role = "buyer" }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const buttonContainerRef = useRef(null);
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const initializationAttempted = useRef(false);
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+  // Define the callback function with useCallback to prevent recreations
+  const handleGoogleSignIn = useCallback(
+    async (response) => {
+      console.log("[GoogleAuth] Google response received");
+
+      try {
+        if (!response?.credential) {
+          throw new Error("No credential received from Google");
+        }
+
+        console.log("[GoogleAuth] Sending credential to backend");
+        const result = await loginWithGoogle(response.credential, role);
+        console.log("[GoogleAuth] Login successful");
+
+        toast.success("Google sign-in successful");
+      } catch (error) {
+        console.error("[GoogleAuth] Login error:", error);
+        toast.error(`Google sign-in failed: ${error.message}`);
+      }
+    },
+    [loginWithGoogle, role]
+  );
+
+  // Initialize Google Sign-In - wrapped in useCallback to prevent recreations
+  const initializeGoogle = useCallback(() => {
+    // Prevent multiple initialization attempts
+    if (initializationAttempted.current) {
+      return;
+    }
+
+    // Check if Google API is loaded
+    if (!window.google?.accounts?.id) {
+      console.log("[GoogleAuth] Google API not ready, waiting...");
+      return;
+    }
+
+    // Check if button container is available
+    if (!buttonContainerRef.current) {
+      console.log("[GoogleAuth] Button container not ready, waiting...");
+      return;
+    }
+
+    try {
+      console.log("[GoogleAuth] Initializing Google Sign-In...");
+      initializationAttempted.current = true;
+
+      // Initialize Google Sign-In
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: handleGoogleSignIn,
+        auto_select: false,
+        cancel_on_tap_outside: true,
+      });
+
+      const buttonContainer = buttonContainerRef.current;
+      console.log("[GoogleAuth] Rendering button...");
+
+      // Clear any existing content
+      buttonContainer.innerHTML = "";
+
+      // Render the Google Sign-In button
+      window.google.accounts.id.renderButton(buttonContainer, {
+        type: "standard",
+        theme: "outline",
+        size: "large",
+        text: "signin_with",
+        width: 250,
+      });
+
+      setIsLoading(false);
+      console.log("[GoogleAuth] Button rendered successfully");
+    } catch (error) {
+      console.error("[GoogleAuth] Google initialization error:", error);
+      setError("Failed to initialize Google Sign-In");
+      setIsLoading(false);
+    }
+  }, [clientId, handleGoogleSignIn]);
 
   useEffect(() => {
-    // Validate client ID
+    // Validate client ID first
     if (!clientId) {
       setError("Google Client ID not configured");
       setIsLoading(false);
@@ -30,93 +108,13 @@ const GoogleAuth = ({ buttonText = "Sign in with Google", role = "buyer" }) => {
       clientId?.substring(0, 20) + "..."
     );
 
-    // Define the callback function
-    const handleGoogleSignIn = async (response) => {
-      console.log("[GoogleAuth] Google response received");
-
-      try {
-        if (!response?.credential) {
-          throw new Error("No credential received from Google");
-        }
-
-        console.log("[GoogleAuth] Sending credential to backend");
-        const result = await loginWithGoogle(response.credential, role);
-        console.log("[GoogleAuth] Login successful");
-
-        toast.success("Google sign-in successful");
-      } catch (error) {
-        console.error("[GoogleAuth] Login error:", error);
-        toast.error(`Google sign-in failed: ${error.message}`);
-      }
-    };
-
-    // Make callback globally available
-    window.handleGoogleSignIn = handleGoogleSignIn;
-
-    const initializeGoogle = () => {
-      // Prevent multiple initialization attempts
-      if (initializationAttempted.current) {
-        return;
-      }
-
-      if (!window.google?.accounts?.id) {
-        setTimeout(initializeGoogle, 100);
-        return;
-      }
-
-      // Wait for the button container to be available in the DOM
-      if (!buttonContainerRef.current) {
-        console.log("[GoogleAuth] Button container not ready, retrying...");
-        setTimeout(initializeGoogle, 100);
-        return;
-      }
-
-      try {
-        initializationAttempted.current = true;
-
-        // Initialize Google Sign-In
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: handleGoogleSignIn,
-          auto_select: false,
-          cancel_on_tap_outside: true,
-        });
-
-        const buttonContainer = buttonContainerRef.current;
-        console.log("[GoogleAuth] Button container found:", !!buttonContainer);
-
-        if (buttonContainer) {
-          buttonContainer.innerHTML = ""; // Clear any existing content
-
-          window.google.accounts.id.renderButton(buttonContainer, {
-            type: "standard",
-            theme: "outline",
-            size: "large",
-            text: "signin_with",
-            width: 250,
-          });
-
-          setIsLoading(false);
-          console.log("[GoogleAuth] Button rendered successfully");
-        } else {
-          console.error(
-            "[GoogleAuth] Button container still not found after waiting"
-          );
-          setError("Button container not found");
-          setIsLoading(false);
-        }
-      } catch (error) {
-        console.error("[GoogleAuth] Google initialization error:", error);
-        setError("Failed to initialize Google Sign-In");
-        setIsLoading(false);
-      }
-    };
-
     // Load Google script if not already loaded
     const existingScript = document.querySelector(
       'script[src="https://accounts.google.com/gsi/client"]'
     );
+
     if (!existingScript) {
+      console.log("[GoogleAuth] Loading Google API script...");
       const script = document.createElement("script");
       script.src = "https://accounts.google.com/gsi/client";
       script.async = true;
@@ -124,8 +122,10 @@ const GoogleAuth = ({ buttonText = "Sign in with Google", role = "buyer" }) => {
 
       script.onload = () => {
         console.log("[GoogleAuth] Google API script loaded");
-        // Start initialization after script loads
-        setTimeout(initializeGoogle, 100);
+        // Try to initialize after a short delay
+        setTimeout(() => {
+          initializeGoogle();
+        }, 200);
       };
 
       script.onerror = () => {
@@ -136,19 +136,20 @@ const GoogleAuth = ({ buttonText = "Sign in with Google", role = "buyer" }) => {
 
       document.head.appendChild(script);
     } else {
-      // Script already loaded
       console.log("[GoogleAuth] Google API script already loaded");
-      setTimeout(initializeGoogle, 100);
+      // Try to initialize immediately
+      setTimeout(() => {
+        initializeGoogle();
+      }, 100);
     }
 
-    // Cleanup
+    // Cleanup function
     return () => {
-      delete window.handleGoogleSignIn;
       initializationAttempted.current = false;
     };
-  }, [clientId, loginWithGoogle, role]);
+  }, [clientId, initializeGoogle]);
 
-  // Additional effect to retry initialization when ref becomes available
+  // Second effect to handle when the ref becomes available
   useEffect(() => {
     if (
       buttonContainerRef.current &&
@@ -156,46 +157,13 @@ const GoogleAuth = ({ buttonText = "Sign in with Google", role = "buyer" }) => {
       window.google?.accounts?.id
     ) {
       console.log(
-        "[GoogleAuth] Button container now available, attempting initialization"
+        "[GoogleAuth] Button container is now available, initializing..."
       );
-      const initializeGoogle = () => {
-        if (initializationAttempted.current) return;
-
-        try {
-          initializationAttempted.current = true;
-
-          window.google.accounts.id.initialize({
-            client_id: clientId,
-            callback: window.handleGoogleSignIn,
-            auto_select: false,
-            cancel_on_tap_outside: true,
-          });
-
-          const buttonContainer = buttonContainerRef.current;
-          if (buttonContainer) {
-            buttonContainer.innerHTML = "";
-
-            window.google.accounts.id.renderButton(buttonContainer, {
-              type: "standard",
-              theme: "outline",
-              size: "large",
-              text: "signin_with",
-              width: 250,
-            });
-
-            setIsLoading(false);
-            console.log("[GoogleAuth] Button rendered successfully (retry)");
-          }
-        } catch (error) {
-          console.error("[GoogleAuth] Retry initialization error:", error);
-          setError("Failed to initialize Google Sign-In");
-          setIsLoading(false);
-        }
-      };
-
-      setTimeout(initializeGoogle, 50);
+      setTimeout(() => {
+        initializeGoogle();
+      }, 50);
     }
-  }, [clientId]);
+  }, [initializeGoogle]); // Only depend on the memoized initializeGoogle function
 
   if (error) {
     return (
