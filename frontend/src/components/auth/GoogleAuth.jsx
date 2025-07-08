@@ -9,6 +9,7 @@ const GoogleAuth = ({ buttonText = "Sign in with Google", role = "buyer" }) => {
   const [error, setError] = useState(null);
   const buttonContainerRef = useRef(null);
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const initializationAttempted = useRef(false);
 
   useEffect(() => {
     // Validate client ID
@@ -18,27 +19,30 @@ const GoogleAuth = ({ buttonText = "Sign in with Google", role = "buyer" }) => {
       return;
     }
 
-    if (!clientId.endsWith('.apps.googleusercontent.com')) {
+    if (!clientId.endsWith(".apps.googleusercontent.com")) {
       setError("Invalid Google Client ID format");
       setIsLoading(false);
       return;
     }
 
-    console.log("[GoogleAuth] Initializing with Client ID:", clientId?.substring(0, 20) + "...");
+    console.log(
+      "[GoogleAuth] Initializing with Client ID:",
+      clientId?.substring(0, 20) + "..."
+    );
 
     // Define the callback function
     const handleGoogleSignIn = async (response) => {
       console.log("[GoogleAuth] Google response received");
-      
+
       try {
         if (!response?.credential) {
           throw new Error("No credential received from Google");
         }
-        
+
         console.log("[GoogleAuth] Sending credential to backend");
         const result = await loginWithGoogle(response.credential, role);
         console.log("[GoogleAuth] Login successful");
-        
+
         toast.success("Google sign-in successful");
       } catch (error) {
         console.error("[GoogleAuth] Login error:", error);
@@ -50,12 +54,26 @@ const GoogleAuth = ({ buttonText = "Sign in with Google", role = "buyer" }) => {
     window.handleGoogleSignIn = handleGoogleSignIn;
 
     const initializeGoogle = () => {
+      // Prevent multiple initialization attempts
+      if (initializationAttempted.current) {
+        return;
+      }
+
       if (!window.google?.accounts?.id) {
         setTimeout(initializeGoogle, 100);
         return;
       }
 
+      // Wait for the button container to be available in the DOM
+      if (!buttonContainerRef.current) {
+        console.log("[GoogleAuth] Button container not ready, retrying...");
+        setTimeout(initializeGoogle, 100);
+        return;
+      }
+
       try {
+        initializationAttempted.current = true;
+
         // Initialize Google Sign-In
         window.google.accounts.id.initialize({
           client_id: clientId,
@@ -64,42 +82,28 @@ const GoogleAuth = ({ buttonText = "Sign in with Google", role = "buyer" }) => {
           cancel_on_tap_outside: true,
         });
 
-        // Use ref instead of getElementById for better React integration
         const buttonContainer = buttonContainerRef.current;
+        console.log("[GoogleAuth] Button container found:", !!buttonContainer);
+
         if (buttonContainer) {
-          buttonContainer.innerHTML = ''; // Clear any existing content
-          
+          buttonContainer.innerHTML = ""; // Clear any existing content
+
           window.google.accounts.id.renderButton(buttonContainer, {
             type: "standard",
             theme: "outline",
-            size: "large", 
+            size: "large",
             text: "signin_with",
             width: 250,
           });
-          
+
           setIsLoading(false);
           console.log("[GoogleAuth] Button rendered successfully");
         } else {
-          console.error("[GoogleAuth] Button container not found");
-          // Try again after a short delay in case DOM isn't ready
-          setTimeout(() => {
-            const retryContainer = buttonContainerRef.current;
-            if (retryContainer) {
-              retryContainer.innerHTML = '';
-              window.google.accounts.id.renderButton(retryContainer, {
-                type: "standard",
-                theme: "outline",
-                size: "large", 
-                text: "signin_with",
-                width: 250,
-              });
-              setIsLoading(false);
-              console.log("[GoogleAuth] Button rendered successfully on retry");
-            } else {
-              setError("Button container not found");
-              setIsLoading(false);
-            }
-          }, 500);
+          console.error(
+            "[GoogleAuth] Button container still not found after waiting"
+          );
+          setError("Button container not found");
+          setIsLoading(false);
         }
       } catch (error) {
         console.error("[GoogleAuth] Google initialization error:", error);
@@ -109,37 +113,89 @@ const GoogleAuth = ({ buttonText = "Sign in with Google", role = "buyer" }) => {
     };
 
     // Load Google script if not already loaded
-    const existingScript = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+    const existingScript = document.querySelector(
+      'script[src="https://accounts.google.com/gsi/client"]'
+    );
     if (!existingScript) {
       const script = document.createElement("script");
       script.src = "https://accounts.google.com/gsi/client";
       script.async = true;
       script.defer = true;
-      
+
       script.onload = () => {
         console.log("[GoogleAuth] Google API script loaded");
-        // Wait a bit longer to ensure DOM is ready
-        setTimeout(initializeGoogle, 300);
+        // Start initialization after script loads
+        setTimeout(initializeGoogle, 100);
       };
-      
+
       script.onerror = () => {
         console.error("[GoogleAuth] Failed to load Google API script");
         setError("Failed to load Google Sign-In API");
         setIsLoading(false);
       };
-      
+
       document.head.appendChild(script);
     } else {
-      // Script already loaded, but ensure DOM is ready
+      // Script already loaded
       console.log("[GoogleAuth] Google API script already loaded");
-      setTimeout(initializeGoogle, 300);
+      setTimeout(initializeGoogle, 100);
     }
 
     // Cleanup
     return () => {
       delete window.handleGoogleSignIn;
+      initializationAttempted.current = false;
     };
   }, [clientId, loginWithGoogle, role]);
+
+  // Additional effect to retry initialization when ref becomes available
+  useEffect(() => {
+    if (
+      buttonContainerRef.current &&
+      !initializationAttempted.current &&
+      window.google?.accounts?.id
+    ) {
+      console.log(
+        "[GoogleAuth] Button container now available, attempting initialization"
+      );
+      const initializeGoogle = () => {
+        if (initializationAttempted.current) return;
+
+        try {
+          initializationAttempted.current = true;
+
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: window.handleGoogleSignIn,
+            auto_select: false,
+            cancel_on_tap_outside: true,
+          });
+
+          const buttonContainer = buttonContainerRef.current;
+          if (buttonContainer) {
+            buttonContainer.innerHTML = "";
+
+            window.google.accounts.id.renderButton(buttonContainer, {
+              type: "standard",
+              theme: "outline",
+              size: "large",
+              text: "signin_with",
+              width: 250,
+            });
+
+            setIsLoading(false);
+            console.log("[GoogleAuth] Button rendered successfully (retry)");
+          }
+        } catch (error) {
+          console.error("[GoogleAuth] Retry initialization error:", error);
+          setError("Failed to initialize Google Sign-In");
+          setIsLoading(false);
+        }
+      };
+
+      setTimeout(initializeGoogle, 50);
+    }
+  }, [clientId]);
 
   if (error) {
     return (
@@ -166,14 +222,14 @@ const GoogleAuth = ({ buttonText = "Sign in with Google", role = "buyer" }) => {
 
   return (
     <div className="flex justify-center my-4">
-      <div 
+      <div
         ref={buttonContainerRef}
-        style={{ 
-          minHeight: '44px', 
-          minWidth: '250px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
+        style={{
+          minHeight: "44px",
+          minWidth: "250px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       />
     </div>
