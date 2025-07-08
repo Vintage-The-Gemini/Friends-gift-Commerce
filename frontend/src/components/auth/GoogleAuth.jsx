@@ -1,11 +1,10 @@
 // frontend/src/components/auth/GoogleAuth.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { toast } from "react-toastify";
 
 const GoogleAuth = ({ buttonText = "Sign in with Google", role = "buyer" }) => {
   const { loginWithGoogle } = useAuth();
-  const googleButtonRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -50,58 +49,49 @@ const GoogleAuth = ({ buttonText = "Sign in with Google", role = "buyer" }) => {
     window.handleGoogleSignIn = handleGoogleSignIn;
 
     const initializeGoogle = () => {
-      if (window.google?.accounts?.id) {
-        try {
-          // Initialize Google Sign-In
-          window.google.accounts.id.initialize({
-            client_id: clientId,
-            callback: handleGoogleSignIn,
-            auto_select: false,
-            cancel_on_tap_outside: true,
-          });
-
-          // Use requestAnimationFrame to ensure DOM is ready
-          requestAnimationFrame(() => {
-            if (googleButtonRef.current) {
-              // Clear any existing content
-              googleButtonRef.current.innerHTML = '';
-              
-              // Render the button
-              window.google.accounts.id.renderButton(googleButtonRef.current, {
-                type: "standard",
-                theme: "outline", 
-                size: "large",
-                text: "signin_with",
-                width: 250,
-              });
-              
-              setIsLoading(false);
-              console.log("[GoogleAuth] Button rendered successfully");
-            } else {
-              console.error("[GoogleAuth] Button ref still null after requestAnimationFrame");
-              setError("Button container not available");
-              setIsLoading(false);
-            }
-          });
-        } catch (error) {
-          console.error("[GoogleAuth] Google initialization error:", error);
-          setError("Failed to initialize Google Sign-In");
-          setIsLoading(false);
-        }
-      } else {
-        console.log("[GoogleAuth] Google API not ready, loading script...");
-        loadGoogleScript();
-      }
-    };
-
-    const loadGoogleScript = () => {
-      // Check if script already exists
-      if (document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) {
-        console.log("[GoogleAuth] Script already exists, waiting for load...");
+      if (!window.google?.accounts?.id) {
         setTimeout(initializeGoogle, 100);
         return;
       }
 
+      try {
+        // Initialize Google Sign-In
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleGoogleSignIn,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+
+        // Find the button container by ID and render
+        const buttonContainer = document.getElementById('google-signin-button-container');
+        if (buttonContainer) {
+          buttonContainer.innerHTML = ''; // Clear any existing content
+          
+          window.google.accounts.id.renderButton(buttonContainer, {
+            type: "standard",
+            theme: "outline",
+            size: "large", 
+            text: "signin_with",
+            width: 250,
+          });
+          
+          setIsLoading(false);
+          console.log("[GoogleAuth] Button rendered successfully");
+        } else {
+          console.error("[GoogleAuth] Button container not found");
+          setError("Button container not found");
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error("[GoogleAuth] Google initialization error:", error);
+        setError("Failed to initialize Google Sign-In");
+        setIsLoading(false);
+      }
+    };
+
+    // Load Google script if not already loaded
+    if (!document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) {
       const script = document.createElement("script");
       script.src = "https://accounts.google.com/gsi/client";
       script.async = true;
@@ -109,7 +99,7 @@ const GoogleAuth = ({ buttonText = "Sign in with Google", role = "buyer" }) => {
       
       script.onload = () => {
         console.log("[GoogleAuth] Google API script loaded");
-        setTimeout(initializeGoogle, 100); // Small delay to ensure API is ready
+        setTimeout(initializeGoogle, 200);
       };
       
       script.onerror = () => {
@@ -119,10 +109,10 @@ const GoogleAuth = ({ buttonText = "Sign in with Google", role = "buyer" }) => {
       };
       
       document.head.appendChild(script);
-    };
-
-    // Start initialization
-    initializeGoogle();
+    } else {
+      // Script already loaded
+      setTimeout(initializeGoogle, 200);
+    }
 
     // Cleanup
     return () => {
@@ -156,9 +146,7 @@ const GoogleAuth = ({ buttonText = "Sign in with Google", role = "buyer" }) => {
   return (
     <div className="flex justify-center my-4">
       <div 
-        ref={googleButtonRef}
-        id="google-signin-button"
-        className="google-signin-button"
+        id="google-signin-button-container"
         style={{ 
           minHeight: '44px', 
           minWidth: '250px',
