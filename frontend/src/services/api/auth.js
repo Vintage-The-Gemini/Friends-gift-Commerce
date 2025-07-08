@@ -1,4 +1,4 @@
-// src/services/api/auth.js
+// frontend/src/services/api/auth.js
 import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -83,54 +83,43 @@ const authService = {
     }
   },
 
- // In auth.js or authService.js
-googleLogin: async (credential, role) => {
-  try {
-    console.log("[AuthService] Sending Google login request:", { 
-      tokenLength: credential ? credential.length : 0,
-      role 
-    });
-    
-    // Debug request
-    console.log("[AuthService] API URL:", API_URL);
-    console.log("[AuthService] Full endpoint:", `${API_URL}/auth/google-login`);
-    
-    const response = await api.post("/auth/google-login", { 
-      tokenId: credential,
-      role 
-    });
-    
-    console.log("[AuthService] Google login response:", response.data);
-    
-    if (response.data.token) {
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("user", JSON.stringify(response.data.user));
-      console.log("[AuthService] Token and user saved to localStorage");
+  googleLogin: async (credential, role) => {
+    try {
+      console.log("[AuthService] Sending Google login request");
+      console.log("[AuthService] API URL:", API_URL);
+      console.log("[AuthService] Role:", role);
+      
+      const response = await api.post("/auth/google", {
+        credential: credential,
+        role: role
+      });
+      
+      console.log("[AuthService] Google login response:", response.data);
+      
+      if (response.data.token) {
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+        console.log("[AuthService] Token and user saved to localStorage");
+      }
+      
+      return { ...response.data, success: true };
+    } catch (error) {
+      console.error("[AuthService] Google login error:", error);
+      
+      if (error.response) {
+        console.error("[AuthService] Response status:", error.response.status);
+        console.error("[AuthService] Response data:", error.response.data);
+      }
+      
+      return handleError(error, "Google authentication failed");
     }
-    
-    return { ...response.data, success: true };
-  } catch (error) {
-    console.error("[AuthService] Google login error:", error);
-    
-    if (error.response) {
-      console.error("[AuthService] Response status:", error.response.status);
-      console.error("[AuthService] Response data:", error.response.data);
-    } else if (error.request) {
-      console.error("[AuthService] No response received:", error.request);
-    } else {
-      console.error("[AuthService] Error setting up request:", error.message);
-    }
-    
-    return handleError(error, "Google login failed");
-  }
-},
+  },
 
   verifyToken: async () => {
     try {
       const response = await api.get("/auth/me");
       return { ...response.data, success: true };
     } catch (error) {
-      // If token verification fails, clear local storage
       if (error.response?.status === 401) {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
@@ -140,35 +129,36 @@ googleLogin: async (credential, role) => {
   },
 
   logout: () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    return { success: true, message: "Logged out successfully" };
+  },
+
+  getCurrentUser: () => {
     try {
-      // Try to call the backend logout endpoint
-      api.post("/auth/logout").catch((err) => {
-        console.warn("Backend logout failed:", err);
-      });
+      const user = localStorage.getItem("user");
+      return user ? JSON.parse(user) : null;
     } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      // Always clear local storage regardless of backend response
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      console.error("Error parsing user from localStorage:", error);
+      return null;
     }
   },
 
   updateProfile: async (userData) => {
     try {
       const response = await api.put("/auth/profile", userData);
+      
+      if (response.data.success) {
+        const currentUser = authService.getCurrentUser();
+        if (currentUser) {
+          const updatedUser = { ...currentUser, ...response.data.user };
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+        }
+      }
+      
       return { ...response.data, success: true };
     } catch (error) {
-      return handleError(error, "Failed to update profile");
-    }
-  },
-
-  verifyEmail: async (token) => {
-    try {
-      const response = await api.get(`/auth/verify-email/${token}`);
-      return { ...response.data, success: true };
-    } catch (error) {
-      return handleError(error, "Email verification failed");
+      return handleError(error, "Profile update failed");
     }
   },
 
@@ -192,61 +182,11 @@ googleLogin: async (credential, role) => {
 
   resetPassword: async (token, password) => {
     try {
-      const response = await api.post(`/auth/reset-password/${token}`, { 
-        password 
-      });
+      const response = await api.post("/auth/reset-password", { token, password });
       return { ...response.data, success: true };
     } catch (error) {
-      return handleError(error, "Failed to reset password");
+      return handleError(error, "Password reset failed");
     }
-  },
-
-  changePassword: async (currentPassword, newPassword) => {
-    try {
-      const response = await api.post("/auth/change-password", {
-        currentPassword,
-        newPassword,
-      });
-      return { ...response.data, success: true };
-    } catch (error) {
-      return handleError(error, "Failed to change password");
-    }
-  },
-
-  adminLogin: async (credentials) => {
-    try {
-      // Use the full API URL to bypass any path resolution issues
-      const apiUrl =
-        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-      console.log("Sending admin login request to:", `${apiUrl}/admin/login`);
-      console.log("With payload:", credentials);
-
-      const response = await axios.post(`${apiUrl}/admin/login`, credentials);
-      console.log("Admin login raw response:", response);
-
-      if (response.data.token) {
-        localStorage.setItem("token", response.data.token);
-        localStorage.setItem("user", JSON.stringify(response.data.user));
-      }
-      return { ...response.data, success: true };
-    } catch (error) {
-      console.error("Admin login service error:", error);
-      return handleError(error, "Admin login failed");
-    }
-  },
-
-  getCurrentUser: () => {
-    try {
-      const user = localStorage.getItem("user");
-      return user ? JSON.parse(user) : null;
-    } catch (error) {
-      console.error("Error getting current user:", error);
-      return null;
-    }
-  },
-
-  isAuthenticated: () => {
-    return !!localStorage.getItem("token");
   },
 };
 

@@ -29,8 +29,13 @@ const SignIn = () => {
       return;
     }
 
+    if (!formData.password) {
+      setError("Please provide your password");
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Determine if the identifier is an email or phone number
       const isEmail = formData.identifier.includes("@");
 
       const credentials = {
@@ -38,7 +43,6 @@ const SignIn = () => {
         role,
       };
 
-      // Add either email or phone based on the format
       if (isEmail) {
         credentials.email = formData.identifier;
       } else {
@@ -46,7 +50,6 @@ const SignIn = () => {
       }
 
       await login(credentials);
-      toast.success("Login successful");
     } catch (err) {
       setError(err.message || "Failed to sign in");
     } finally {
@@ -72,10 +75,10 @@ const SignIn = () => {
           <button
             type="button"
             onClick={() => setRole("buyer")}
-            className={`px-4 py-2 rounded-full ${
+            className={`px-4 py-2 rounded-full transition-colors ${
               role === "buyer"
                 ? "bg-[#5551FF] text-white"
-                : "bg-gray-100 text-gray-700"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
             }`}
           >
             As Buyer
@@ -83,17 +86,16 @@ const SignIn = () => {
           <button
             type="button"
             onClick={() => setRole("seller")}
-            className={`px-4 py-2 rounded-full ${
+            className={`px-4 py-2 rounded-full transition-colors ${
               role === "seller"
                 ? "bg-[#5551FF] text-white"
-                : "bg-gray-100 text-gray-700"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
             }`}
           >
             As Merchant
           </button>
         </div>
 
-        {/* Google Authentication Button */}
         <div className="mt-6 mb-4">
           <GoogleAuth
             buttonText={`Continue with Google as ${
@@ -114,9 +116,15 @@ const SignIn = () => {
           </div>
         </div>
 
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+            {error}
+          </div>
+        )}
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm">
-            <div className="mb-4">
+          <div className="space-y-4">
+            <div>
               <label
                 htmlFor="identifier"
                 className="block text-sm font-medium text-gray-700 mb-1"
@@ -137,7 +145,8 @@ const SignIn = () => {
                 placeholder="Email or Phone (+254...)"
               />
             </div>
-            <div className="mb-4">
+            
+            <div>
               <label
                 htmlFor="password"
                 className="block text-sm font-medium text-gray-700 mb-1"
@@ -155,67 +164,40 @@ const SignIn = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, password: e.target.value })
                   }
-                  className="appearance-none rounded block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#5551FF] focus:border-[#5551FF]"
+                  className="appearance-none rounded block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#5551FF] focus:border-[#5551FF] pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
-                  )}
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
             </div>
           </div>
 
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                className="h-4 w-4 text-[#5551FF] focus:ring-[#5551FF] border-gray-300 rounded"
-              />
-              <label
-                htmlFor="remember-me"
-                className="ml-2 block text-sm text-gray-900"
-              >
-                Remember me
-              </label>
-            </div>
-
-            <div className="text-sm">
-              <Link
-                to="/auth/forgot-password"
-                className="font-medium text-[#5551FF] hover:text-[#4440FF]"
-              >
-                Forgot your password?
-              </Link>
-            </div>
-          </div>
-
-          {error && (
-            <div className="text-red-500 text-sm text-center">{error}</div>
-          )}
-
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#5551FF] hover:bg-[#4440FF] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#5551FF]"
+            <Link
+              to="/auth/forgot-password"
+              className="text-sm text-[#5551FF] hover:text-[#4441DD]"
             >
-              {loading ? "Signing in..." : "Sign in"}
-            </button>
+              Forgot your password?
+            </Link>
           </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#5551FF] hover:bg-[#4441DD] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#5551FF] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? "Signing in..." : "Sign in"}
+          </button>
 
           <div className="text-sm text-center">
             <Link
               to="/auth/signup"
-              className="font-medium text-[#5551FF] hover:text-[#4440FF]"
+              className="text-[#5551FF] hover:text-[#4441DD]"
             >
               Don't have an account? Sign up
             </Link>

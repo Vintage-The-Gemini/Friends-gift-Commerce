@@ -1,34 +1,31 @@
 // backend/src/routes/auth.js
 const express = require("express");
-const router = express.Router();
 const {
   register,
   login,
   googleLogin,
+  getMe,
   verifyEmail,
+  updateProfile,
   resendVerificationEmail,
   forgotPassword,
   resetPassword,
-  getCurrentUser,
-  updateProfile,
-  changePassword,
-  logout,
 } = require("../controllers/auth");
 const { protect } = require("../middleware/auth");
 
-// Public routes (no authentication required)
+const router = express.Router();
+
+// Public routes
 router.post("/register", register);
 router.post("/login", login);
-router.post("/google-login", googleLogin);
+router.post("/google", googleLogin);  // ✅ Correct endpoint
 router.get("/verify-email/:token", verifyEmail);
 router.post("/resend-verification", resendVerificationEmail);
 router.post("/forgot-password", forgotPassword);
-router.post("/reset-password/:token", resetPassword);
-router.post("/logout", logout);
+router.post("/reset-password", resetPassword);
 
-// Protected routes (authentication required)
-router.get("/me", protect, getCurrentUser);
+// Protected routes
+router.get("/me", protect, getMe);
 router.put("/profile", protect, updateProfile);
-router.post("/change-password", protect, changePassword);
 
 module.exports = router;
