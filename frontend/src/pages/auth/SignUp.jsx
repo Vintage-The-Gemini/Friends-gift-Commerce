@@ -1,4 +1,4 @@
-// frontend/src/pages/auth/SignUp.jsx
+// frontend/src/pages/auth/SignUp.jsx - COMPLETE FILE WITH PHONE FORMAT SUPPORT
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
@@ -21,7 +21,54 @@ const SignUp = () => {
     password: "",
     confirmPassword: "",
     businessName: "",
+    agreeToTerms: false,
   });
+
+  // Helper function to format phone number display
+  const formatPhoneDisplay = (value) => {
+    // Remove all non-digit characters except +
+    const cleaned = value.replace(/[^\d+]/g, '');
+    
+    // If starts with +254, format as +254 XXX XXX XXX
+    if (cleaned.startsWith('+254') && cleaned.length <= 13) {
+      const number = cleaned.slice(4);
+      if (number.length <= 3) return `+254 ${number}`;
+      if (number.length <= 6) return `+254 ${number.slice(0, 3)} ${number.slice(3)}`;
+      return `+254 ${number.slice(0, 3)} ${number.slice(3, 6)} ${number.slice(6)}`;
+    }
+    
+    // If starts with 07, format as 07XX XXX XXX
+    if (cleaned.startsWith('07') && cleaned.length <= 10) {
+      if (cleaned.length <= 4) return cleaned;
+      if (cleaned.length <= 7) return `${cleaned.slice(0, 4)} ${cleaned.slice(4)}`;
+      return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7)}`;
+    }
+    
+    return value;
+  };
+
+  // Helper function to validate phone number
+  const validatePhoneNumber = (phone) => {
+    if (!phone) return true; // Phone is optional if email is provided
+    
+    // Remove spaces for validation
+    const cleaned = phone.replace(/\s/g, '');
+    
+    // Check if it's a valid phone number (+254XXXXXXXXX or 07XXXXXXXX)
+    return /^(\+254[0-9]{9}|07[0-9]{8})$/.test(cleaned);
+  };
+
+  // Helper function to validate email
+  const validateEmail = (email) => {
+    if (!email) return true; // Email is optional if phone is provided
+    return /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email);
+  };
+
+  const handlePhoneChange = (e) => {
+    const value = e.target.value;
+    const formatted = formatPhoneDisplay(value);
+    setFormData({ ...formData, phoneNumber: formatted });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,7 +77,7 @@ const SignUp = () => {
 
     // Validation
     if (!formData.name.trim()) {
-      setError("Name is required");
+      setError("Please provide your full name");
       setLoading(false);
       return;
     }
@@ -41,8 +88,26 @@ const SignUp = () => {
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters");
+    if (formData.email && !validateEmail(formData.email)) {
+      setError("Please provide a valid email address");
+      setLoading(false);
+      return;
+    }
+
+    if (formData.phoneNumber && !validatePhoneNumber(formData.phoneNumber)) {
+      setError("Please provide a valid phone number (+254XXXXXXXXX or 07XXXXXXXX)");
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.password) {
+      setError("Please provide a password");
+      setLoading(false);
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters long");
       setLoading(false);
       return;
     }
@@ -54,28 +119,41 @@ const SignUp = () => {
     }
 
     if (role === "seller" && !formData.businessName.trim()) {
-      setError("Business name is required for sellers");
+      setError("Please provide your business name");
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.agreeToTerms) {
+      setError("Please agree to the Terms of Service and Privacy Policy");
       setLoading(false);
       return;
     }
 
     try {
+      // Clean phone number for submission (remove spaces)
+      const cleanPhoneNumber = formData.phoneNumber 
+        ? formData.phoneNumber.replace(/\s/g, '') 
+        : null;
+
       const userData = {
         name: formData.name.trim(),
         password: formData.password,
         role,
       };
 
-      // Add email or phone
+      // Add email if provided
       if (formData.email) {
-        userData.email = formData.email.trim();
+        userData.email = formData.email.toLowerCase().trim();
       }
-      if (formData.phoneNumber) {
-        userData.phoneNumber = formData.phoneNumber.trim();
+
+      // Add phone number if provided
+      if (cleanPhoneNumber) {
+        userData.phoneNumber = cleanPhoneNumber;
       }
 
       // Add business name for sellers
-      if (role === "seller") {
+      if (role === "seller" && formData.businessName) {
         userData.businessName = formData.businessName.trim();
       }
 
@@ -105,8 +183,12 @@ const SignUp = () => {
           <h2 className="text-2xl font-bold text-gray-900">
             Create your account
           </h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Join us and start your gifting journey
+          </p>
         </div>
 
+        {/* Role Selection */}
         <div className="flex justify-center gap-4">
           <button
             type="button"
@@ -132,11 +214,10 @@ const SignUp = () => {
           </button>
         </div>
 
+        {/* Google Auth Component */}
         <div className="mt-4">
           <GoogleAuth
-            buttonText={`Sign up with Google as ${
-              role === "buyer" ? "Buyer" : "Seller"
-            }`}
+            buttonText={`Sign up with Google as ${role === "buyer" ? "Buyer" : "Seller"}`}
             role={role}
           />
         </div>
@@ -152,13 +233,16 @@ const SignUp = () => {
           </div>
         </div>
 
+        {/* Error Display */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
             {error}
           </div>
         )}
 
+        {/* Registration Form */}
         <form className="space-y-4" onSubmit={handleSubmit}>
+          {/* Full Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Full Name *
@@ -171,43 +255,11 @@ const SignUp = () => {
                 setFormData({ ...formData, name: e.target.value })
               }
               className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-[#5551FF] focus:border-[#5551FF]"
-              placeholder="Your full name"
+              placeholder="Enter your full name"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email (Optional)
-            </label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-[#5551FF] focus:border-[#5551FF]"
-              placeholder="your@email.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone Number (Optional)
-            </label>
-            <input
-              type="tel"
-              value={formData.phoneNumber}
-              onChange={(e) =>
-                setFormData({ ...formData, phoneNumber: e.target.value })
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-[#5551FF] focus:border-[#5551FF]"
-              placeholder="+254712345678"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Note: Either email or phone number is required
-            </p>
-          </div>
-
+          {/* Business Name (for sellers) */}
           {role === "seller" && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -221,11 +273,51 @@ const SignUp = () => {
                   setFormData({ ...formData, businessName: e.target.value })
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-[#5551FF] focus:border-[#5551FF]"
-                placeholder="Your business name"
+                placeholder="Enter your business name"
               />
             </div>
           )}
 
+          {/* Email */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email Address {!formData.phoneNumber && "*"}
+            </label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-[#5551FF] focus:border-[#5551FF]"
+              placeholder="Enter your email address"
+            />
+            {!formData.phoneNumber && (
+              <p className="mt-1 text-xs text-gray-500">
+                Email is required if phone number is not provided
+              </p>
+            )}
+          </div>
+
+          {/* Phone Number */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Phone Number {!formData.email && "*"}
+            </label>
+            <input
+              type="tel"
+              value={formData.phoneNumber}
+              onChange={handlePhoneChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-[#5551FF] focus:border-[#5551FF]"
+              placeholder="+254... or 07..."
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Use format: +254XXXXXXXXX or 07XXXXXXXX
+              {!formData.email && " (Required if email not provided)"}
+            </p>
+          </div>
+
+          {/* Password */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Password *
@@ -238,25 +330,27 @@ const SignUp = () => {
                 onChange={(e) =>
                   setFormData({ ...formData, password: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-[#5551FF] focus:border-[#5551FF] pr-10"
-                placeholder="Password (min 6 characters)"
-                minLength={6}
+                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded focus:outline-none focus:ring-[#5551FF] focus:border-[#5551FF]"
+                placeholder="Enter your password"
               />
               <button
                 type="button"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
               >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4 text-gray-400" />
+                ) : (
+                  <Eye className="h-4 w-4 text-gray-400" />
+                )}
               </button>
             </div>
-            <div className="mt-1">
-              <div className={`text-xs ${formData.password.length >= 6 ? 'text-green-600' : 'text-gray-500'}`}>
-                • At least 6 characters
-              </div>
-            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Must be at least 8 characters long
+            </p>
           </div>
 
+          {/* Confirm Password */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Confirm Password *
@@ -269,42 +363,62 @@ const SignUp = () => {
                 onChange={(e) =>
                   setFormData({ ...formData, confirmPassword: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-[#5551FF] focus:border-[#5551FF] pr-10"
+                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded focus:outline-none focus:ring-[#5551FF] focus:border-[#5551FF]"
                 placeholder="Confirm your password"
               />
               <button
                 type="button"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
               >
-                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                {showConfirmPassword ? (
+                  <EyeOff className="h-4 w-4 text-gray-400" />
+                ) : (
+                  <Eye className="h-4 w-4 text-gray-400" />
+                )}
               </button>
             </div>
-            {formData.confirmPassword && (
-              <div className={`text-xs mt-1 ${
-                formData.password === formData.confirmPassword ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {formData.password === formData.confirmPassword ? '✓ Passwords match' : '✗ Passwords do not match'}
-              </div>
-            )}
           </div>
 
-          <div className="text-xs text-gray-600 bg-gray-50 p-3 rounded">
-            <p className="mb-2">By creating an account, you agree to our:</p>
-            <div className="space-y-1">
-              <p>• <Link to="/terms" className="text-[#5551FF] hover:underline">Terms of Service</Link></p>
-              <p>• <Link to="/privacy" className="text-[#5551FF] hover:underline">Privacy Policy</Link></p>
-              <p>• <Link to="/cookies" className="text-[#5551FF] hover:underline">Cookie Policy</Link></p>
-            </div>
+          {/* Terms Agreement */}
+          <div className="flex items-start">
+            <input
+              id="agree-terms"
+              type="checkbox"
+              checked={formData.agreeToTerms}
+              onChange={(e) =>
+                setFormData({ ...formData, agreeToTerms: e.target.checked })
+              }
+              className="h-4 w-4 text-[#5551FF] focus:ring-[#5551FF] border-gray-300 rounded mt-1"
+            />
+            <label htmlFor="agree-terms" className="ml-2 block text-sm text-gray-700">
+              I agree to the{" "}
+              <Link
+                to="/terms-of-service"
+                className="text-[#5551FF] hover:text-[#4440DD] underline"
+                target="_blank"
+              >
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link
+                to="/privacy-policy"
+                className="text-[#5551FF] hover:text-[#4440DD] underline"
+                target="_blank"
+              >
+                Privacy Policy
+              </Link>
+            </label>
           </div>
 
+          {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading || !formData.name || (!formData.email && !formData.phoneNumber) || formData.password.length < 6 || formData.password !== formData.confirmPassword}
-            className="w-full py-3 px-4 bg-[#5551FF] hover:bg-[#4441DD] text-white font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#5551FF] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            disabled={loading}
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#5551FF] hover:bg-[#4440DD] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#5551FF] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
-              <div className="flex items-center justify-center">
+              <div className="flex items-center">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                 Creating account...
               </div>
@@ -312,27 +426,19 @@ const SignUp = () => {
               `Create ${role === "buyer" ? "Buyer" : "Seller"} Account`
             )}
           </button>
-
-          <div className="text-sm text-center space-y-2">
-            <p className="text-gray-600">
-              Already have an account?{" "}
-              <Link
-                to="/auth/signin"
-                className="text-[#5551FF] hover:text-[#4441DD] font-medium"
-              >
-                Sign in
-              </Link>
-            </p>
-            
-            <div className="flex items-center justify-center space-x-4 text-xs text-gray-500">
-              <Link to="/help" className="hover:text-[#5551FF]">Help</Link>
-              <span>•</span>
-              <Link to="/support" className="hover:text-[#5551FF]">Support</Link>
-              <span>•</span>
-              <Link to="/contact" className="hover:text-[#5551FF]">Contact</Link>
-            </div>
-          </div>
         </form>
+
+        <div className="text-center">
+          <p className="text-sm text-gray-600">
+            Already have an account?{" "}
+            <Link
+              to="/auth/signin"
+              className="font-medium text-[#5551FF] hover:text-[#4440DD]"
+            >
+              Sign in
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

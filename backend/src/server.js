@@ -1,132 +1,134 @@
-// src/server.js
+// backend/src/server.js - COMPLETE FILE
 const express = require("express");
-const cors = require("cors");
 const dotenv = require("dotenv");
-const connectDB = require("./src/config/db");
-const cookieParser = require("cookie-parser");
+const cors = require("cors");
 const morgan = require("morgan");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const mongoSanitize = require("express-mongo-sanitize");
+const xss = require("xss-clean");
+const hpp = require("hpp");
 const path = require("path");
-const errorHandler = require("./src/middleware/errorHandler");
 
-// Load env vars
+// Load environment variables
 dotenv.config();
 
+// Import database connection
+const connectDB = require("./config/database");
+
+// Import error handler
+const errorHandler = require("./middleware/errorHandler");
+
 // Connect to database
-//The db has two endpoints for the real and test environments
 connectDB();
 
 const app = express();
 
-// Middleware
-// Logger middleware for production
-if (process.env.NODE_ENV === "production") {
-  app.use(morgan("dev"));
-}
+// Trust proxy (important for rate limiting behind reverse proxy)
+app.set("trust proxy", 1);
+
+// Security middleware
+app.use(helmet({
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:"],
+      scriptSrc: ["'self'", "https://accounts.google.com", "https://apis.google.com"],
+      connectSrc: ["'self'", "https://accounts.google.com"],
+      frameSrc: ["https://accounts.google.com"],
+    },
+  },
+}));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: {
+    success: false,
+    message: "Too many requests from this IP, please try again later.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply rate limiting to all requests
+app.use(limiter);
+
+// Stricter rate limiting for auth routes
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // limit each IP to 20 auth requests per windowMs
+  message: {
+    success: false,
+    message: "Too many authentication attempts, please try again later.",
+  },
+});
+
+// Body parsing middleware
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// Data sanitization against NoSQL query injection
+app.use(mongoSanitize());
+
+// Data sanitization against XSS
+app.use(xss());
+
+// Prevent http param pollution
+app.use(hpp());
 
 // CORS configuration
-app.use(
-  cors({
-    origin: [
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      process.env.CLIENT_URL,
+      "http://localhost:3000",
       "http://localhost:5173",
-      "https://friendsgift.co.ke",
-      "https://friends-gifts-commerce-67e63--testing-wu87kkga.web.app",
-    ],
-    origin: true,
-    credentials: true,
-  })
-);
+      "https://localhost:3000",
+      "https://localhost:5173",
+    ].filter(Boolean);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log("Blocked by CORS:", origin);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+};
 
-// Body parser
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(cors(corsOptions));
 
-// Cookie parser
-app.use(cookieParser());
-
-// Static folder for uploads
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
-
-// Import routes
-const authRoutes = require("./src/routes/auth");
-const adminRoutes = require("./src/routes/admin.routes");
-const sellerRoutes = require("./src/routes/seller.routes");
-const categoryRoutes = require("./src/routes/category.routes");
-const productRoutes = require("./src/routes/product.routes");
-const eventRoutes = require("./src/routes/event.routes");
-const orderRoutes = require("./src/routes/order.routes");
-const contributionRoutes = require("./src/routes/contribution.routes");
-const analyticsRoutes = require("./src/routes/analytics.routes");
-const buyerRoutes = require("./src/routes/buyer");
-const initializeAdmin = require("./src/utils/initAdmin");
-const User = require("./src/models/user");
-const approvalRoutes = require("./src/routes/approval.routes");
-const wishlistRoutes = require("./src/routes/wishlist.routes");
-const notificationRoutes = require("./src/routes/notification.routes");
-
-// Mount routes
-app.use("/api/auth", authRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/seller", sellerRoutes);
-app.use("/api/categories", categoryRoutes);
-app.use("/api/products", productRoutes);
-app.use("/api/events", eventRoutes);
-app.use("/api/orders", orderRoutes);
-app.use("/api/contributions", contributionRoutes);
-app.use("/api/seller/analytics", analyticsRoutes);
-app.use("/api/buyer", buyerRoutes);
-app.use("/api/admin/approvals", approvalRoutes);
-app.use("/api/wishlist", wishlistRoutes);
-app.use("/api/notifications", notificationRoutes);
-
-initializeAdmin();
-
-setTimeout(async () => {
-  try {
-    const adminUser = await User.findOne({ role: "admin" });
-    console.log(
-      "Admin user check:",
-      adminUser
-        ? {
-            exists: true,
-            id: adminUser._id,
-            phone: adminUser.phoneNumber,
-            active: adminUser.isActive,
-          }
-        : "No admin user found"
-    );
-  } catch (err) {
-    console.error("Admin check error:", err);
-  }
-}, 2000);
-
-// Set up M-PESA test utilities in development mode
-if (process.env.NODE_ENV !== "production") {
-  try {
-    const mpesaTestUtils = require("./src/utils/mpesaTestUtils");
-    mpesaTestUtils.setupTestEndpoint(app);
-    console.log("M-PESA test utilities enabled at /api/test/mpesa-callback");
-  } catch (error) {
-    console.warn("Failed to set up M-PESA test utilities:", error.message);
-  }
+// Logging middleware
+if (process.env.NODE_ENV === "development") {
+  app.use(morgan("dev"));
+} else {
+  app.use(morgan("combined"));
 }
 
-// Basic route
-app.get("/api", (req, res) => {
-  res.json({
-    message: "Welcome to Friends Gift API",
-    version: "1.0.0",
-    status: "Running",
-    features: {
-      authentication: "✓ Active",
-      events: "✓ Active", 
-      products: "✓ Active",
-      wishlist: "✓ Active",
-      notifications: "✓ Active",
-      payments: "✓ Active (M-PESA)",
-      admin: "✓ Active",
-    }
-  });
-});
+// Static files
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+
+// Routes
+app.use("/api/auth", authLimiter, require("./routes/auth"));
+app.use("/api/users", require("./routes/users"));
+app.use("/api/products", require("./routes/products"));
+app.use("/api/events", require("./routes/events"));
+app.use("/api/orders", require("./routes/orders"));
+app.use("/api/payments", require("./routes/payments"));
+app.use("/api/wishlist", require("./routes/wishlist"));
+app.use("/api/notifications", require("./routes/notifications"));
+app.use("/api/admin", require("./routes/admin"));
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
@@ -142,7 +144,7 @@ app.get("/api/health", (req, res) => {
       products: "✓",
       wishlist: "✓",
       notifications: "✓",
-      mpesa: process.env.ENABLE_REAL_MPESA === 'true' ? "✓ Live" : "✓ Simulation"
+      payments: process.env.ENABLE_REAL_MPESA === 'true' ? "✓ Live" : "✓ Simulation"
     }
   });
 });
@@ -158,10 +160,11 @@ app.get("/api/docs", (req, res) => {
         routes: [
           "POST /register - Register new user",
           "POST /login - User login", 
-          "POST /google-login - Google OAuth login",
+          "POST /google - Google OAuth login",
           "GET /verify-email/:token - Verify email",
           "POST /forgot-password - Request password reset",
-          "PUT /reset-password/:token - Reset password"
+          "PUT /reset-password/:token - Reset password",
+          "GET /me - Get current user (auth required)"
         ]
       },
       events: {
@@ -184,128 +187,72 @@ app.get("/api/docs", (req, res) => {
           "PUT /:id - Update product (seller auth required)",
           "DELETE /:id - Delete product (seller auth required)"
         ]
-      },
-      wishlist: {
-        base: "/api/wishlist",
-        routes: [
-          "GET / - Get user's wishlist (auth required)",
-          "POST / - Add to wishlist (auth required)",
-          "DELETE /:productId - Remove from wishlist (auth required)",
-          "PUT /:productId - Update wishlist item (auth required)",
-          "GET /check/:productId - Check wishlist status (auth required)",
-          "DELETE / - Clear entire wishlist (auth required)"
-        ]
-      },
-      notifications: {
-        base: "/api/notifications",
-        routes: [
-          "GET / - Get user notifications (auth required)",
-          "GET /unread-count - Get unread count (auth required)",
-          "PUT /read - Mark as read (auth required)",
-          "PUT /mark-all-read - Mark all as read (auth required)",
-          "DELETE / - Delete notification (auth required)"
-        ]
-      },
-      contributions: {
-        base: "/api/contributions",
-        routes: [
-          "POST / - Create contribution (auth required)",
-          "GET /user - Get user contributions (auth required)",
-          "GET /event/:eventId - Get event contributions",
-          "POST /mpesa-callback - M-PESA payment callback"
-        ]
-      },
-      admin: {
-        base: "/api/admin",
-        routes: [
-          "POST /login - Admin login",
-          "GET /dashboard/stats - Dashboard statistics (admin auth)",
-          "GET /users - Manage users (admin auth)",
-          "GET /products - Manage products (admin auth)",
-          "GET /events - Manage events (admin auth)",
-          "GET /orders - Manage orders (admin auth)"
-        ]
       }
     }
   });
 });
 
-// 404 handler - must come BEFORE error handler
-app.use((req, res, next) => {
-  const error = new Error(`Route not found: ${req.originalUrl}`);
-  error.statusCode = 404;
-  next(error); // Pass to error handler
+// Basic route
+app.get("/api", (req, res) => {
+  res.json({
+    message: "Welcome to Friends Gift API",
+    version: "1.0.0",
+    status: "Running",
+    features: {
+      authentication: "✓ Active",
+      events: "✓ Active", 
+      products: "✓ Active",
+      wishlist: "✓ Active",
+      notifications: "✓ Active",
+      payments: "✓ Active",
+      admin: "✓ Active",
+    }
+  });
 });
 
-// Global error handling middleware
+// Handle undefined routes
+app.all("*", (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.originalUrl} not found`,
+  });
+});
+
+// Error handling middleware (should be last)
 app.use(errorHandler);
 
-// Set up server
+// Global error handlers
+process.on("unhandledRejection", (err, promise) => {
+  console.log(`Error: ${err.message}`);
+  // Close server & exit process
+  process.exit(1);
+});
+
+process.on("uncaughtException", (err) => {
+  console.log(`Error: ${err.message}`);
+  process.exit(1);
+});
+
+// Start server
 const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
   console.log(`
-🚀 Friends Gift API Server Started Successfully!
-📍 Server running in ${process.env.NODE_ENV} mode on port ${PORT}
-🌐 API Base URL: http://localhost:${PORT}/api
-📚 API Documentation: http://localhost:${PORT}/api/docs
-💚 Health Check: http://localhost:${PORT}/api/health
-
-🔧 Active Features:
-   ✅ Authentication & Authorization
-   ✅ User Management (Buyers & Sellers)
-   ✅ Event Creation & Management
-   ✅ Product Catalog & Search
-   ✅ Wishlist Functionality
-   ✅ Real-time Notifications
-   ✅ M-PESA Payment Integration
-   ✅ Admin Dashboard
-   ✅ File Upload & Image Management
-   ✅ Email Verification System
-
-🔗 Database: ${process.env.MONGO_URI ? 'Connected' : 'Not Connected'}
-💳 Payments: ${process.env.ENABLE_REAL_MPESA === 'true' ? 'Live M-PESA' : 'Simulation Mode'}
+🚀 Server running in ${process.env.NODE_ENV} mode on port ${PORT}
+📱 API: http://localhost:${PORT}/api
+📚 Docs: http://localhost:${PORT}/api/docs
+💚 Health: http://localhost:${PORT}/api/health
   `);
 });
 
-// Handle unhandled promise rejections
-process.on("unhandledRejection", (err, promise) => {
-  console.error(`Unhandled Rejection Error: ${err.message}`);
-  console.error("Stack trace:", err.stack);
-  // Close server & exit process gracefully
-  server.close(() => {
-    console.log("Server closed due to unhandled rejection");
+// Handle server errors
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(`Port ${PORT} is already in use`);
     process.exit(1);
-  });
-});
-
-// Handle uncaught exceptions
-process.on("uncaughtException", (err) => {
-  console.error(`Uncaught Exception Error: ${err.message}`);
-  console.error("Stack trace:", err.stack);
-  // Close server & exit process immediately
-  server.close(() => {
-    console.log("Server closed due to uncaught exception");
-    process.exit(1);
-  });
-});
-
-// Graceful shutdown on SIGTERM
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server gracefully');
-  server.close(() => {
-    console.log('HTTP server closed');
-    process.exit(0);
-  });
-});
-
-// Graceful shutdown on SIGINT (Ctrl+C)
-process.on('SIGINT', () => {
-  console.log('SIGINT signal received: closing HTTP server gracefully');
-  server.close(() => {
-    console.log('HTTP server closed');
-    process.exit(0);
-  });
+  } else {
+    console.error("Server error:", err);
+  }
 });
 
 module.exports = app;

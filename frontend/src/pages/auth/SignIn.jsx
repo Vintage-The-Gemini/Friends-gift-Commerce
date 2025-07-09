@@ -1,4 +1,4 @@
-// frontend/src/pages/auth/SignIn.jsx
+// frontend/src/pages/auth/SignIn.jsx - COMPLETE FILE WITH PHONE FORMAT SUPPORT
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
@@ -18,6 +18,55 @@ const SignIn = () => {
     password: "",
   });
 
+  // Helper function to normalize phone number display
+  const formatPhoneDisplay = (value) => {
+    // Remove all non-digit characters except +
+    const cleaned = value.replace(/[^\d+]/g, '');
+    
+    // If starts with +254, format as +254 XXX XXX XXX
+    if (cleaned.startsWith('+254') && cleaned.length <= 13) {
+      const number = cleaned.slice(4);
+      if (number.length <= 3) return `+254 ${number}`;
+      if (number.length <= 6) return `+254 ${number.slice(0, 3)} ${number.slice(3)}`;
+      return `+254 ${number.slice(0, 3)} ${number.slice(3, 6)} ${number.slice(6)}`;
+    }
+    
+    // If starts with 07, format as 07XX XXX XXX
+    if (cleaned.startsWith('07') && cleaned.length <= 10) {
+      if (cleaned.length <= 4) return cleaned;
+      if (cleaned.length <= 7) return `${cleaned.slice(0, 4)} ${cleaned.slice(4)}`;
+      return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7)}`;
+    }
+    
+    return value; // Return as-is for email or other formats
+  };
+
+  // Helper function to validate identifier
+  const validateIdentifier = (identifier) => {
+    // Check if it's an email
+    if (identifier.includes('@')) {
+      return /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(identifier);
+    }
+    
+    // Remove spaces for phone validation
+    const cleaned = identifier.replace(/\s/g, '');
+    
+    // Check if it's a valid phone number (+254XXXXXXXXX or 07XXXXXXXX)
+    return /^(\+254[0-9]{9}|07[0-9]{8})$/.test(cleaned);
+  };
+
+  const handleIdentifierChange = (e) => {
+    const value = e.target.value;
+    
+    // If it looks like a phone number, format it
+    if (!value.includes('@')) {
+      const formatted = formatPhoneDisplay(value);
+      setFormData({ ...formData, identifier: formatted });
+    } else {
+      setFormData({ ...formData, identifier: value });
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -35,19 +84,26 @@ const SignIn = () => {
       return;
     }
 
+    // Validate identifier format
+    if (!validateIdentifier(formData.identifier)) {
+      setError("Please enter a valid email or phone number (+254XXXXXXXXX or 07XXXXXXXX)");
+      setLoading(false);
+      return;
+    }
+
     try {
       const isEmail = formData.identifier.includes("@");
+      
+      // Clean phone number for submission (remove spaces)
+      const cleanIdentifier = isEmail 
+        ? formData.identifier 
+        : formData.identifier.replace(/\s/g, '');
 
       const credentials = {
+        identifier: cleanIdentifier,
         password: formData.password,
         role,
       };
-
-      if (isEmail) {
-        credentials.email = formData.identifier;
-      } else {
-        credentials.phoneNumber = formData.identifier;
-      }
 
       await login(credentials);
     } catch (err) {
@@ -69,8 +125,12 @@ const SignIn = () => {
           <h2 className="text-3xl font-extrabold text-gray-900">
             Sign in to your account
           </h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Welcome back! Please sign in to continue
+          </p>
         </div>
 
+        {/* Role Selection */}
         <div className="flex justify-center space-x-4 mb-4">
           <button
             type="button"
@@ -96,12 +156,11 @@ const SignIn = () => {
           </button>
         </div>
 
+        {/* Google Auth Component */}
         <div className="mt-6 mb-4">
-          <GoogleAuth
-            buttonText={`Continue with Google as ${
-              role === "buyer" ? "Buyer" : "Seller"
-            }`}
-            role={role}
+          <GoogleAuth 
+            buttonText={`Continue with Google as ${role === "buyer" ? "Buyer" : "Seller"}`}
+            role={role} 
           />
         </div>
 
@@ -116,12 +175,14 @@ const SignIn = () => {
           </div>
         </div>
 
+        {/* Error Display */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
             {error}
           </div>
         )}
 
+        {/* Login Form */}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
@@ -138,12 +199,13 @@ const SignIn = () => {
                 autoComplete="email tel"
                 required
                 value={formData.identifier}
-                onChange={(e) =>
-                  setFormData({ ...formData, identifier: e.target.value })
-                }
+                onChange={handleIdentifierChange}
                 className="appearance-none rounded block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#5551FF] focus:border-[#5551FF]"
-                placeholder="Email or Phone (+254...)"
+                placeholder="Email or Phone (+254... or 07...)"
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Use your email or phone number (+254XXXXXXXXX or 07XXXXXXXX)
+              </p>
             </div>
             
             <div>
@@ -164,45 +226,76 @@ const SignIn = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, password: e.target.value })
                   }
-                  className="appearance-none rounded block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#5551FF] focus:border-[#5551FF] pr-10"
+                  className="appearance-none rounded block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-[#5551FF] focus:border-[#5551FF]"
+                  placeholder="Password"
                 />
                 <button
                   type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                 >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-400" />
+                  )}
                 </button>
               </div>
             </div>
           </div>
 
           <div className="flex items-center justify-between">
-            <Link
-              to="/auth/forgot-password"
-              className="text-sm text-[#5551FF] hover:text-[#4441DD]"
-            >
-              Forgot your password?
-            </Link>
+            <div className="flex items-center">
+              <input
+                id="remember-me"
+                name="remember-me"
+                type="checkbox"
+                className="h-4 w-4 text-[#5551FF] focus:ring-[#5551FF] border-gray-300 rounded"
+              />
+              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                Remember me
+              </label>
+            </div>
+
+            <div className="text-sm">
+              <Link
+                to="/auth/forgot-password"
+                className="font-medium text-[#5551FF] hover:text-[#4440DD]"
+              >
+                Forgot your password?
+              </Link>
+            </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#5551FF] hover:bg-[#4441DD] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#5551FF] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-
-          <div className="text-sm text-center">
-            <Link
-              to="/auth/signup"
-              className="text-[#5551FF] hover:text-[#4441DD]"
+          <div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#5551FF] hover:bg-[#4440DD] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#5551FF] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Don't have an account? Sign up
-            </Link>
+              {loading ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Signing in...
+                </div>
+              ) : (
+                "Sign in"
+              )}
+            </button>
           </div>
         </form>
+
+        <div className="text-center">
+          <p className="text-sm text-gray-600">
+            Don't have an account?{" "}
+            <Link
+              to="/auth/signup"
+              className="font-medium text-[#5551FF] hover:text-[#4440DD]"
+            >
+              Sign up
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );
