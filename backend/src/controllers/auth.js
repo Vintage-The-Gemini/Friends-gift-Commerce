@@ -234,9 +234,9 @@ exports.googleLogin = async (req, res) => {
     let user = await User.findOne({ email });
 
     if (!user) {
-      // Create new user with Google data
+      // Create new user with Google data - DON'T SET phoneNumber to avoid unique constraint
       try {
-        user = await User.create({
+        const userData = {
           name,
           email,
           password: crypto.randomBytes(16).toString("hex"), // Random password
@@ -245,7 +245,15 @@ exports.googleLogin = async (req, res) => {
           isEmailVerified: email_verified,
           profilePicture: picture,
           isActive: true,
-        });
+        };
+
+        // Only add businessName if role is seller
+        if (role === "seller") {
+          userData.businessName = name; // Use Google name as default business name
+        }
+
+        // DO NOT set phoneNumber - let it be undefined/null without conflict
+        user = await User.create(userData);
         
         console.log("[Backend] New user created:", user._id);
       } catch (createError) {
@@ -281,6 +289,7 @@ exports.googleLogin = async (req, res) => {
         profilePicture: user.profilePicture,
         isEmailVerified: user.isEmailVerified,
         businessName: user.businessName,
+        phoneNumber: user.phoneNumber, // This will be null for Google users
       },
     });
   } catch (error) {
