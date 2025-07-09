@@ -1,162 +1,84 @@
-// frontend/src/components/auth/GoogleAuth.jsx - COMPLETE FILE
+// frontend/src/components/auth/GoogleAuth.jsx - SIMPLE WORKING VERSION
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { toast } from "react-toastify";
 
-const GoogleAuth = ({ buttonText = "Sign in with Google", role = "buyer" }) => {
+const GoogleAuth = ({ role = "buyer" }) => {
   const { loginWithGoogle } = useAuth();
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [buttonRendered, setButtonRendered] = useState(false);
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   useEffect(() => {
-    // Validate client ID
     if (!clientId) {
-      setError("Google Client ID not configured");
-      setIsLoading(false);
+      console.error("No Google Client ID found");
       return;
     }
 
-    if (!clientId.endsWith('.apps.googleusercontent.com')) {
-      setError("Invalid Google Client ID format");
-      setIsLoading(false);
-      return;
-    }
+    // Simple script loading without complex logic
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    
+    script.onload = () => {
+      // Wait a bit for Google to be ready, then initialize
+      setTimeout(() => {
+        if (window.google?.accounts?.id) {
+          try {
+            window.google.accounts.id.initialize({
+              client_id: clientId,
+              callback: async (response) => {
+                try {
+                  await loginWithGoogle(response.credential, role);
+                  toast.success("Google sign-in successful");
+                } catch (error) {
+                  console.error("Login failed:", error);
+                  toast.error("Google sign-in failed");
+                }
+              }
+            });
 
-    console.log("[GoogleAuth] Initializing with Client ID:", clientId?.substring(0, 20) + "...");
-
-    // Global callback function
-    window.handleGoogleSignIn = async (response) => {
-      console.log("[GoogleAuth] Google response received");
-      
-      try {
-        if (!response?.credential) {
-          throw new Error("No credential received from Google");
+            // Render button directly
+            const container = document.getElementById("google-signin-div");
+            if (container) {
+              window.google.accounts.id.renderButton(container, {
+                type: "standard",
+                theme: "outline",
+                size: "large",
+                text: "signin_with",
+                width: 250
+              });
+              setButtonRendered(true);
+            }
+          } catch (error) {
+            console.error("Google initialization failed:", error);
+          }
         }
-        
-        console.log("[GoogleAuth] Sending credential to backend");
-        await loginWithGoogle(response.credential, role);
-        console.log("[GoogleAuth] Login successful");
-        
-        toast.success("Google sign-in successful");
-      } catch (error) {
-        console.error("[GoogleAuth] Login error:", error);
-        toast.error(`Google sign-in failed: ${error.message}`);
-      }
+      }, 500); // Give Google time to load
     };
 
-    const loadGoogleScript = () => {
-      // Check if script already exists
-      if (document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) {
-        initializeGoogle();
-        return;
-      }
-
-      const script = document.createElement("script");
-      script.src = "https://accounts.google.com/gsi/client";
-      script.async = true;
-      script.defer = true;
-      
-      script.onload = () => {
-        console.log("[GoogleAuth] Google API script loaded");
-        initializeGoogle();
-      };
-      
-      script.onerror = () => {
-        console.error("[GoogleAuth] Failed to load Google API script");
-        setError("Failed to load Google Sign-In API");
-        setIsLoading(false);
-      };
-      
-      document.head.appendChild(script);
+    script.onerror = () => {
+      console.error("Failed to load Google script");
     };
 
-    const initializeGoogle = () => {
-      // Wait for both Google API and DOM
-      if (!window.google?.accounts?.id) {
-        setTimeout(initializeGoogle, 100);
-        return;
-      }
-
-      const container = document.getElementById('google-signin-button');
-      if (!container) {
-        setTimeout(initializeGoogle, 100);
-        return;
-      }
-
-      try {
-        console.log("[GoogleAuth] Initializing Google Sign-In");
-        
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: window.handleGoogleSignIn,
-        });
-
-        console.log("[GoogleAuth] Rendering button");
-        container.innerHTML = ''; // Clear existing content
-        
-        window.google.accounts.id.renderButton(container, {
-          type: "standard",
-          theme: "outline",
-          size: "large",
-          text: "signin_with",
-          width: 250,
-        });
-        
-        setIsLoading(false);
-        console.log("[GoogleAuth] Button rendered successfully");
-        
-      } catch (error) {
-        console.error("[GoogleAuth] Google initialization error:", error);
-        setError("Failed to initialize Google Sign-In");
-        setIsLoading(false);
-      }
-    };
-
-    loadGoogleScript();
+    document.head.appendChild(script);
 
     // Cleanup
     return () => {
-      if (window.handleGoogleSignIn) {
-        delete window.handleGoogleSignIn;
-      }
+      script.remove();
     };
   }, [clientId, loginWithGoogle, role]);
 
-  if (error) {
-    return (
-      <div className="flex justify-center my-4">
-        <div className="text-red-600 text-sm bg-red-50 p-3 rounded border border-red-200">
-          Google Sign-In Error: {error}
-        </div>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center my-4">
-        <div className="text-gray-600 text-sm bg-gray-50 p-3 rounded border">
-          <div className="flex items-center">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
-            Loading Google Sign-In...
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  // Show nothing while loading, show button when ready
   return (
     <div className="flex justify-center my-4">
+      {!buttonRendered && (
+        <div className="w-64 h-11 bg-gray-100 rounded flex items-center justify-center">
+          <span className="text-sm text-gray-600">Loading Google Sign-In...</span>
+        </div>
+      )}
       <div 
-        id="google-signin-button"
-        style={{ 
-          minHeight: '44px', 
-          minWidth: '250px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
+        id="google-signin-div" 
+        style={{ display: buttonRendered ? 'block' : 'none' }}
       />
     </div>
   );
